@@ -1,0 +1,12 @@
+{
+  "frame": {
+    "version": "1",
+    "name": "v0-LO",
+    "iconUrl": "/logo.png",
+    "homeUrl": "/",
+    "imageUrl": "/og-image.png",
+    "buttonTitle": "Launch App",
+    "splashImageUrl": "/logo.png",
+    "splashBackgroundColor": "#000000"
+  }
+} 
