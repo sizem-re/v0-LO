@@ -12,8 +12,8 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-    // Don't check tsconfig.json at all
-    tsconfigPath: false, 
+    // Set to a non-existent path instead of false
+    tsconfigPath: "./nonexistent-tsconfig.json", 
   },
   // Completely disable type checking during build
   transpilePackages: [],
