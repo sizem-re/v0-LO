@@ -75,35 +75,9 @@ cat > tsconfig.json << 'EOF'
 }
 EOF
 
-# Modify Next.js configuration to bypass TypeScript
-echo "Creating temporary next.config.js to completely bypass TypeScript..."
-mv next.config.mjs next.config.mjs.bak
-cat > next.config.js << 'EOF'
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  images: {
-    domains: ['i.imgur.com', 'cdn.warpcast.com', 'res.cloudinary.com'],
-    unoptimized: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  swcMinify: true,
-  experimental: {
-    forceSwcTransforms: true,
-  },
-}
-
-module.exports = nextConfig
-EOF
+# Try a simpler approach - use the existing next.config.mjs but add environment variables
+echo "Using existing next.config.mjs with environment variables..."
 
 # Run Next.js build with type checking disabled and force swc transform
 echo "Running Next.js build with type checking disabled..."
-NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max-old-space-size=4096' SKIP_TYPESCRIPT_CHECK=1 npx next build --no-lint
-
-# Restore original next.config.mjs
-mv next.config.mjs.bak next.config.mjs 
+NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max-old-space-size=4096' SKIP_TYPESCRIPT_CHECK=1 NEXT_IGNORE_TS_CONFIG_PATHS=1 NEXT_DISABLE_TS=1 npx next build --no-lint 
