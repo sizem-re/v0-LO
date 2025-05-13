@@ -5,6 +5,23 @@ echo "Current directory: $(pwd)"
 echo "Listing files in current directory:"
 ls -la
 
+# Check if we have a package-lock.json but not a pnpm-lock.yaml
+if [ -f "package-lock.json" ] && [ ! -f "pnpm-lock.yaml" ]; then
+  echo "Detected npm package manager based on package-lock.json"
+  # Create or update .npmrc
+  echo "Creating .npmrc file to ensure npm is used correctly..."
+  cat > .npmrc << EOF
+legacy-peer-deps=true
+engine-strict=true
+EOF
+else
+  echo "Warning: Unexpected package manager state. Using npm anyway."
+  cat > .npmrc << EOF
+legacy-peer-deps=true
+engine-strict=true
+EOF
+fi
+
 # Install TypeScript and types
 echo "Installing TypeScript and React types..."
 npm install --save-dev typescript@5.8.3 @types/react@19.1.4 @types/node@22.15.17 @types/react-dom@19.1.5
