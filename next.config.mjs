@@ -19,7 +19,11 @@ const nextConfig = {
   // Set experimental typeCheck to false to ensure no type checking during build
   experimental: {
     forceSwcTransforms: true,
+    typedRoutes: false,
+    esmExternals: false
   },
+  swcMinify: true,
+  distDir: '.next'
 };
 
 export default nextConfig;
