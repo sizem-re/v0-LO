@@ -8,8 +8,7 @@ import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
-import { WagmiProvider } from 'wagmi'
-import { wagmiConfig } from '@/lib/wagmi'
+import { WagmiClientProvider } from "@/components/WagmiClientProvider"
 import { FarcasterSDKInit } from "@/components/farcaster-sdk-init"
 
 const inter = Inter({
@@ -56,7 +55,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <FarcasterSDKInit />
-        <WagmiProvider config={wagmiConfig}>
+        <WagmiClientProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <AuthProvider>
               <MiniAppDetector>
@@ -69,7 +68,7 @@ export default function RootLayout({
               </MiniAppDetector>
             </AuthProvider>
           </ThemeProvider>
-        </WagmiProvider>
+        </WagmiClientProvider>
       </body>
     </html>
   )
