@@ -23,7 +23,18 @@ const nextConfig = {
     esmExternals: false
   },
   swcMinify: true,
-  distDir: '.next'
+  distDir: '.next',
+  
+  // Add webpack config to resolve TypeScript
+  webpack: (config, { isServer }) => {
+    // Force typescript to be resolved to the fake typescript module
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      typescript: require.resolve('typescript'),
+    };
+    
+    return config;
+  },
 };
 
 export default nextConfig;
