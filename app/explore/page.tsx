@@ -1,4 +1,4 @@
-import { ListItem } from "@/components/list-item"
+import { ListItem } from "../../components/list-item"
 
 // Mock data for lists
 const EXPLORE_LISTS = [
