@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, MapPin, ListIcon } from "lucide-react"
-import { ListItem } from "@/components/list-item"
+import { ListItem } from "../components/list-item"
 
 // Mock data for lists
 const FEATURED_LISTS = [

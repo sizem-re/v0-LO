@@ -2,15 +2,15 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { PlaceItem } from "@/components/place-item"
-import { ShareToFarcaster } from "@/components/share-to-farcaster"
-import { useAuth } from "@/lib/auth-context"
+import { PlaceItem } from "../../../components/place-item"
+import { ShareToFarcaster } from "../../../components/share-to-farcaster"
+import { useAuth } from "../../../lib/auth-context"
 import dynamic from "next/dynamic"
-import type { Place } from "@/types/place"
-import { useMiniApp } from "@/hooks/use-mini-app"
+import type { Place } from "../../../types/place"
+import { useMiniApp } from "../../../hooks/use-mini-app"
 
 // Dynamically import the map component with no SSR
-const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
+const VanillaMap = dynamic(() => import("../../../components/map/vanilla-map"), {
   ssr: false,
   loading: () => (
     <div className="h-[500px] border border-black/10 flex items-center justify-center bg-gray-100">
