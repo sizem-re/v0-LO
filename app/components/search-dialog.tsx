@@ -1,125 +1,181 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Search, X } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react"
+import { Search, X, MapPin } from "lucide-react"
+import { useRouter } from "next/navigation"
+import type { Place } from "../types/place"
 
-type SearchDialogProps = {
+// Mock data for search results
+const MOCK_PLACES: Place[] = [
+  {
+    id: "p1",
+    name: "The Fish House Cafe",
+    type: "Restaurant",
+    address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
+    coordinates: { lat: 47.2529, lng: -122.4443 },
+  },
+  {
+    id: "p2",
+    name: "Vien Dong",
+    type: "Vietnamese Restaurant",
+    address: "3801 Yakima Ave, Tacoma, WA 98418",
+    coordinates: { lat: 47.2209, lng: -122.4634 },
+  },
+]
+
+const MOCK_LISTS = [
+  {
+    id: "1",
+    title: "BEST (HIDDEN) FOOD IN TACOMA",
+    author: "taylorbenthero.eth",
+  },
+  {
+    id: "2",
+    title: "Core Skateshops of the World",
+    author: "community list",
+  },
+]
+
+interface SearchDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<any[]>([])
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dialogRef = useRef<HTMLDivElement>(null)
+  const [results, setResults] = useState<{ places: Place[]; lists: typeof MOCK_LISTS }>({
+    places: [],
+    lists: [],
+  })
+  const router = useRouter()
 
   useEffect(() => {
-    if (open) {
-      // Focus the input when dialog opens
-      setTimeout(() => {
-        inputRef.current?.focus()
-      }, 0)
-      
-      // Add event listener to close dialog on ESC key
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") {
-          onOpenChange(false)
-        }
-      }
-      
-      document.addEventListener("keydown", handleKeyDown)
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown)
-      }
-    }
-  }, [open, onOpenChange])
-
-  // Handle click outside to close
-  useEffect(() => {
-    if (!open) return
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+    // Handle escape key
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
         onOpenChange(false)
       }
     }
-    
-    document.addEventListener("mousedown", handleClickOutside)
+
+    if (open) {
+      document.addEventListener("keydown", handleEscape)
+      document.body.style.overflow = "hidden"
+    } else {
+      document.removeEventListener("keydown", handleEscape)
+      document.body.style.overflow = ""
+    }
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+      document.body.style.overflow = ""
     }
   }, [open, onOpenChange])
 
-  // Mock search function
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, this would fetch results from an API
-    setResults([
-      { id: "1", title: "The Fish House Cafe", type: "Restaurant", path: "/places/p1" },
-      { id: "2", title: "Vien Dong", type: "Vietnamese Restaurant", path: "/places/p2" },
-      { id: "3", title: "Tacoma Weekend Guide", type: "List", path: "/lists/1" },
-    ])
-  }
+  useEffect(() => {
+    if (query.length > 1) {
+      // In a real app, this would be an API call
+      const filteredPlaces = MOCK_PLACES.filter(
+        (place) =>
+          place.name.toLowerCase().includes(query.toLowerCase()) ||
+          place.address.toLowerCase().includes(query.toLowerCase()) ||
+          place.type.toLowerCase().includes(query.toLowerCase()),
+      )
+
+      const filteredLists = MOCK_LISTS.filter(
+        (list) =>
+          list.title.toLowerCase().includes(query.toLowerCase()) ||
+          list.author.toLowerCase().includes(query.toLowerCase()),
+      )
+
+      setResults({
+        places: filteredPlaces,
+        lists: filteredLists,
+      })
+    } else {
+      setResults({ places: [], lists: [] })
+    }
+  }, [query])
 
   if (!open) return null
 
+  const handlePlaceClick = (place: Place) => {
+    router.push(`/places/${place.id}`)
+    onOpenChange(false)
+    setQuery("")
+  }
+
+  const handleListClick = (listId: string) => {
+    router.push(`/lists/${listId}`)
+    onOpenChange(false)
+    setQuery("")
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/20 z-50 flex items-start justify-center pt-16 px-4">
-      <div 
-        ref={dialogRef}
-        className="bg-white w-full max-w-2xl shadow-lg border border-black/10"
-      >
-        <form onSubmit={handleSearch} className="relative">
+    <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[15vh]">
+      <div className="bg-white w-full max-w-2xl border border-black/10 shadow-lg">
+        <div className="p-4 border-b border-black/10 flex items-center">
+          <Search className="h-5 w-5 mr-2 text-black/50" />
           <input
-            ref={inputRef}
             type="text"
-            placeholder="Search for places, lists, or users..."
-            className="w-full p-4 pr-12 border-b border-black/10 outline-none"
+            placeholder="Search places, lists, users..."
+            className="flex-1 outline-none text-lg"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            autoFocus
           />
-          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center">
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="mr-2"
-                aria-label="Clear search"
-              >
-                <X size={18} />
-              </button>
-            )}
-            <button type="submit" aria-label="Search">
-              <Search size={18} />
-            </button>
-          </div>
-        </form>
-        
-        <div className="max-h-[70vh] overflow-y-auto p-2">
-          {results.length > 0 ? (
-            <div className="divide-y divide-black/5">
-              {results.map((result) => (
-                <Link
-                  key={result.id}
-                  href={result.path}
-                  className="block p-3 hover:bg-gray-50"
-                  onClick={() => onOpenChange(false)}
-                >
-                  <div className="font-medium">{result.title}</div>
-                  <div className="text-sm text-black/70">{result.type}</div>
-                </Link>
-              ))}
-            </div>
-          ) : query ? (
-            <div className="p-4 text-center text-black/70">
-              No results found for "{query}"
-            </div>
+          <button onClick={() => onOpenChange(false)} className="p-1" aria-label="Close search">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto">
+          {query.length > 1 ? (
+            <>
+              {results.places.length > 0 && (
+                <div className="p-4 border-b border-black/10">
+                  <h3 className="text-sm font-medium text-black/50 mb-2">PLACES</h3>
+                  <div className="space-y-3">
+                    {results.places.map((place) => (
+                      <button
+                        key={place.id}
+                        className="w-full text-left flex items-start hover:bg-gray-50 p-2"
+                        onClick={() => handlePlaceClick(place)}
+                      >
+                        <MapPin className="h-4 w-4 mr-2 mt-1 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium">{place.name}</div>
+                          <div className="text-sm text-black/70">{place.address}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {results.lists.length > 0 && (
+                <div className="p-4 border-b border-black/10">
+                  <h3 className="text-sm font-medium text-black/50 mb-2">LISTS</h3>
+                  <div className="space-y-3">
+                    {results.lists.map((list) => (
+                      <button
+                        key={list.id}
+                        className="w-full text-left hover:bg-gray-50 p-2"
+                        onClick={() => handleListClick(list.id)}
+                      >
+                        <div className="font-medium">{list.title}</div>
+                        <div className="text-sm text-black/70">by {list.author}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {results.places.length === 0 && results.lists.length === 0 && (
+                <div className="p-8 text-center text-black/50">No results found for "{query}"</div>
+              )}
+            </>
           ) : (
-            <div className="p-4 text-center text-black/70">
-              Type to start searching
-            </div>
+            <div className="p-8 text-center text-black/50">Type to search places, lists, and users</div>
           )}
         </div>
       </div>

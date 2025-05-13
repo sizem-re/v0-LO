@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Search, X, MapPin } from "lucide-react"
 import { useRouter } from "next/navigation"
-import type { Place } from "@/types/place"
+import type { Place } from "../app/types/place"
 
 // Mock data for search results
 const MOCK_PLACES: Place[] = [

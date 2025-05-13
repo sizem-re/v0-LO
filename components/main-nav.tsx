@@ -4,8 +4,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Menu, X, Search, User, Map, List, Home } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { SearchDialog } from "@/components/search-dialog"
+import { useAuth } from "../app/lib/auth-context"
+import { SearchDialog } from "./search-dialog"
 
 export function MainNav() {
   const pathname = usePathname()
