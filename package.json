@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "npm install --legacy-peer-deps && SKIP_TYPESCRIPT_CHECK=1 npm run build"
+    "vercel-build": "./vercel-build.sh"
   },
   "dependencies": {
     "@farcaster/frame-sdk": "^0.0.39",
