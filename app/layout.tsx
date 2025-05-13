@@ -23,8 +23,8 @@ const bizUDMincho = BIZ_UDMincho({
 })
 
 export const metadata: Metadata = {
-  title: "LO - Discover Places",
-  description: "Discover and share curated lists of locations",
+  title: "LO - Local Recommendations",
+  description: "Discover and share local recommendations with your friends",
   manifest: "/manifest.json",
   generator: 'v0.dev',
   other: {
