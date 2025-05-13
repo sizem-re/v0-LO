@@ -5,7 +5,7 @@ const nextConfig = {
     domains: ['i.imgur.com', 'cdn.warpcast.com', 'res.cloudinary.com'],
     unoptimized: true,
   },
-  serverExternalPackages: [],
+
   eslint: {
     ignoreDuringBuilds: true,
   },

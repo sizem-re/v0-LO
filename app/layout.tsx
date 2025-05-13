@@ -10,7 +10,7 @@ import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { WagmiProvider } from 'wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
-import { sdk } from '@farcaster/frame-sdk'
+import { FarcasterSDKInit } from "@/components/farcaster-sdk-init"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -51,14 +51,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Initialize Farcaster SDK
-  if (typeof window !== 'undefined') {
-    sdk.actions.ready();
-  }
-
+  // Removed client-side SDK initialization from here
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
+        <FarcasterSDKInit />
         <WagmiProvider config={wagmiConfig}>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <AuthProvider>
