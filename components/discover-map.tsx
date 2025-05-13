@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import type { Place } from "@/types/place"
+import type { Place } from "../app/types/place"
 
 // Mock data for places on the discover map
 const DISCOVER_PLACES: Place[] = [
@@ -35,7 +35,7 @@ const DISCOVER_PLACES: Place[] = [
 ]
 
 // Dynamically import the map component with no SSR
-const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
+const VanillaMap = dynamic(() => import("./map/vanilla-map"), {
   ssr: false,
   loading: () => (
     <div className="h-[600px] border border-black/10 flex items-center justify-center bg-gray-100">

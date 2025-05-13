@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Globe, Lock } from "lucide-react"
-import { ProtectedRoute } from "@/components/protected-route"
+import { ProtectedRoute } from "../../../components/protected-route"
 
 function CreateListPage() {
   const [formData, setFormData] = useState({
