@@ -7,6 +7,6 @@ const config = new Configuration({
 const client = new NeynarAPIClient(config);
 
 // Example: fetch your own user profile (replace with your FID)
-client.fetchBulkUsers({ fids: [1234] }).then((response) => {
+client.fetchBulkUsers({ fids: [238619] }).then((response) => {
   console.log("response:", response);
 });
