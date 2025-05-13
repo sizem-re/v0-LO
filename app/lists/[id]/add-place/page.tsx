@@ -3,11 +3,11 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/app/components/ui/button"
-import { Input } from "@/app/components/ui/input"
-import { Textarea } from "@/app/components/ui/textarea"
-import { Label } from "@/app/components/ui/label"
-import { Card } from "@/app/components/ui/card"
+import { Button } from "../../../../components/ui/button"
+import { Input } from "../../../../components/ui/input"
+import { Textarea } from "../../../../components/ui/textarea"
+import { Label } from "../../../../components/ui/label"
+import { Card } from "../../../../components/ui/card"
 import Link from "next/link"
 import { MapPin, Upload } from "lucide-react"
 
