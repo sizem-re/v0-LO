@@ -57,7 +57,7 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.54.1",
     "react-leaflet": "4.2.1",
-    "@react-leaflet/core": "2.0.2",
+    "@react-leaflet/core": "1.0.2",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
     "sonner": "^1.7.1",
