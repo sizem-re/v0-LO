@@ -1,4 +1,9 @@
 {
+  "accountAssociation": {
+    "header": "base64url-encoded-header",
+    "payload": "base64url-encoded-payload",
+    "signature": "base64url-encoded-signature"
+  },
   "frame": {
     "version": "1",
     "name": "v0-LO",
