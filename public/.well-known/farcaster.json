@@ -8,9 +8,9 @@
     "version": "1",
     "name": "v0-LO",
     "iconUrl": "/logo.png",
-    "homeUrl": "/",
+    "homeUrl": "https://llllllo.com",
     "imageUrl": "/og-image.png",
-    "buttonTitle": "Launch App",
+    "buttonTitle": "Open LO",
     "splashImageUrl": "/logo.png",
     "splashBackgroundColor": "#000000"
   }
