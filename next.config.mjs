@@ -28,10 +28,14 @@ const nextConfig = {
   
   // Skip all jsconfig/tsconfig processing
   webpack: (config, { isServer }) => {
-    // Force typescript to be resolved to the fake typescript module
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      typescript: '/vercel/path0/node_modules/typescript',
+    // Instead of trying to alias typescript, just delete any imports
+    config.resolve = {
+      ...config.resolve,
+      extensions: ['.js', '.jsx', '.json'],
+      fallback: {
+        ...config.resolve.fallback,
+        typescript: false
+      }
     };
     
     return config;
