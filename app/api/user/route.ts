@@ -1,21 +1,22 @@
-import { type NextRequest, NextResponse } from "next/server"
-import * as neynarClient from "@/lib/neynar-client"
+import { NextRequest } from "next/server";
+import { NeynarAPIClient, Configuration } from "@neynar/nodejs-sdk";
 
-export async function GET(request: NextRequest) {
+const config = new Configuration({
+  apiKey: process.env.NEYNAR_API_KEY,
+});
+const client = new NeynarAPIClient(config);
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const fid = searchParams.get("fid");
+  if (!fid) {
+    return new Response(JSON.stringify({ error: "Missing fid" }), { status: 400 });
+  }
+
   try {
-    const searchParams = request.nextUrl.searchParams
-    const fid = searchParams.get("fid")
-
-    if (!fid) {
-      return NextResponse.json({ error: "FID is required" }, { status: 400 })
-    }
-
-    // Fetch user data from Neynar
-    const response = await neynarClient.lookupUserByFid(Number.parseInt(fid))
-
-    return NextResponse.json(response.user)
-  } catch (error) {
-    console.error("Neynar API error:", error)
-    return NextResponse.json({ error: "Failed to fetch user data" }, { status: 500 })
+    const user = await client.lookupUserByFid({ fid: Number(fid) });
+    return new Response(JSON.stringify(user), { status: 200 });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
