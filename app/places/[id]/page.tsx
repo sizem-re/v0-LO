@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { MapPin, ArrowLeft } from "lucide-react"
-import type { Place } from "@/types/place"
+import type { Place } from "../../../types/place"
 import dynamic from "next/dynamic"
 
 // Dynamically import the map component with no SSR
-const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
+const VanillaMap = dynamic(() => import("../../../components/map/vanilla-map"), {
   ssr: false,
   loading: () => (
     <div className="h-[300px] border border-black/10 flex items-center justify-center bg-gray-100">

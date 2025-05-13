@@ -11,7 +11,7 @@ import { Label } from "../../../../components/ui/label"
 import dynamic from "next/dynamic"
 
 // Dynamically import the location picker with no SSR
-const VanillaLocationPicker = dynamic(() => import("@/components/map/vanilla-location-picker"), {
+const VanillaLocationPicker = dynamic(() => import("../../../../components/map/vanilla-location-picker"), {
   ssr: false,
   loading: () => (
     <div className="h-[400px] border border-black/10 flex items-center justify-center bg-gray-100">
