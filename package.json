@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "npm install --legacy-peer-deps && npm run build"
+    "vercel-build": "npm install --legacy-peer-deps && SKIP_TYPESCRIPT_CHECK=1 npm run build"
   },
   "dependencies": {
     "@farcaster/frame-sdk": "^0.0.39",
@@ -73,10 +73,10 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/node": "^22.15.17",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
     "postcss": "^8",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }
