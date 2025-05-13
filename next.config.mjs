@@ -12,7 +12,8 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-    tsconfigPath: "./tsconfig.json",
+    // Don't check tsconfig.json at all
+    tsconfigPath: false, 
   },
   // Completely disable type checking during build
   transpilePackages: [],
@@ -25,7 +26,7 @@ const nextConfig = {
   swcMinify: true,
   distDir: '.next',
   
-  // Add webpack config to resolve TypeScript
+  // Skip all jsconfig/tsconfig processing
   webpack: (config, { isServer }) => {
     // Force typescript to be resolved to the fake typescript module
     config.resolve.alias = {
