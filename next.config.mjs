@@ -30,7 +30,7 @@ const nextConfig = {
     // Force typescript to be resolved to the fake typescript module
     config.resolve.alias = {
       ...config.resolve.alias,
-      typescript: require.resolve('typescript'),
+      typescript: '/vercel/path0/node_modules/typescript',
     };
     
     return config;
