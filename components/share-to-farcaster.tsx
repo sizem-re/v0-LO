@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "../app/lib/auth-context"
-import { postCast } from "../app/lib/farcaster-auth"
+import { useAuth } from "@/lib/auth-context"
+import { postCast } from "@/lib/farcaster-auth"
 
 interface ShareToFarcasterProps {
   listId: string

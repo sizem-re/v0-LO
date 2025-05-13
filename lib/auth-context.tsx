@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { getAuthStatus, getFarcasterUser } from "../app/lib/farcaster-auth"
+import { getAuthStatus, getFarcasterUser } from "@/lib/farcaster-auth"
 
 type FarcasterUser = {
   fid: number

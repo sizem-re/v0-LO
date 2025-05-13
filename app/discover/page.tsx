@@ -1,5 +1,5 @@
-import { DiscoverMap } from "../../components/discover-map"
-import { PopularLists } from "../../components/popular-lists"
+import { DiscoverMap } from "@/components/discover-map"
+import { PopularLists } from "@/components/popular-lists"
 
 export default function DiscoverPage() {
   return (

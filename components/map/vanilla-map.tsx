@@ -91,68 +91,55 @@ export default function VanillaMap({ places, height = "500px", onPlaceSelect, cl
       window.L.control.zoom({ position: "bottomright" }).addTo(map)
 
       // Add locate control to bottom right
-      if ("geolocation" in navigator) {
-        // Create a custom locate control button with our styling
-        const locateControl = window.L.control({ position: "bottomright" })
+      const locateControl = window.L.control({ position: "bottomright" })
 
-        locateControl.onAdd = () => {
-          const container = window.L.DomUtil.create("div", "leaflet-bar leaflet-control")
-          const button = window.L.DomUtil.create("a", "", container)
-          button.innerHTML =
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>'
-          button.href = "#"
-          button.title = "Show my location"
-          button.style.display = "flex"
-          button.style.alignItems = "center"
-          button.style.justifyContent = "center"
-          button.style.width = "30px"
-          button.style.height = "30px"
+      locateControl.onAdd = () => {
+        const container = window.L.DomUtil.create("div", "leaflet-bar leaflet-control")
+        const button = window.L.DomUtil.create("a", "", container)
+        button.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>'
+        button.href = "#"
+        button.title = "Show my location"
+        button.style.display = "flex"
+        button.style.alignItems = "center"
+        button.style.justifyContent = "center"
+        button.style.width = "30px"
+        button.style.height = "30px"
 
-          // Add click event
-          window.L.DomEvent.on(button, "click", (e) => {
-            window.L.DomEvent.stopPropagation(e)
-            window.L.DomEvent.preventDefault(e)
+        // Add click event
+        window.L.DomEvent.on(button, "click", (e) => {
+          window.L.DomEvent.stopPropagation(e)
+          window.L.DomEvent.preventDefault(e)
 
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                const lat = position.coords.latitude
-                const lng = position.coords.longitude
+          // Mock location for demo purposes
+          const mockLocation = {
+            lat: center[0] + (Math.random() * 0.01 - 0.005),
+            lng: center[1] + (Math.random() * 0.01 - 0.005),
+          }
 
-                // Create a marker for the user's location if it doesn't exist
-                if (!userLocationMarkerRef.current) {
-                  userLocationMarkerRef.current = window.L.marker([lat, lng], {
-                    icon: window.L.divIcon({
-                      className: "user-location-marker",
-                      html: '<div style="background-color: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3);"></div>',
-                      iconSize: [22, 22],
-                      iconAnchor: [11, 11],
-                    }),
-                  }).addTo(map)
-                } else {
-                  // Update marker position
-                  userLocationMarkerRef.current.setLatLng([lat, lng])
-                }
+          // Create a marker for the user's location if it doesn't exist
+          if (!userLocationMarkerRef.current) {
+            userLocationMarkerRef.current = window.L.marker([mockLocation.lat, mockLocation.lng], {
+              icon: window.L.divIcon({
+                className: "user-location-marker",
+                html: '<div style="background-color: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3);"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
+              }),
+            }).addTo(map)
+          } else {
+            // Update marker position
+            userLocationMarkerRef.current.setLatLng([mockLocation.lat, mockLocation.lng])
+          }
 
-                // Fly to the location
-                map.flyTo([lat, lng], 16)
-              },
-              (error) => {
-                console.error("Error getting location:", error)
-                alert("Unable to get your location. Please check your browser permissions.")
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0,
-              },
-            )
-          })
+          // Fly to the location
+          map.flyTo([mockLocation.lat, mockLocation.lng], 16)
+        })
 
-          return container
-        }
-
-        locateControl.addTo(map)
+        return container
       }
+
+      locateControl.addTo(map)
 
       // Add tile layer
       window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

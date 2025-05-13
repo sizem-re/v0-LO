@@ -1,10 +1,9 @@
 "use client"
-export const dynamic = "force-dynamic"
 
 import { useState } from "react"
 import Link from "next/link"
 import { Plus, Grid, ListIcon, MapPin } from "lucide-react"
-import { ProtectedRoute } from "../../components/protected-route"
+import { ProtectedRoute } from "@/components/protected-route"
 
 // Mock data for user lists
 const USER_LISTS = [

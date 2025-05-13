@@ -5,13 +5,13 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Search, Filter, MapPin, X, ChevronLeft, Plus, ArrowLeft, Menu, User } from "lucide-react"
-import type { Place } from "../types/place"
+import type { Place } from "@/types/place"
 import Link from "next/link"
-import { useAuth } from "../lib/auth-context"
-import { SearchDialog } from "../components/search-dialog"
+import { useAuth } from "@/lib/auth-context"
+import { SearchDialog } from "@/components/search-dialog"
 
 // Dynamically import the map component with no SSR
-const VanillaMap = dynamic(() => import("../components/map/vanilla-map"), {
+const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex items-center justify-center bg-gray-100">
