@@ -1,18 +1,16 @@
 {
-  "name": "LO",
-  "description": "Discover and share curated lists of locations",
-  "url": "https://llllllo.com",
-  "icon": "https://llllllo.com/icon.png",
-  "app": {
-    "type": "web",
-    "path": "/"
+  "accountAssociation": {
+    "header": "BASE64_ENCODED_HEADER",
+    "payload": "BASE64_ENCODED_PAYLOAD",
+    "signature": "BASE64_ENCODED_SIGNATURE"
   },
-  "permissions": [
-    "cast:write",
-    "user:read",
-    "channel:read",
-    "channel:write",
-    "notification:read",
-    "notification:write"
-  ]
+  "frame": {
+    "version": "1",
+    "name": "LO",
+    "iconUrl": "https://llllllo.com/icon.png",
+    "homeUrl": "https://llllllo.com",
+    "splashImageUrl": "https://llllllo.com/splash.png",
+    "splashBackgroundColor": "#ffffff",
+    "webhookUrl": "https://llllllo.com/api/notifications"
+  }
 }
