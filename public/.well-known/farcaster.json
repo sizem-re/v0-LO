@@ -3,8 +3,7 @@
     "header": "eyJmaWQiOjIzODYxOSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDA4NUMxRTI1ZmZDMDk1MTU2NWQ5MDg2MEZBMzAzQjliQ0YxNTVmOTcifQ",
     "payload": "eyJkb21haW4iOiJsbGxsbGxvLmNvbSJ9",
     "signature": "MHg5M2JlMWVhY2E3NzNmYjU0MjE2ZDY3YjFkNDhlZGQxZjdiNDY1OWEwODdkYmMwNjZkY2U3MzhhY2I0NmQ5OWZkN2I3ZDU0ZDkzYjJhZDY5ZTEyNjA2NDI2MmI0Y2E2MzQ1NjlmNDE0OTcyMzVlMzQ4MWNkNGRkOGIyZTdhOGQ1MTFj"
-  }
-
+  },
   "frame": {
     "version": "1",
     "name": "LO",
