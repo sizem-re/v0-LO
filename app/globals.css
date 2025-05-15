@@ -13,6 +13,13 @@ body {
   font-feature-settings: "palt";
 }
 
+/* Mini app specific styles */
+.farcaster-mini-app body {
+  /* Ensure content is visible in the mini app frame */
+  padding-bottom: 60px;
+  overflow-x: hidden;
+}
+
 @layer base {
   h1,
   h2,

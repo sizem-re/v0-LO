@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 
 interface MiniAppDetectorProps {
@@ -19,9 +18,16 @@ export function MiniAppDetector({ children }: MiniAppDetectorProps) {
     const isFarcasterApp =
       window.location.href.includes("farcaster://") ||
       window.navigator.userAgent.includes("Farcaster") ||
-      window.location.hostname.includes("warpcast.com")
+      window.location.hostname.includes("warpcast.com") ||
+      window.location.search.includes("fc-frame")
 
     setIsMiniApp(isFarcasterApp)
+
+    // If we're in a mini app, we might need to adjust some styles
+    if (isFarcasterApp) {
+      // Add any mini app specific styles or behaviors here
+      document.documentElement.classList.add("farcaster-mini-app")
+    }
   }, [])
 
   if (!isMounted) {
