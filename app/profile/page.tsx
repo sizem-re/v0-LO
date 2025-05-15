@@ -31,11 +31,16 @@ export default function ProfilePage() {
   // Use Neynar user data if available
   const displayUser = neynarUser
     ? {
-        displayName: neynarUser.display_name || neynarUser.username,
-        username: neynarUser.username,
-        pfp: neynarUser.pfp_url,
-        fid: neynarUser.fid,
-        bio: neynarUser.profile?.bio,
+        displayName:
+          typeof neynarUser.display_name === "string"
+            ? neynarUser.display_name
+            : typeof neynarUser.username === "string"
+              ? neynarUser.username
+              : "User",
+        username: typeof neynarUser.username === "string" ? neynarUser.username : "user",
+        pfp: neynarUser.pfp_url || "/placeholder.svg",
+        fid: neynarUser.fid?.toString() || "0",
+        bio: typeof neynarUser.profile?.bio === "string" ? neynarUser.profile.bio : "",
       }
     : {
         displayName: "Demo User",

@@ -8,7 +8,7 @@ import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 
 export function UserMenu() {
   const { signOut } = useAuth()
-  const { user } = useNeynarContext()
+  const { user, isAuthenticated, signOut: neynarSignOut } = useNeynarContext()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -25,9 +25,14 @@ export function UserMenu() {
     }
   }, [])
 
+  // If no user data, show the auth button
   if (!user) {
     return <NeynarAuthButton className="nav-link" />
   }
+
+  // Safely extract username and display name
+  const username = typeof user.username === "string" ? user.username : "USER"
+  const displayName = typeof user.display_name === "string" ? user.display_name : username
 
   return (
     <div className="relative" ref={menuRef}>
@@ -38,15 +43,11 @@ export function UserMenu() {
         aria-haspopup="true"
       >
         {user?.pfp_url ? (
-          <img
-            src={user.pfp_url || "/placeholder.svg"}
-            alt={user.display_name || user.username}
-            className="w-6 h-6 border border-black/10"
-          />
+          <img src={user.pfp_url || "/placeholder.svg"} alt={displayName} className="w-6 h-6 border border-black/10" />
         ) : (
           <User className="w-5 h-5" />
         )}
-        <span>{user?.username || "USER"}</span>
+        <span>{username}</span>
       </button>
 
       {isOpen && (

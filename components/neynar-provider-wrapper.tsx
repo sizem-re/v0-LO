@@ -17,10 +17,18 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
           onAuthSuccess: () => {
             // Redirect to profile page or refresh current page
             console.log("Authentication successful")
+            // Avoid immediate redirect to prevent race conditions with state updates
+            setTimeout(() => {
+              router.refresh()
+            }, 500)
           },
           onSignout() {
             // Handle sign out, e.g., redirect to home page
+            console.log("Signed out successfully")
             router.push("/")
+          },
+          onError: (error) => {
+            console.error("Neynar authentication error:", error)
           },
         },
       }}
