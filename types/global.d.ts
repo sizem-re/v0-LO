@@ -6,4 +6,9 @@ interface Window {
     removeListener: (event: string, callback: (...args: any[]) => void) => void
   }
   L?: any // Leaflet global object
+  farcaster?: {
+    ready: () => void
+    isFrameLoaded?: boolean
+    getFrameData?: () => any
+  }
 }

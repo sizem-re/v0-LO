@@ -9,6 +9,8 @@ import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
+import { FarcasterReady } from "@/components/farcaster-ready"
+import Script from "next/script"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,12 +56,30 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
+        <Script
+          id="farcaster-sdk"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Simple Farcaster SDK polyfill
+              if (typeof window !== 'undefined' && !window.farcaster) {
+                window.farcaster = {
+                  ready: function() {
+                    console.log('Farcaster ready called');
+                    window.parent.postMessage({ type: 'ready' }, '*');
+                  }
+                };
+              }
+            `,
+          }}
+        />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
               <MiniAppDetector>
+                <FarcasterReady />
                 <DeepLinkHandler />
                 <div className="flex flex-col min-h-screen">
                   <MainNav />
