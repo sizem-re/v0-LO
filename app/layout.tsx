@@ -9,7 +9,8 @@ import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-import { FarcasterMiniappHandler } from "@/components/farcaster-miniapp-handler"
+// Import the MiniAppLoader component
+import { MiniAppLoader } from "@/components/mini-app-loader"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,14 +26,14 @@ const bizUDMincho = BIZ_UDMincho({
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
   version: "next",
-  imageUrl: "https://llllllo.com/og-image.png",
+  imageUrl: "https://llllllo.com/og-image.png", // Use the OG image
   button: {
     title: "🗺️ Explore Places",
     action: {
       type: "launch_frame",
       name: "LO",
       url: "https://llllllo.com",
-      splashImageUrl: "https://llllllo.com/splash.png",
+      splashImageUrl: "https://llllllo.com/splash.png", // Use the splash image
       splashBackgroundColor: "#ffffff",
     },
   },
@@ -50,28 +51,27 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Wrap the entire app content with MiniAppLoader
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
-        <meta name="fc:frame:image" content="https://llllllo.com/og-image.png" />
-        <meta name="fc:frame:button:1" content="🗺️ Explore Places" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
-              <MiniAppDetector>
-                <DeepLinkHandler />
-                <FarcasterMiniappHandler />
-                <div className="flex flex-col min-h-screen">
-                  <MainNav />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                </div>
-              </MiniAppDetector>
+              <MiniAppLoader>
+                <MiniAppDetector>
+                  <DeepLinkHandler />
+                  <div className="flex flex-col min-h-screen">
+                    <MainNav />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                  </div>
+                </MiniAppDetector>
+              </MiniAppLoader>
             </AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>

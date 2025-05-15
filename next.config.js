@@ -30,17 +30,6 @@ const nextConfig = {
           },
         ],
       },
-      {
-        // Apply to all routes
-        source: "/:path*",
-        headers: [
-          {
-            // Remove browsing-topics from Permissions-Policy
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-        ],
-      },
     ]
   },
 }

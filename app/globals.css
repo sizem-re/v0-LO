@@ -14,32 +14,14 @@ body {
 }
 
 /* Mini app specific styles */
-.farcaster-mini-app body {
+.farcaster-mini-app {
   /* Ensure content is visible in the mini app frame */
   padding-bottom: 60px;
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: none;
-}
 
-.farcaster-container {
-  /* Prevent overscrolling in the miniapp */
-  overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-}
-
-/* Hide certain elements in miniapp mode */
-.farcaster-mini-app .hide-in-miniapp {
-  display: none !important;
-}
-
-/* Adjust header for miniapp */
-.farcaster-mini-app .main-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background-color: white;
+  /* Optimize for performance */
+  content-visibility: auto;
+  contain: content;
 }
 
 @layer base {
@@ -168,4 +150,19 @@ body {
 .leaflet-tooltip,
 .leaflet-popup {
   z-index: 500 !important;
+}
+
+/* Add skeleton loading animations */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

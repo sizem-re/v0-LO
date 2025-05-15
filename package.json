@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@farcaster/frame-sdk": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@neynar/nodejs-sdk": "latest",
     "@neynar/react": "latest",
