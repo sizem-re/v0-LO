@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
+import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,16 +37,18 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <AuthProvider>
-            <MiniAppDetector>
-              <DeepLinkHandler />
-              <div className="flex flex-col min-h-screen">
-                <MainNav />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-            </MiniAppDetector>
-          </AuthProvider>
+          <NeynarProviderWrapper>
+            <AuthProvider>
+              <MiniAppDetector>
+                <DeepLinkHandler />
+                <div className="flex flex-col min-h-screen">
+                  <MainNav />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </MiniAppDetector>
+            </AuthProvider>
+          </NeynarProviderWrapper>
         </ThemeProvider>
       </body>
     </html>

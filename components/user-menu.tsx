@@ -4,9 +4,11 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { User, LogOut } from "lucide-react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 
 export function UserMenu() {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
+  const { user } = useNeynarContext()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -23,6 +25,10 @@ export function UserMenu() {
     }
   }, [])
 
+  if (!user) {
+    return <NeynarAuthButton className="nav-link" />
+  }
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -31,10 +37,10 @@ export function UserMenu() {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {user?.pfp ? (
+        {user?.pfp_url ? (
           <img
-            src={user.pfp || "/placeholder.svg"}
-            alt={user.displayName || user.username}
+            src={user.pfp_url || "/placeholder.svg"}
+            alt={user.display_name || user.username}
             className="w-6 h-6 border border-black/10"
           />
         ) : (
@@ -52,16 +58,10 @@ export function UserMenu() {
             <Link href="/lists" className="block px-4 py-2 hover:bg-black/5" onClick={() => setIsOpen(false)}>
               My Lists
             </Link>
-            <button
-              onClick={() => {
-                signOut()
-                setIsOpen(false)
-              }}
-              className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-black/80"
-            >
+            <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-black/80">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
-            </button>
+            </NeynarAuthButton>
           </div>
         </div>
       )}

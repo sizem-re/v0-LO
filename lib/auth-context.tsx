@@ -3,16 +3,9 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-
-type User = {
-  id: string
-  username: string
-  displayName: string
-  pfp?: string
-}
+import { useNeynarContext } from "@neynar/react"
 
 interface AuthContextType {
-  user: User | null
   isLoading: boolean
   isAuthenticated: boolean
   signIn: () => Promise<void>
@@ -21,55 +14,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Mock user data
-const MOCK_USER: User = {
-  id: "user123",
-  username: "demo_user",
-  displayName: "Demo User",
-  pfp: "/diverse-avatars.png",
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { user, isAuthenticated, isLoading: neynarLoading } = useNeynarContext()
   const router = useRouter()
 
-  // Check if user is logged in on mount
+  // Update loading state based on Neynar loading state
   useEffect(() => {
-    const checkAuth = () => {
-      setIsLoading(true)
-
-      // Check if we have a stored user in localStorage
-      const storedUser = localStorage.getItem("lo_user")
-
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser))
-        } catch (error) {
-          console.error("Error parsing stored user:", error)
-          localStorage.removeItem("lo_user")
-        }
-      }
-
-      setIsLoading(false)
-    }
-
-    checkAuth()
-  }, [])
+    setIsLoading(neynarLoading)
+  }, [neynarLoading])
 
   const signIn = async () => {
     try {
       setIsLoading(true)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      // Set mock user
-      setUser(MOCK_USER)
-
-      // Store in localStorage
-      localStorage.setItem("lo_user", JSON.stringify(MOCK_USER))
-
+      // The actual sign-in is handled by the NeynarAuthButton component
+      // This is just a placeholder for compatibility with existing code
       return Promise.resolve()
     } catch (error) {
       console.error("Sign in error:", error)
@@ -80,16 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = () => {
-    // Clear auth data
-    localStorage.removeItem("lo_user")
-    setUser(null)
+    // The actual sign-out is handled by the NeynarAuthButton component
+    // This is just a placeholder for compatibility with existing code
     router.push("/")
   }
 
   const value = {
-    user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: !!isAuthenticated,
     signIn,
     signOut,
   }

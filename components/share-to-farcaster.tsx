@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { postCast } from "@/lib/farcaster-auth"
+import { useNeynarContext } from "@neynar/react"
+import { Share2 } from "lucide-react"
 
 interface ShareToFarcasterProps {
   listId: string
@@ -12,10 +13,13 @@ interface ShareToFarcasterProps {
 
 export function ShareToFarcaster({ listId, listTitle, listDescription }: ShareToFarcasterProps) {
   const { isAuthenticated } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
   const [isSharing, setIsSharing] = useState(false)
   const [shareSuccess, setShareSuccess] = useState(false)
 
-  if (!isAuthenticated) {
+  const userIsAuthenticated = isAuthenticated || neynarAuthenticated
+
+  if (!userIsAuthenticated) {
     return null
   }
 
@@ -29,16 +33,14 @@ export function ShareToFarcaster({ listId, listTitle, listDescription }: ShareTo
       }\n\nhttps://lo-app.xyz/lists/${listId}`
 
       // Open Warpcast compose window
-      const success = await postCast(castText)
+      window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(castText)}`, "_blank")
 
-      if (success) {
-        setShareSuccess(true)
+      setShareSuccess(true)
 
-        // Reset success message after 3 seconds
-        setTimeout(() => {
-          setShareSuccess(false)
-        }, 3000)
-      }
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setShareSuccess(false)
+      }, 3000)
     } catch (error) {
       console.error("Error sharing to Farcaster:", error)
     } finally {
@@ -48,8 +50,9 @@ export function ShareToFarcaster({ listId, listTitle, listDescription }: ShareTo
 
   return (
     <div>
-      <button onClick={handleShare} disabled={isSharing} className="lo-button">
-        {isSharing ? "Sharing..." : "Share to Farcaster"}
+      <button onClick={handleShare} disabled={isSharing} className="lo-button flex items-center gap-2">
+        <Share2 size={18} />
+        {isSharing ? "Sharing..." : "Share"}
       </button>
 
       {shareSuccess && <p className="text-green-600 mt-2">Warpcast opened in a new tab!</p>}

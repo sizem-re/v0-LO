@@ -6,10 +6,13 @@ import { useState, useEffect } from "react"
 import { Menu, X, Search, User, Map, List, Home } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { SearchDialog } from "@/components/search-dialog"
+import { UserMenu } from "@/components/user-menu"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 
 export function MainNav() {
   const pathname = usePathname()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -35,6 +38,8 @@ export function MainNav() {
     return null // Don't show the main nav on full-screen pages
   }
 
+  const userIsAuthenticated = isAuthenticated || neynarAuthenticated
+
   return (
     <>
       <header
@@ -58,7 +63,7 @@ export function MainNav() {
                 <Link href="/map" className={`nav-link ${pathname === "/map" ? "font-medium" : ""}`}>
                   MAP
                 </Link>
-                {isAuthenticated && (
+                {userIsAuthenticated && (
                   <Link href="/lists" className={`nav-link ${pathname.startsWith("/lists") ? "font-medium" : ""}`}>
                     MY LISTS
                   </Link>
@@ -71,21 +76,8 @@ export function MainNav() {
                 <Search className="h-5 w-5" />
               </button>
 
-              {isAuthenticated ? (
-                <Link href="/profile" className="flex items-center">
-                  <div className="hidden md:block mr-2 text-sm">{user?.username}</div>
-                  {user?.pfp ? (
-                    <img
-                      src={user.pfp || "/placeholder.svg"}
-                      alt={user.username || "User"}
-                      className="h-8 w-8 border border-black/10"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 border border-black/10 flex items-center justify-center">
-                      <User className="h-4 w-4" />
-                    </div>
-                  )}
-                </Link>
+              {userIsAuthenticated ? (
+                <UserMenu />
               ) : (
                 <Link href="/login" className="hidden md:block lo-button text-sm">
                   CONNECT
@@ -132,7 +124,7 @@ export function MainNav() {
               <Map className="h-5 w-5 mr-3" />
               <span>MAP</span>
             </Link>
-            {isAuthenticated ? (
+            {userIsAuthenticated ? (
               <>
                 <Link
                   href="/lists"
@@ -152,9 +144,9 @@ export function MainNav() {
                 </Link>
               </>
             ) : (
-              <Link href="/login" className="lo-button text-center" onClick={() => setIsMenuOpen(false)}>
-                CONNECT WITH FARCASTER
-              </Link>
+              <div className="py-3 border-b border-black/10">
+                <NeynarAuthButton className="lo-button w-full text-center">CONNECT WITH FARCASTER</NeynarAuthButton>
+              </div>
             )}
           </nav>
         </div>

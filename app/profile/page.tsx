@@ -4,46 +4,68 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import Link from "next/link"
+import { useNeynarContext } from "@neynar/react"
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
+  const { user: neynarUser, isAuthenticated: neynarAuthenticated, isLoading: neynarLoading } = useNeynarContext()
   const router = useRouter()
 
+  const userIsAuthenticated = isAuthenticated || neynarAuthenticated
+  const loading = isLoading || neynarLoading
+
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!loading && !userIsAuthenticated) {
       router.push("/login")
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [loading, userIsAuthenticated, router])
 
-  if (isLoading) {
+  if (loading) {
     return <div className="text-center py-12">Loading...</div>
   }
 
-  if (!user) {
+  if (!userIsAuthenticated) {
     return null // Will redirect in the useEffect
   }
 
+  // Use Neynar user data if available
+  const displayUser = neynarUser
+    ? {
+        displayName: neynarUser.display_name || neynarUser.username,
+        username: neynarUser.username,
+        pfp: neynarUser.pfp_url,
+        fid: neynarUser.fid,
+        bio: neynarUser.profile?.bio,
+      }
+    : {
+        displayName: "Demo User",
+        username: "demo_user",
+        pfp: "/placeholder.svg",
+        fid: "123456",
+        bio: "This is a demo profile",
+      }
+
   return (
-    <div>
+    <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-serif mb-8">Profile</h1>
 
       <div className="border border-black/20 p-8 max-w-2xl">
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {user.pfp && (
+          {displayUser.pfp && (
             <div className="w-24 h-24 border border-black/10">
               <img
-                src={user.pfp || "/placeholder.svg"}
-                alt={user.displayName || user.username}
+                src={displayUser.pfp || "/placeholder.svg"}
+                alt={displayUser.displayName}
                 className="w-full h-full object-cover"
               />
             </div>
           )}
 
           <div className="flex-1">
-            <h2 className="text-2xl font-serif mb-2">{user.displayName || user.username}</h2>
-            <p className="text-black/70 mb-4">@{user.username}</p>
-            {user.profile?.bio && <p className="mb-4">{user.profile.bio}</p>}
-            <p className="text-sm text-black/60">Farcaster ID: {user.fid}</p>
+            <h2 className="text-2xl font-serif mb-2">{displayUser.displayName}</h2>
+            <p className="text-black/70 mb-4">@{displayUser.username}</p>
+            {displayUser.bio && <p className="mb-4">{displayUser.bio}</p>}
+            <p className="text-sm text-black/60">Farcaster ID: {displayUser.fid}</p>
           </div>
         </div>
 
