@@ -4,8 +4,8 @@
 const farcasterConfig = {
   name: "LO",
   description: "Discover and share curated lists of locations",
-  icon: "https://lo-app.xyz/icon.png", // Replace with your actual icon URL
-  domain: "lo-app.xyz", // Replace with your actual domain
+  icon: "https://llllllo.com/icon.png", // Replace with your actual icon URL
+  domain: "https://llllllo.com", // Replace with your actual domain
   permissions: ["cast:write", "user:read", "channel:read", "channel:write", "notification:read", "notification:write"],
 }
 
