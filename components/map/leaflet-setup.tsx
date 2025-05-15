@@ -12,7 +12,13 @@ export function LeafletSetup() {
     if (window.L) return
 
     try {
-      // Dynamically import Leaflet (this assumes you've added Leaflet to your project)
+      // Add Leaflet CSS
+      const link = document.createElement("link")
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      document.head.appendChild(link)
+
+      // Dynamically import Leaflet
       import("leaflet").then((L) => {
         // Make Leaflet available globally
         window.L = L.default

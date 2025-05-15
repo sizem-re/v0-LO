@@ -245,14 +245,6 @@ export default function VanillaMap({
   }, []) // Empty dependency array to run only once on mount
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.L) {
-      window.L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "/images/marker-icon-2x.png",
-        iconUrl: "/images/marker-icon.png",
-        shadowUrl: "/images/marker-shadow.png",
-      })
-    }
-
     if (mapInstanceRef.current && isMapInitialized) {
       // Remove existing markers
       markersRef.current.forEach((marker) => {
