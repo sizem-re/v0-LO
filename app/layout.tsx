@@ -1,30 +1,13 @@
 import type React from "react"
-import type { Metadata } from "next/types"
-import { BIZ_UDMincho, Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { MainNav } from "@/components/main-nav"
-import { Footer } from "@/components/footer"
-import { AuthProvider } from "@/lib/auth-context"
-import { MiniAppDetector } from "@/components/mini-app-detector"
-import { DeepLinkHandler } from "@/components/deep-link-handler"
-import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-})
-
-const bizUDMincho = BIZ_UDMincho({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-biz-udmincho",
-})
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "LO - Discover Places",
-  description: "Discover and share curated lists of locations",
-  manifest: "/manifest.json",
+  title: "Coming Soon | LO",
+  description: "Places picked by people, not algorithms. Coming soon.",
     generator: 'v0.dev'
 }
 
@@ -34,23 +17,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <NeynarProviderWrapper>
-            <AuthProvider>
-              <MiniAppDetector>
-                <DeepLinkHandler />
-                <div className="flex flex-col min-h-screen">
-                  <MainNav />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                </div>
-              </MiniAppDetector>
-            </AuthProvider>
-          </NeynarProviderWrapper>
-        </ThemeProvider>
-      </body>
+    <html lang="en">
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
