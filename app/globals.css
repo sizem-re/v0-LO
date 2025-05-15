@@ -18,6 +18,28 @@ body {
   /* Ensure content is visible in the mini app frame */
   padding-bottom: 60px;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+.farcaster-container {
+  /* Prevent overscrolling in the miniapp */
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Hide certain elements in miniapp mode */
+.farcaster-mini-app .hide-in-miniapp {
+  display: none !important;
+}
+
+/* Adjust header for miniapp */
+.farcaster-mini-app .main-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: white;
 }
 
 @layer base {

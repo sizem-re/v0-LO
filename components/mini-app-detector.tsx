@@ -19,7 +19,9 @@ export function MiniAppDetector({ children }: MiniAppDetectorProps) {
       window.location.href.includes("farcaster://") ||
       window.navigator.userAgent.includes("Farcaster") ||
       window.location.hostname.includes("warpcast.com") ||
-      window.location.search.includes("fc-frame")
+      window.location.search.includes("fc-frame") ||
+      // Additional check for Farcaster's embedded webview
+      window.parent !== window
 
     setIsMiniApp(isFarcasterApp)
 
@@ -27,6 +29,20 @@ export function MiniAppDetector({ children }: MiniAppDetectorProps) {
     if (isFarcasterApp) {
       // Add any mini app specific styles or behaviors here
       document.documentElement.classList.add("farcaster-mini-app")
+
+      // Log for debugging
+      console.log("Running in Farcaster mini app environment")
+      console.log("User Agent:", window.navigator.userAgent)
+      console.log("URL:", window.location.href)
+
+      // Disable zoom on mobile
+      const metaViewport = document.querySelector('meta[name="viewport"]')
+      if (!metaViewport) {
+        const newMeta = document.createElement("meta")
+        newMeta.name = "viewport"
+        newMeta.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        document.head.appendChild(newMeta)
+      }
     }
   }, [])
 
@@ -35,7 +51,7 @@ export function MiniAppDetector({ children }: MiniAppDetectorProps) {
   }
 
   return (
-    <div className={isMiniApp ? "pb-16" : ""}>
+    <div className={isMiniApp ? "pb-16 farcaster-container" : ""}>
       {children}
 
       {isMiniApp && (
