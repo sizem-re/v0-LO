@@ -23,11 +23,18 @@ export function MiniAppHome() {
     setIsMiniApp(isFarcasterApp)
     setIsLoading(false)
 
+    // Call setReady if we're in a Farcaster environment
+    if (isFarcasterApp && window.farcaster) {
+      console.log("MiniAppHome: Calling setReady")
+      window.farcaster.setReady()
+    }
+
     // Log for debugging
     console.log("Mini App Home loaded:", {
       isFarcasterApp,
       isAuthenticated,
       user: user ? "present" : "not present",
+      farcasterSDK: window.farcaster ? "present" : "not present",
     })
   }, [isAuthenticated, user])
 

@@ -10,6 +10,7 @@ import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
 import { MiniAppHome } from "@/components/mini-app-home"
+import { FarcasterSDKInitializer } from "@/components/farcaster-sdk-initializer"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
+              <FarcasterSDKInitializer />
               <MiniAppDetector>
                 <DeepLinkHandler />
                 <MiniAppHome />
