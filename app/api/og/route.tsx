@@ -17,10 +17,8 @@ export async function GET() {
         padding: "40px",
       }}
     >
-      <div style={{ fontSize: 80, fontWeight: "bold", marginBottom: "20px" }}>LO</div>
-      <div style={{ fontSize: 36, color: "#666", textAlign: "center" }}>
-        Discover and share curated lists of locations
-      </div>
+      <div style={{ fontSize: 80, fontWeight: "bold", marginBottom: "20px", fontFamily: "serif" }}>LO</div>
+      <div style={{ fontSize: 36, color: "#666", textAlign: "center" }}>places picked by people, not algorithms.</div>
     </div>,
     {
       width: 1200,
