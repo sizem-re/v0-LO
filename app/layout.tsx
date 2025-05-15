@@ -9,7 +9,6 @@ import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-import { FarcasterReady } from "@/components/farcaster-ready"
 import Script from "next/script"
 
 const inter = Inter({
@@ -25,18 +24,15 @@ const bizUDMincho = BIZ_UDMincho({
 
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
-  version: "next",
-  imageUrl: "https://llllllo.com/og-image.png", // Replace with your actual OG image URL
-  button: {
-    title: "🗺️ Explore Places",
-    action: {
-      type: "launch_frame",
-      name: "LO",
-      url: "https://llllllo.com",
-      splashImageUrl: "https://llllllo.com/splash.png", // Replace with your actual splash image
-      splashBackgroundColor: "#ffffff",
+  version: "vNext",
+  image: "https://llllllo.com/og-image.png", // Replace with your actual OG image URL
+  buttons: [
+    {
+      label: "🗺️ Explore Places",
+      action: "post_redirect",
     },
-  },
+  ],
+  post_url: "https://llllllo.com",
 }
 
 export const metadata: Metadata = {
@@ -57,19 +53,34 @@ export default function RootLayout({
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
         <Script
-          id="farcaster-sdk"
+          id="farcaster-ready"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              // Simple Farcaster SDK polyfill
-              if (typeof window !== 'undefined' && !window.farcaster) {
-                window.farcaster = {
-                  ready: function() {
-                    console.log('Farcaster ready called');
-                    window.parent.postMessage({ type: 'ready' }, '*');
+              // Simple script to signal ready to Farcaster
+              (function() {
+                function signalReady() {
+                  try {
+                    if (window.parent && window.parent !== window) {
+                      console.log("Signaling ready to parent frame");
+                      window.parent.postMessage({ type: "ready" }, "*");
+                    }
+                    
+                    if (window.farcaster && typeof window.farcaster.ready === 'function') {
+                      console.log("Calling farcaster.ready()");
+                      window.farcaster.ready();
+                    }
+                  } catch (e) {
+                    console.error("Error signaling ready:", e);
                   }
-                };
-              }
+                }
+                
+                // Signal ready after a short delay to ensure content is loaded
+                setTimeout(signalReady, 1000);
+                
+                // Also signal ready when the page is fully loaded
+                window.addEventListener('load', signalReady);
+              })();
             `,
           }}
         />
@@ -79,7 +90,6 @@ export default function RootLayout({
           <NeynarProviderWrapper>
             <AuthProvider>
               <MiniAppDetector>
-                <FarcasterReady />
                 <DeepLinkHandler />
                 <div className="flex flex-col min-h-screen">
                   <MainNav />

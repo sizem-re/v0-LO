@@ -8,7 +8,5 @@ interface Window {
   L?: any // Leaflet global object
   farcaster?: {
     ready: () => void
-    isFrameLoaded?: boolean
-    getFrameData?: () => any
   }
 }

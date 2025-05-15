@@ -27,9 +27,6 @@ export function MiniAppDetector({ children }: MiniAppDetectorProps) {
     if (isFarcasterApp) {
       // Add any mini app specific styles or behaviors here
       document.documentElement.classList.add("farcaster-mini-app")
-
-      // Log that we're in a mini app environment for debugging
-      console.log("Running as a Farcaster Mini App")
     }
   }, [])
 

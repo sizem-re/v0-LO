@@ -15,24 +15,24 @@ export function Footer() {
 
           <div className="flex items-center gap-6">
             <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-              <Instagram className="h-5 w-5" />
+              <Instagram size={20} />
             </Link>
             <Link href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
-              <Twitter className="h-5 w-5" />
+              <Twitter size={20} />
             </Link>
             <Link href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-              <Github className="h-5 w-5" />
+              <Github size={20} />
             </Link>
           </div>
 
           <div className="flex items-center gap-6 text-xs">
-            <Link href="/about" className="hover:underline">
+            <Link href="/" className="hover:underline">
               ABOUT
             </Link>
-            <Link href="/contact" className="hover:underline">
+            <Link href="/" className="hover:underline">
               CONTACT
             </Link>
-            <Link href="/terms" className="hover:underline">
+            <Link href="/" className="hover:underline">
               TERMS
             </Link>
           </div>
