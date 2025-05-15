@@ -10,13 +10,26 @@ export function useMiniApp() {
     // Check if we're running in a Farcaster Mini App environment
     const checkIfMiniApp = () => {
       // Various ways to detect if we're in a Farcaster Mini App
+      const url = new URL(window.location.href)
+
       const isFarcasterApp =
+        // URL patterns
+        url.pathname.startsWith("/mini") ||
+        url.searchParams.get("miniApp") === "true" ||
+        url.searchParams.has("fc-frame") ||
+        // User agent and protocol detection
         window.location.href.includes("farcaster://") ||
         window.navigator.userAgent.includes("Farcaster") ||
         window.location.hostname.includes("warpcast.com") ||
-        window.location.search.includes("miniApp=true") ||
-        window.location.pathname.startsWith("/mini") ||
-        window.location.search.includes("fc-frame")
+        // Check for Farcaster-specific objects or events
+        "FarcasterFrame" in window ||
+        "farcaster" in window
+
+      console.log("Mini App detection result:", isFarcasterApp, {
+        pathname: url.pathname,
+        search: url.search,
+        userAgent: window.navigator.userAgent,
+      })
 
       setIsMiniApp(isFarcasterApp)
       setIsLoading(false)

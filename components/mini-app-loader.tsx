@@ -9,6 +9,7 @@ export function MiniAppLoader({ children }: { children: React.ReactNode }) {
   const { isMiniApp } = useMiniApp()
   const [isReady, setIsReady] = useState(false)
   const [sdkLoaded, setSdkLoaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Load the SDK dynamically only in client-side and only if in a mini app
   useEffect(() => {
@@ -16,23 +17,32 @@ export function MiniAppLoader({ children }: { children: React.ReactNode }) {
 
     const loadSdk = async () => {
       try {
+        console.log("Loading Farcaster Frame SDK...")
+
         // Dynamically import the SDK only when needed
         const { sdk } = await import("@farcaster/frame-sdk")
+        console.log("Frame SDK loaded successfully")
         setSdkLoaded(true)
 
         // Wait a bit to ensure UI is stable before calling ready
         setTimeout(async () => {
           try {
+            console.log("Calling sdk.actions.ready()...")
             await sdk.actions.ready()
-            console.log("Mini App ready signal sent")
-          } catch (error) {
-            console.error("Error calling ready:", error)
+            console.log("Mini App ready signal sent successfully")
+            setIsReady(true)
+          } catch (readyError) {
+            console.error("Error calling ready:", readyError)
+            setError(`Ready error: ${readyError instanceof Error ? readyError.message : String(readyError)}`)
+            // Continue anyway to not block the UI
+            setIsReady(true)
           }
-          setIsReady(true)
-        }, 500)
-      } catch (error) {
-        console.error("Error loading Frame SDK:", error)
-        setIsReady(true) // Continue anyway to not block the UI
+        }, 1000) // Increased timeout to ensure UI is fully loaded
+      } catch (loadError) {
+        console.error("Error loading Frame SDK:", loadError)
+        setError(`SDK load error: ${loadError instanceof Error ? loadError.message : String(loadError)}`)
+        // Continue anyway to not block the UI
+        setIsReady(true)
       }
     }
 
@@ -59,6 +69,8 @@ export function MiniAppLoader({ children }: { children: React.ReactNode }) {
             <div className="h-64 bg-gray-200 w-full max-w-2xl animate-pulse"></div>
             <div className="h-12 bg-gray-200 w-full max-w-2xl animate-pulse"></div>
           </div>
+
+          {error && <div className="mt-4 p-2 bg-red-50 text-red-600 text-xs">Error: {error}</div>}
         </div>
       </div>
     )
