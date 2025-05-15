@@ -1,7 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next/types"
-import { BIZ_UDMincho, Inter } from "next/font/google"
+import localFont from "next/font/local"
 import "./globals.css"
+import "./leaflet.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MainNav } from "@/components/main-nav"
 import { Footer } from "@/components/footer"
@@ -11,16 +12,45 @@ import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
 // Import the MiniAppLoader component
 import { MiniAppLoader } from "@/components/mini-app-loader"
+import { LeafletSetup } from "@/components/map/leaflet-setup"
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: [
+    {
+      path: "../public/fonts/Inter-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Inter-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Inter-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-inter",
+  display: "swap",
 })
 
-const bizUDMincho = BIZ_UDMincho({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-biz-udmincho",
+const serif = localFont({
+  src: [
+    {
+      path: "../public/fonts/Serif-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Serif-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-serif",
+  display: "swap",
 })
 
 // Create the Farcaster frame embed JSON
@@ -58,12 +88,13 @@ export default function RootLayout({
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
       </head>
-      <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
+      <body className={`${inter.variable} ${serif.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
               <MiniAppLoader>
                 <MiniAppDetector>
+                  <LeafletSetup />
                   <DeepLinkHandler />
                   <div className="flex flex-col min-h-screen">
                     <MainNav />
