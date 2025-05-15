@@ -5,14 +5,12 @@
     "signature": "MHg5M2JlMWVhY2E3NzNmYjU0MjE2ZDY3YjFkNDhlZGQxZjdiNDY1OWEwODdkYmMwNjZkY2U3MzhhY2I0NmQ5OWZkN2I3ZDU0ZDkzYjJhZDY5ZTEyNjA2NDI2MmI0Y2E2MzQ1NjlmNDE0OTcyMzVlMzQ4MWNkNGRkOGIyZTdhOGQ1MTFj"
   },
   "frame": {
-    "version": "vNext",
-    "image": "https://llllllo.com/og-image.png",
-    "buttons": [
-      {
-        "label": "🗺️ Explore Places",
-        "action": "post_redirect"
-      }
-    ],
-    "post_url": "https://llllllo.com"
+    "version": "1",
+    "name": "LO",
+    "iconUrl": "https://llllllo.com/icon.png",
+    "homeUrl": "https://llllllo.com",
+    "splashImageUrl": "https://llllllo.com/splash.png",
+    "splashBackgroundColor": "#ffffff",
+    "webhookUrl": "https://api.neynar.com/f/app/4529cab2-868b-420b-a4cf-afb4549ed937/event"
   }
 }

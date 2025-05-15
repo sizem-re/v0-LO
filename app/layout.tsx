@@ -9,7 +9,6 @@ import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-import Script from "next/script"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,15 +23,18 @@ const bizUDMincho = BIZ_UDMincho({
 
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
-  version: "vNext",
-  image: "https://llllllo.com/og-image.png", // Replace with your actual OG image URL
-  buttons: [
-    {
-      label: "🗺️ Explore Places",
-      action: "post_redirect",
+  version: "next",
+  imageUrl: "https://llllllo.com/og-image.png", // Replace with your actual OG image URL
+  button: {
+    title: "🗺️ Explore Places",
+    action: {
+      type: "launch_frame",
+      name: "LO",
+      url: "https://llllllo.com",
+      splashImageUrl: "https://llllllo.com/splash.png", // Replace with your actual splash image
+      splashBackgroundColor: "#ffffff",
     },
-  ],
-  post_url: "https://llllllo.com",
+  },
 }
 
 export const metadata: Metadata = {
@@ -52,38 +54,6 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
-        <Script
-          id="farcaster-ready"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Simple script to signal ready to Farcaster
-              (function() {
-                function signalReady() {
-                  try {
-                    if (window.parent && window.parent !== window) {
-                      console.log("Signaling ready to parent frame");
-                      window.parent.postMessage({ type: "ready" }, "*");
-                    }
-                    
-                    if (window.farcaster && typeof window.farcaster.ready === 'function') {
-                      console.log("Calling farcaster.ready()");
-                      window.farcaster.ready();
-                    }
-                  } catch (e) {
-                    console.error("Error signaling ready:", e);
-                  }
-                }
-                
-                // Signal ready after a short delay to ensure content is loaded
-                setTimeout(signalReady, 1000);
-                
-                // Also signal ready when the page is fully loaded
-                window.addEventListener('load', signalReady);
-              })();
-            `,
-          }}
-        />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>

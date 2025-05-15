@@ -1,10 +1,6 @@
-"use client"
-
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowRight, MapPin, ListIcon } from "lucide-react"
 import { ListItem } from "@/components/list-item"
-import { LoadingIndicator } from "@/components/loading-indicator"
 
 // Mock data for lists
 const FEATURED_LISTS = [
@@ -39,27 +35,6 @@ const FEATURED_LISTS = [
 ]
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Simulate content loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-
-      // Check if we're in a Farcaster environment and signal ready
-      if (typeof window !== "undefined" && window.farcaster) {
-        console.log("Home page loaded, signaling ready to Farcaster...")
-        window.farcaster.ready()
-      }
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return <LoadingIndicator />
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Hero section */}
