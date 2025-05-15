@@ -1,18 +1,20 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 export function DeepLinkHandler() {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     // Check if we're running in a Farcaster Mini App environment
     const isFarcasterApp =
       window.location.href.includes("farcaster://") ||
       window.navigator.userAgent.includes("Farcaster") ||
-      window.location.hostname.includes("warpcast.com")
+      window.location.hostname.includes("warpcast.com") ||
+      searchParams.has("fc-frame")
 
     if (!isFarcasterApp) return
 
@@ -27,6 +29,7 @@ export function DeepLinkHandler() {
 
         // Only navigate if the path is different
         if (path && path !== pathname) {
+          console.log("Deep link navigation to:", path)
           router.push(path)
         }
       } catch (error) {
@@ -39,17 +42,24 @@ export function DeepLinkHandler() {
 
     // Check for initial deep link
     if (window.location.href.includes("?initial_url=")) {
-      const params = new URLSearchParams(window.location.search)
-      const initialUrl = params.get("initial_url")
+      const initialUrl = searchParams.get("initial_url")
       if (initialUrl) {
+        console.log("Initial deep link:", initialUrl)
         handleDeepLink({ url: initialUrl })
       }
+    }
+
+    // Check for fc-frame parameter which might contain a path
+    const fcFrame = searchParams.get("fc-frame")
+    if (fcFrame && fcFrame.startsWith("/")) {
+      console.log("FC-frame path:", fcFrame)
+      router.push(fcFrame)
     }
 
     return () => {
       window.removeEventListener("farcaster:url", handleDeepLink)
     }
-  }, [router, pathname])
+  }, [router, pathname, searchParams])
 
   return null
 }

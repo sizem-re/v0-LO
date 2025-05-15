@@ -9,6 +9,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { MiniAppDetector } from "@/components/mini-app-detector"
 import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
+import { MiniAppHome } from "@/components/mini-app-home"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,12 +36,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="farcaster-app-manifest" href="/farcaster.manifest.json" />
+      </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
               <MiniAppDetector>
                 <DeepLinkHandler />
+                <MiniAppHome />
                 <div className="flex flex-col min-h-screen">
                   <MainNav />
                   <main className="flex-1">{children}</main>

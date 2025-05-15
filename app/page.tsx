@@ -1,6 +1,11 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, MapPin, ListIcon } from "lucide-react"
 import { ListItem } from "@/components/list-item"
+import { useMiniApp } from "@/hooks/use-mini-app"
+import { useRouter } from "next/navigation"
 
 // Mock data for lists
 const FEATURED_LISTS = [
@@ -35,6 +40,24 @@ const FEATURED_LISTS = [
 ]
 
 export default function Home() {
+  const { isMiniApp, isLoading } = useMiniApp()
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+
+    // If we're in a mini app, redirect to discover
+    if (mounted && !isLoading && isMiniApp) {
+      router.push("/discover")
+    }
+  }, [isMiniApp, isLoading, router, mounted])
+
+  // Don't render the regular home page in mini app mode
+  if (isMiniApp) {
+    return null
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Hero section */}
