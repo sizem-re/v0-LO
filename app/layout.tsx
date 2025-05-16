@@ -11,8 +11,6 @@ import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
 // Import the MiniAppLoader component
 import { MiniAppLoader } from "@/components/mini-app-loader"
-// Import the MiniAppDebug component
-import { MiniAppDebug } from "@/components/mini-app-debug"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -72,7 +70,6 @@ export default function RootLayout({
                     <main className="flex-1">{children}</main>
                     <Footer />
                   </div>
-                  <MiniAppDebug />
                 </MiniAppDetector>
               </MiniAppLoader>
             </AuthProvider>
