@@ -11,6 +11,10 @@ import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
 // Import the MiniAppLoader component
 import { MiniAppLoader } from "@/components/mini-app-loader"
+// Add this import at the top with the other imports
+import { MiniAppDebugPanel } from "@/components/mini-app-debug-panel"
+// Add this import at the top with the other imports
+import { ForceMiniApp } from "@/components/force-mini-app"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -62,6 +66,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
+              <ForceMiniApp />
               <MiniAppLoader>
                 <MiniAppDetector>
                   <DeepLinkHandler />
@@ -75,6 +80,7 @@ export default function RootLayout({
             </AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>
+        <MiniAppDebugPanel />
       </body>
     </html>
   )
