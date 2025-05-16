@@ -2,18 +2,21 @@
 
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
-export function ForceMiniApp() {
+// This component uses useSearchParams() and needs to be wrapped in Suspense
+function ForceMiniAppInner() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
     // Check if we should force mini app mode
-    const forceMiniApp = searchParams.get("forceMiniApp")
+    const forceMiniApp = searchParams?.get("forceMiniApp")
 
     if (forceMiniApp === "true") {
       console.log("Forcing Mini App mode via URL parameter")
 
       // Add a global flag that our hooks can check
+      // @ts-ignore
       window.forceMiniApp = true
 
       // Add a class to the document for styling
@@ -28,4 +31,13 @@ export function ForceMiniApp() {
   }, [searchParams])
 
   return null
+}
+
+// This is the main component that wraps the inner component with Suspense
+export function ForceMiniApp() {
+  return (
+    <Suspense fallback={null}>
+      <ForceMiniAppInner />
+    </Suspense>
+  )
 }

@@ -1,20 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next/types"
+import ClientRootLayout from "./client-layout"
 import { BIZ_UDMincho, Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { MainNav } from "@/components/main-nav"
-import { Footer } from "@/components/footer"
-import { AuthProvider } from "@/lib/auth-context"
-import { MiniAppDetector } from "@/components/mini-app-detector"
-import { DeepLinkHandler } from "@/components/deep-link-handler"
-import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-// Import the MiniAppLoader component
-import { MiniAppLoader } from "@/components/mini-app-loader"
-// Add this import at the top with the other imports
-import { MiniAppDebugPanel } from "@/components/mini-app-debug-panel"
-// Add this import at the top with the other imports
-import { ForceMiniApp } from "@/components/force-mini-app"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,7 +43,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Wrap the entire app content with MiniAppLoader
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -63,24 +50,7 @@ export default function RootLayout({
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <NeynarProviderWrapper>
-            <AuthProvider>
-              <ForceMiniApp />
-              <MiniAppLoader>
-                <MiniAppDetector>
-                  <DeepLinkHandler />
-                  <div className="flex flex-col min-h-screen">
-                    <MainNav />
-                    <main className="flex-1">{children}</main>
-                    <Footer />
-                  </div>
-                </MiniAppDetector>
-              </MiniAppLoader>
-            </AuthProvider>
-          </NeynarProviderWrapper>
-        </ThemeProvider>
-        <MiniAppDebugPanel />
+        <ClientRootLayout>{children}</ClientRootLayout>
       </body>
     </html>
   )

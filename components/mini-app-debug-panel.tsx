@@ -56,6 +56,13 @@ export function MiniAppDebugPanel() {
     }
   }
 
+  const handleForceMiniApp = () => {
+    // Add a URL parameter to force mini app detection
+    const url = new URL(window.location.href)
+    url.searchParams.set("forceMiniApp", "true")
+    window.location.href = url.toString()
+  }
+
   return (
     <div className="fixed bottom-0 right-0 z-50 max-w-sm bg-white border border-black/10 shadow-lg">
       <button
@@ -111,15 +118,7 @@ export function MiniAppDebugPanel() {
               {sdkStatus === "loading" ? "Loading..." : "Try Manual ready()"}
             </button>
 
-            <button
-              onClick={() => {
-                // Add a URL parameter to force mini app detection
-                const url = new URL(window.location.href)
-                url.searchParams.set("forceMiniApp", "true")
-                window.location.href = url.toString()
-              }}
-              className="flex-1 p-1 bg-gray-800 text-white text-xs mt-2"
-            >
+            <button onClick={handleForceMiniApp} className="flex-1 p-1 bg-gray-800 text-white text-xs mt-2">
               Force Mini App Mode
             </button>
           </div>

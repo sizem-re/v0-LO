@@ -10,6 +10,8 @@ export function useMiniApp() {
   useEffect(() => {
     // Check if we're running in a Farcaster Mini App environment
     const checkIfMiniApp = () => {
+      if (typeof window === "undefined") return
+
       // Various ways to detect if we're in a Farcaster Mini App
       const url = new URL(window.location.href)
       const userAgent = window.navigator.userAgent
@@ -30,6 +32,8 @@ export function useMiniApp() {
         inIframe: window !== window.parent,
         hasNeynarParam: url.searchParams.has("neynar"),
         hasFrameParam: url.searchParams.has("frame"),
+        // Check for the force flag we set
+        forceMiniApp: Boolean(window.forceMiniApp),
       }
 
       // Log detailed detection information
@@ -48,6 +52,7 @@ export function useMiniApp() {
         signals.farcasterObject ||
         signals.hasNeynarParam ||
         signals.hasFrameParam ||
+        signals.forceMiniApp ||
         // Force detection in development for testing
         (process.env.NODE_ENV === "development" && url.searchParams.has("forceMiniApp"))
 
