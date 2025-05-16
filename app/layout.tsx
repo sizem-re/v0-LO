@@ -23,14 +23,14 @@ const bizUDMincho = BIZ_UDMincho({
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
   version: "next",
-  imageUrl: "/og-image.png",
+  imageUrl: "https://llllllo.com/og-image.png", // Use the OG image
   button: {
     title: "🗺️ Explore Places",
     action: {
       type: "launch_frame",
       name: "LO",
-      url: "/",
-      splashImageUrl: "/splash.png",
+      url: "https://llllllo.com",
+      splashImageUrl: "https://llllllo.com/splash.png", // Use the splash image
       splashBackgroundColor: "#ffffff",
     },
   },
