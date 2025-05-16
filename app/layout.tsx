@@ -6,13 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { MainNav } from "@/components/main-nav"
 import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
-import { MiniAppDetector } from "@/components/mini-app-detector"
-import { DeepLinkHandler } from "@/components/deep-link-handler"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-// Import the MiniAppLoader component
-import { MiniAppLoader } from "@/components/mini-app-loader"
-import { FarcasterSDKProvider } from "@/lib/farcaster-sdk-context"
-import { MiniAppDebug } from "@/components/mini-app-debug"
+import { FarcasterReady } from "@/components/farcaster-ready"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,17 +20,20 @@ const bizUDMincho = BIZ_UDMincho({
   variable: "--font-biz-udmincho",
 })
 
+// Use absolute URLs for images to ensure they load properly
+const SITE_URL = "https://v0-lo.vercel.app" // Update this to your actual domain
+
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
   version: "next",
-  imageUrl: "https://llllllo.com/og-image.png", // Use the OG image
+  imageUrl: `${SITE_URL}/og-image.png`,
   button: {
     title: "🗺️ Explore Places",
     action: {
       type: "launch_frame",
       name: "LO",
-      url: "https://llllllo.com",
-      splashImageUrl: "https://llllllo.com/splash.png", // Use the splash image
+      url: SITE_URL,
+      splashImageUrl: `${SITE_URL}/splash.png`,
       splashBackgroundColor: "#ffffff",
     },
   },
@@ -53,7 +51,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Wrap the entire app content with MiniAppLoader
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -64,19 +61,13 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
             <AuthProvider>
-              <FarcasterSDKProvider>
-                <MiniAppLoader>
-                  <MiniAppDetector>
-                    <DeepLinkHandler />
-                    <div className="flex flex-col min-h-screen">
-                      <MainNav />
-                      <main className="flex-1">{children}</main>
-                      <Footer />
-                    </div>
-                    <MiniAppDebug />
-                  </MiniAppDetector>
-                </MiniAppLoader>
-              </FarcasterSDKProvider>
+              {/* Unconditionally load SDK and call ready() */}
+              <FarcasterReady />
+              <div className="flex flex-col min-h-screen">
+                <MainNav />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
             </AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>

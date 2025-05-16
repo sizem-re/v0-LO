@@ -7,11 +7,11 @@
   "frame": {
     "version": "1",
     "name": "LO",
-    "iconUrl": "https://llllllo.com/icon.png",
-    "homeUrl": "https://llllllo.com",
-    "imageUrl": "https://llllllo.com/og-image.png",
+    "iconUrl": "https://v0-lo.vercel.app/icon.png",
+    "homeUrl": "https://v0-lo.vercel.app",
+    "imageUrl": "https://v0-lo.vercel.app/og-image.png",
     "buttonTitle": "🗺️ Explore Places",
-    "splashImageUrl": "https://llllllo.com/splash.png",
+    "splashImageUrl": "https://v0-lo.vercel.app/splash.png",
     "splashBackgroundColor": "#ffffff",
     "webhookUrl": "https://api.neynar.com/f/app/4529cab2-868b-420b-a4cf-afb4549ed937/event"
   }
