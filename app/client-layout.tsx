@@ -20,16 +20,19 @@ export default function ClientRootLayout({
 }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+      {/* Process URL parameters first */}
+      <Suspense fallback={null}>
+        <ForceMiniApp />
+      </Suspense>
+
       <NeynarProviderWrapper>
         <AuthProvider>
-          {/* Wrap components that use client-side hooks in Suspense */}
-          <Suspense fallback={null}>
-            <ForceMiniApp />
-          </Suspense>
           <MiniAppLoader>
             <Suspense fallback={null}>
               <MiniAppDetector>
-                <DeepLinkHandler />
+                <Suspense fallback={null}>
+                  <DeepLinkHandler />
+                </Suspense>
                 <div className="flex flex-col min-h-screen">
                   <MainNav />
                   <main className="flex-1">{children}</main>
@@ -40,6 +43,7 @@ export default function ClientRootLayout({
           </MiniAppLoader>
         </AuthProvider>
       </NeynarProviderWrapper>
+
       {/* Client-side only component */}
       <Suspense fallback={null}>
         <MiniAppDebugPanel />

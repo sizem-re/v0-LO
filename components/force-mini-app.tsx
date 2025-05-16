@@ -27,6 +27,9 @@ function ForceMiniAppInner() {
         // @ts-ignore
         window.farcaster = { isMiniApp: true }
       }
+
+      // Dispatch a custom event that other components can listen for
+      window.dispatchEvent(new CustomEvent("forceMiniAppChanged", { detail: true }))
     }
   }, [searchParams])
 

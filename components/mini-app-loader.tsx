@@ -6,12 +6,25 @@ import { useEffect, useState } from "react"
 import { useMiniApp } from "@/hooks/use-mini-app"
 
 export function MiniAppLoader({ children }: { children: React.ReactNode }) {
-  const { isMiniApp, detectionDetails } = useMiniApp()
+  const { isMiniApp, detectionDetails, recheckMiniApp } = useMiniApp()
   const [isReady, setIsReady] = useState(false)
   const [sdkLoaded, setSdkLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [readyAttempts, setReadyAttempts] = useState(0)
   const MAX_READY_ATTEMPTS = 3
+
+  // Listen for the forceMiniAppChanged event
+  useEffect(() => {
+    const handleForceMiniAppChanged = () => {
+      // Recheck mini app status
+      recheckMiniApp()
+    }
+
+    window.addEventListener("forceMiniAppChanged", handleForceMiniAppChanged)
+    return () => {
+      window.removeEventListener("forceMiniAppChanged", handleForceMiniAppChanged)
+    }
+  }, [recheckMiniApp])
 
   // Load the SDK dynamically only in client-side and only if in a mini app
   useEffect(() => {
