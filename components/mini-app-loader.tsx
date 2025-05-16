@@ -1,43 +1,22 @@
 "use client"
 
 import type React from "react"
-
-import { useEffect, useState } from "react"
-import { useMiniApp } from "@/hooks/use-mini-app"
+import { useEffect } from "react"
+import { useFarcasterSDK } from "@/lib/farcaster-sdk-context"
 
 export function MiniAppLoader({ children }: { children: React.ReactNode }) {
-  const { isMiniApp } = useMiniApp()
-  const [isReady, setIsReady] = useState(false)
-  const [sdkLoaded, setSdkLoaded] = useState(false)
+  const { isMiniApp, isLoaded, isReady, sendReady } = useFarcasterSDK()
 
-  // Load the SDK dynamically only in client-side and only if in a mini app
+  // Send ready signal after a short delay to ensure UI is stable
   useEffect(() => {
-    if (!isMiniApp) return
+    if (!isMiniApp || !isLoaded || isReady) return
 
-    const loadSdk = async () => {
-      try {
-        // Dynamically import the SDK only when needed
-        const { sdk } = await import("@farcaster/frame-sdk")
-        setSdkLoaded(true)
+    const timer = setTimeout(() => {
+      sendReady()
+    }, 500)
 
-        // Wait a bit to ensure UI is stable before calling ready
-        setTimeout(async () => {
-          try {
-            await sdk.actions.ready()
-            console.log("Mini App ready signal sent")
-          } catch (error) {
-            console.error("Error calling ready:", error)
-          }
-          setIsReady(true)
-        }, 500)
-      } catch (error) {
-        console.error("Error loading Frame SDK:", error)
-        setIsReady(true) // Continue anyway to not block the UI
-      }
-    }
-
-    loadSdk()
-  }, [isMiniApp])
+    return () => clearTimeout(timer)
+  }, [isMiniApp, isLoaded, isReady, sendReady])
 
   // If not in a mini app, just render children
   if (!isMiniApp) {
@@ -45,7 +24,6 @@ export function MiniAppLoader({ children }: { children: React.ReactNode }) {
   }
 
   // If in a mini app but not ready yet, show a minimal loading state
-  // This is intentionally minimal to avoid content reflows
   if (!isReady) {
     return (
       <div className="min-h-screen bg-white">

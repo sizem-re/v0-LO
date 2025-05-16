@@ -9,6 +9,8 @@
     "name": "LO",
     "iconUrl": "https://llllllo.com/icon.png",
     "homeUrl": "https://llllllo.com",
+    "imageUrl": "https://llllllo.com/og-image.png",
+    "buttonTitle": "🗺️ Explore Places",
     "splashImageUrl": "https://llllllo.com/splash.png",
     "splashBackgroundColor": "#ffffff",
     "webhookUrl": "https://api.neynar.com/f/app/4529cab2-868b-420b-a4cf-afb4549ed937/event"

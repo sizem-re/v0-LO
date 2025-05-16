@@ -2,14 +2,14 @@
 
 import type React from "react"
 import { useEffect } from "react"
-import { useMiniApp } from "@/hooks/use-mini-app"
+import { useFarcasterSDK } from "@/lib/farcaster-sdk-context"
 
 interface MiniAppDetectorProps {
   children: React.ReactNode
 }
 
 export function MiniAppDetector({ children }: MiniAppDetectorProps) {
-  const { isMiniApp } = useMiniApp()
+  const { isMiniApp } = useFarcasterSDK()
 
   useEffect(() => {
     // If we're in a mini app, we might need to adjust some styles

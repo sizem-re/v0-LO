@@ -1,55 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useDeepLink } from "@/hooks/use-deep-link"
 
 export function DeepLinkHandler() {
-  const router = useRouter()
-  const pathname = usePathname()
+  // This hook handles all the deep linking logic
+  useDeepLink()
 
-  useEffect(() => {
-    // Check if we're running in a Farcaster Mini App environment
-    const isFarcasterApp =
-      window.location.href.includes("farcaster://") ||
-      window.navigator.userAgent.includes("Farcaster") ||
-      window.location.hostname.includes("warpcast.com")
-
-    if (!isFarcasterApp) return
-
-    // Handle deep links
-    const handleDeepLink = (event: any) => {
-      const url = event.detail?.url || event.url
-      if (!url) return
-
-      try {
-        const parsedUrl = new URL(url)
-        const path = parsedUrl.pathname
-
-        // Only navigate if the path is different
-        if (path && path !== pathname) {
-          router.push(path)
-        }
-      } catch (error) {
-        console.error("Error handling deep link:", error)
-      }
-    }
-
-    // Listen for deep link events from the Farcaster client
-    window.addEventListener("farcaster:url", handleDeepLink)
-
-    // Check for initial deep link
-    if (window.location.href.includes("?initial_url=")) {
-      const params = new URLSearchParams(window.location.search)
-      const initialUrl = params.get("initial_url")
-      if (initialUrl) {
-        handleDeepLink({ url: initialUrl })
-      }
-    }
-
-    return () => {
-      window.removeEventListener("farcaster:url", handleDeepLink)
-    }
-  }, [router, pathname])
-
+  // This component doesn't render anything
   return null
 }
