@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@farcaster/frame-sdk':
         specifier: latest
-        version: 0.0.41(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
+        version: 0.0.44(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.9.1(react-hook-form@7.54.1(react@19.0.0))
@@ -349,11 +349,11 @@ packages:
   '@emotion/weak-memoize@0.4.0':
     resolution: {integrity: sha512-snKqtPW01tN0ui7yu9rGv69aJXr/a/Ywvl11sUjNtEcRc+ng/mQriFL0wLXMef74iHa/EkftbDzU9F8iFbH+zg==}
 
-  '@farcaster/frame-core@0.0.36':
-    resolution: {integrity: sha512-hEjCGSYSZDkXFJX9I42zXJDBYonIWjEVAj4rvlLFwZBa66Wd27AIIBgfeO9+qwWpYaQ+KHMh9UM7n3qDcmF61A==}
+  '@farcaster/frame-core@0.0.39':
+    resolution: {integrity: sha512-No+5rA97B1EzfkdpVbGRxJz3Ju8/jpY2GgJU/a2LiGFIS9ZV6a0wZznoFlB26puBzRMb+2R+M0zF0NFw8p4UJg==}
 
-  '@farcaster/frame-sdk@0.0.41':
-    resolution: {integrity: sha512-JYIRFg2ikf2z96cVLXYTaZVrUDxWjzKVlq7Eq9bJVClkQxpAUl/sARwvokx8pQAcSl7nQiemeF0nE1qvn3ZBYQ==}
+  '@farcaster/frame-sdk@0.0.44':
+    resolution: {integrity: sha512-mRFRmHwl7WmFN4VCoXLRP2kPE70WNsyQwc2t6cMQAjpu7yQbjsxGthKBSkxxMxo2v/pchJmEyxjNl+aXzo/GSQ==}
 
   '@floating-ui/core@1.7.0':
     resolution: {integrity: sha512-FRdBLykrPPA6P76GGGqlex/e7fbe0F1ykgxHYNXQsH/iTEtjMj/f9bpY5oQqbjt5VgZvgz/uKXbGuROijh3VLA==}
@@ -2276,8 +2276,8 @@ packages:
     peerDependencies:
       ws: '*'
 
-  isows@1.0.6:
-    resolution: {integrity: sha512-lPHCayd40oW98/I0uvgaHKWCSvkzY27LjWLbtzOm64yQ+G3Q5npjjbdppU65iZXkK1Zt+kH9pfegli0AYfwYYw==}
+  isows@1.0.7:
+    resolution: {integrity: sha512-I1fSfDCZL5P0v33sVqeTDSpcstAg/N+wF5HS033mogOVIp4B+oHC7oOCsA3axAbBSGTJ8QubbNmnIRN/h8U7hg==}
     peerDependencies:
       ws: '*'
 
@@ -3099,8 +3099,8 @@ packages:
   victory-vendor@36.9.2:
     resolution: {integrity: sha512-PnpQQMuxlwYdocC8fIJqVXvkeViHYzotI+NJrCuav0ZYFoq912ZHBk3mCeuj+5/VpodOjPe1z0Fk2ihgzlXqjQ==}
 
-  viem@2.29.3:
-    resolution: {integrity: sha512-9D/nO+4S3Kk0P8vh6yXUA8OJ0mli9nzoY22qyh8iYHf1Q0GIejUnyq0QGjoDbkTcVzCVD5iA9KBkSxw9Tp3vUg==}
+  viem@2.29.4:
+    resolution: {integrity: sha512-Dhyae+w1LKKpYVXypGjBnZ3WU5EHl/Uip5RtVwVRYSVxD5VvHzqKzIfbFU1KP4vnnh3++ZNgLjBY/kVT/tPrrg==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -3427,7 +3427,7 @@ snapshots:
 
   '@emotion/weak-memoize@0.4.0': {}
 
-  '@farcaster/frame-core@0.0.36(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)':
+  '@farcaster/frame-core@0.0.39(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)
       ox: 0.4.4(typescript@5.0.2)(zod@3.24.1)
@@ -3438,9 +3438,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@farcaster/frame-sdk@0.0.41(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
+  '@farcaster/frame-sdk@0.0.44(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
     dependencies:
-      '@farcaster/frame-core': 0.0.36(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)
+      '@farcaster/frame-core': 0.0.39(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)
       comlink: 4.4.2
       eventemitter3: 5.0.1
       ox: 0.4.4(typescript@5.0.2)(zod@3.24.1)
@@ -3689,7 +3689,7 @@ snapshots:
     dependencies:
       '@openapitools/openapi-generator-cli': 2.20.0
       semver: 7.7.2
-      viem: 2.29.3(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
+      viem: 2.29.4(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
     transitivePeerDependencies:
       - '@nestjs/microservices'
       - '@nestjs/platform-express'
@@ -5429,7 +5429,7 @@ snapshots:
     dependencies:
       ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
-  isows@1.0.6(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)):
+  isows@1.0.7(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)):
     dependencies:
       ws: 8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
@@ -6268,14 +6268,14 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  viem@2.29.3(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1):
+  viem@2.29.4(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1):
     dependencies:
       '@noble/curves': 1.8.2
       '@noble/hashes': 1.7.2
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
       abitype: 1.0.8(typescript@5.0.2)(zod@3.24.1)
-      isows: 1.0.6(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      isows: 1.0.7(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       ox: 0.6.9(typescript@5.0.2)(zod@3.24.1)
       ws: 8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     optionalDependencies:
