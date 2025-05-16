@@ -110,11 +110,28 @@ export default function VanillaLocationPicker({
   }
 
   useEffect(() => {
-    // Check if Leaflet is available
-    if (typeof window !== "undefined" && window.L) {
-      initMap()
+    // Load Leaflet CSS
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link")
+      link.id = "leaflet-css"
+      link.rel = "stylesheet"
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      link.crossOrigin = ""
+      document.head.appendChild(link)
+    }
+
+    // Load Leaflet JS
+    if (!window.L) {
+      const script = document.createElement("script")
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      script.crossOrigin = ""
+      script.onload = initMap
+      document.head.appendChild(script)
     } else {
-      console.error("Leaflet library not available. Please include it in your project.")
+      // If Leaflet is already loaded, initialize the map
+      initMap()
     }
 
     // Cleanup function

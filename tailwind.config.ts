@@ -25,8 +25,8 @@ const config = {
         foreground: "hsl(var(--foreground))",
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        serif: ["Georgia", "Cambria", "Times New Roman", "Times", "serif"],
+        sans: ["var(--font-inter)", "sans-serif"],
+        serif: ["var(--font-biz-udmincho)", "serif"],
       },
     },
   },
