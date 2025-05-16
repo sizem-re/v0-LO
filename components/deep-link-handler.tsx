@@ -2,10 +2,8 @@
 
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Suspense } from "react"
 
-// Inner component that uses client-side hooks
-function DeepLinkHandlerInner() {
+export function DeepLinkHandler() {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -54,13 +52,4 @@ function DeepLinkHandlerInner() {
   }, [router, pathname])
 
   return null
-}
-
-// Wrapper component with Suspense
-export function DeepLinkHandler() {
-  return (
-    <Suspense fallback={null}>
-      <DeepLinkHandlerInner />
-    </Suspense>
-  )
 }
