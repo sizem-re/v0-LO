@@ -20,17 +20,20 @@ const bizUDMincho = BIZ_UDMincho({
   variable: "--font-biz-udmincho",
 })
 
+// Use absolute URLs for images to ensure they load properly
+const SITE_URL = "https://v0-lo.vercel.app" // Update this to your actual domain
+
 // Create the Farcaster frame embed JSON
 const farcasterFrameEmbed = {
   version: "next",
-  imageUrl: "/api/og", // Use API route for OG image
+  imageUrl: `${SITE_URL}/og-image.png`,
   button: {
     title: "🗺️ Explore Places",
     action: {
       type: "launch_frame",
       name: "LO",
-      url: "/", // Use relative URL
-      splashImageUrl: "/api/splash", // Use API route for splash image
+      url: SITE_URL,
+      splashImageUrl: `${SITE_URL}/splash.png`,
       splashBackgroundColor: "#ffffff",
     },
   },
@@ -40,13 +43,6 @@ export const metadata: Metadata = {
   title: "LO - Discover Places",
   description: "Discover and share curated lists of locations",
   manifest: "/manifest.json",
-  openGraph: {
-    images: ["/api/og"],
-  },
-  icons: {
-    icon: "/api/icon",
-    apple: "/api/icon",
-  },
   generator: "v0.dev",
 }
 
