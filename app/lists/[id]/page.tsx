@@ -8,7 +8,6 @@ import dynamic from "next/dynamic"
 import type { Place } from "@/types/place"
 import { useMiniApp } from "@/hooks/use-mini-app"
 import { Edit, Share2 } from "lucide-react"
-import { LinkPreviewCard } from "@/components/link-preview-card"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -112,22 +111,6 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
         <div>
           <h2 className="text-2xl font-serif mb-4">Map</h2>
           <VanillaMap places={mockList.places} height="500px" onPlaceSelect={setSelectedPlace} />
-        </div>
-      </div>
-
-      <div className="mt-12">
-        <h2 className="text-2xl font-serif mb-4">Related Lists</h2>
-        <div className="space-y-4">
-          <LinkPreviewCard
-            title="More Places in Tacoma"
-            description="Discover more hidden gems and local favorites in the Tacoma area."
-            url="/lists/2"
-          />
-          <LinkPreviewCard
-            title="Best Coffee Shops"
-            description="A curated collection of the best places to get your caffeine fix."
-            url="/lists/3"
-          />
         </div>
       </div>
 
