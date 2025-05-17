@@ -16,7 +16,7 @@ importers:
         version: 3.9.1(react-hook-form@7.54.1(react@19.0.0))
       '@neynar/nodejs-sdk':
         specifier: latest
-        version: 2.41.0(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
+        version: 2.42.0(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
       '@neynar/react':
         specifier: latest
         version: 1.2.0(@pigment-css/react@0.0.30(@types/react@19.0.0)(react@19.0.0)(typescript@5.0.2))(hls.js@1.6.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(swr@2.3.3(react@19.0.0))
@@ -652,8 +652,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@neynar/nodejs-sdk@2.41.0':
-    resolution: {integrity: sha512-xB6LMOcDmB0u06FAlmk0DYx2gaKiXK/uzN1SSBWECbln+DvC9b+hs8W9b5tctqPt3BwkWlZ4Tu2M1/DZvnBAgQ==}
+  '@neynar/nodejs-sdk@2.42.0':
+    resolution: {integrity: sha512-KCWsxc3zOzbsWxY+OnxUlFBhlOWGQ8h55USAmy0Gm1w+qM/xmuazoubc0kN5kSVLx/hSFtt8RCROHzCaWciUhA==}
     engines: {node: '>=19.9.0'}
 
   '@neynar/react@1.2.0':
@@ -3685,7 +3685,7 @@ snapshots:
   '@next/swc-win32-x64-msvc@15.2.4':
     optional: true
 
-  '@neynar/nodejs-sdk@2.41.0(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
+  '@neynar/nodejs-sdk@2.42.0(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
     dependencies:
       '@openapitools/openapi-generator-cli': 2.20.0
       semver: 7.7.2

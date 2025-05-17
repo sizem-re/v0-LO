@@ -1,4 +1,5 @@
 import { ListItem } from "@/components/list-item"
+import { PageLayout } from "@/components/page-layout"
 
 // Mock data for lists
 const EXPLORE_LISTS = [
@@ -30,14 +31,16 @@ const EXPLORE_LISTS = [
 
 export default function ExplorePage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-serif mb-8">Explore</h1>
+    <PageLayout>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-serif mb-8">Explore</h1>
 
-      <div className="space-y-0">
-        {EXPLORE_LISTS.map((list) => (
-          <ListItem key={list.id} list={list} />
-        ))}
+        <div className="space-y-0">
+          {EXPLORE_LISTS.map((list) => (
+            <ListItem key={list.id} list={list} />
+          ))}
+        </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }

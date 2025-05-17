@@ -4,6 +4,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { Plus, Grid, ListIcon, MapPin } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+// Import the PageLayout at the top
+import { PageLayout } from "@/components/page-layout"
 
 // Mock data for user lists
 const USER_LISTS = [
@@ -155,10 +157,13 @@ function ListsPage() {
   )
 }
 
+// Wrap the ListsPageWrapper with PageLayout
 export default function ListsPageWrapper() {
   return (
-    <ProtectedRoute>
-      <ListsPage />
-    </ProtectedRoute>
+    <PageLayout>
+      <ProtectedRoute>
+        <ListsPage />
+      </ProtectedRoute>
+    </PageLayout>
   )
 }

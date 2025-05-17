@@ -60,6 +60,7 @@ body {
 /* Leaflet custom styles */
 .leaflet-container {
   font-family: inherit;
+  z-index: 0 !important;
 }
 
 .leaflet-control-attribution {
@@ -144,12 +145,12 @@ body {
 .leaflet-control,
 .leaflet-top,
 .leaflet-bottom {
-  z-index: 400 !important;
+  z-index: 10 !important;
 }
 
 .leaflet-tooltip,
 .leaflet-popup {
-  z-index: 500 !important;
+  z-index: 20 !important;
 }
 
 /* Add skeleton loading animations */

@@ -16,7 +16,11 @@ export function useMiniApp() {
         window.location.hostname.includes("warpcast.com") ||
         window.location.search.includes("miniApp=true") ||
         window.location.pathname.startsWith("/mini") ||
-        window.location.search.includes("fc-frame")
+        window.location.search.includes("fc-frame") ||
+        // Check for small viewport which is common in miniapps
+        (window.innerWidth < 500 && window.innerHeight < 900) ||
+        // Check if embedded in an iframe
+        window.self !== window.top
 
       setIsMiniApp(isFarcasterApp)
       setIsLoading(false)

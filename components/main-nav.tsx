@@ -60,7 +60,7 @@ export function MainNav() {
                 <Link href="/explore" className={`nav-link ${pathname === "/explore" ? "font-medium" : ""}`}>
                   EXPLORE
                 </Link>
-                <Link href="/map" className={`nav-link ${pathname === "/map" ? "font-medium" : ""}`}>
+                <Link href="/map-new" className={`nav-link ${pathname === "/map-new" ? "font-medium" : ""}`}>
                   MAP
                 </Link>
                 {userIsAuthenticated && (
@@ -117,7 +117,7 @@ export function MainNav() {
               <span>EXPLORE</span>
             </Link>
             <Link
-              href="/map"
+              href="/map-new"
               className="flex items-center py-3 border-b border-black/10"
               onClick={() => setIsMenuOpen(false)}
             >

@@ -1,63 +1,76 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useNeynarContext } from "@neynar/react"
 
 interface AuthContextType {
-  isLoading: boolean
   isAuthenticated: boolean
-  signIn: () => Promise<void>
-  signOut: () => void
+  isLoading: boolean
+  user: any | null
+  logout: () => void
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  isLoading: true,
+  user: null,
+  logout: () => {},
+})
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const { user, isAuthenticated, isLoading: neynarLoading } = useNeynarContext()
-  const router = useRouter()
+  const [user, setUser] = useState<any | null>(null)
+  const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
-  // Update loading state based on Neynar loading state
   useEffect(() => {
-    setIsLoading(neynarLoading)
-  }, [neynarLoading])
-
-  const signIn = async () => {
-    try {
-      setIsLoading(true)
-      // The actual sign-in is handled by the NeynarAuthButton component
-      // This is just a placeholder for compatibility with existing code
-      return Promise.resolve()
-    } catch (error) {
-      console.error("Sign in error:", error)
-      return Promise.reject(error)
-    } finally {
+    // Check if the user is authenticated with Neynar
+    if (neynarAuthenticated && neynarUser) {
+      setIsAuthenticated(true)
+      setUser(neynarUser)
       setIsLoading(false)
+      return
     }
+
+    // Check if the user is authenticated with our own system
+    // This is a simplified example - in a real app, you would check with your backend
+    const checkAuth = async () => {
+      try {
+        // Simulate an API call to check authentication
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        // For demo purposes, we'll just check localStorage
+        const storedUser = localStorage.getItem("user")
+
+        if (storedUser) {
+          setIsAuthenticated(true)
+          setUser(JSON.parse(storedUser))
+        } else {
+          setIsAuthenticated(false)
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Error checking authentication:", error)
+        setIsAuthenticated(false)
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [neynarAuthenticated, neynarUser])
+
+  const logout = () => {
+    // Clear local authentication
+    localStorage.removeItem("user")
+    setIsAuthenticated(false)
+    setUser(null)
   }
 
-  const signOut = () => {
-    // The actual sign-out is handled by the NeynarAuthButton component
-    // This is just a placeholder for compatibility with existing code
-    router.push("/")
-  }
-
-  const value = {
-    isLoading,
-    isAuthenticated: !!isAuthenticated,
-    signIn,
-    signOut,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ isAuthenticated, isLoading, user, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
+  return useContext(AuthContext)
 }

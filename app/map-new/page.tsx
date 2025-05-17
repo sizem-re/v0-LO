@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/sidebar/sidebar"
 import type { Place } from "@/types/place"
-import { FarcasterReady } from "@/components/farcaster-ready"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -57,17 +56,10 @@ export default function MapPage() {
 
   return (
     <div className="fixed inset-0 flex h-screen w-screen overflow-hidden">
-      {/* Keep FarcasterReady component to ensure miniapp functionality */}
-      <FarcasterReady />
+      <Sidebar />
 
-      {/* Map container with lower z-index */}
-      <div className="w-full h-full relative z-0">
+      <div className="flex-1 relative">
         <VanillaMap places={places} height="100%" />
-      </div>
-
-      {/* Sidebar with higher z-index */}
-      <div className="absolute top-0 left-0 h-full z-50">
-        <Sidebar />
       </div>
     </div>
   )

@@ -3,11 +3,8 @@ import type { Metadata } from "next/types"
 import { BIZ_UDMincho, Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { MainNav } from "@/components/main-nav"
-import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-import { FarcasterReady } from "@/components/farcaster-ready"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,15 +54,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
-            <AuthProvider>
-              {/* Unconditionally load SDK and call ready() */}
-              <FarcasterReady />
-              <div className="flex flex-col min-h-screen">
-                <MainNav />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>
       </body>
