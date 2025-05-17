@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
 import { CreateListModal } from "./create-list-modal"
+import { AddPlaceModal } from "./add-place-modal"
 import { PlaceDetails } from "./place-details"
 import { ListDetails } from "./list-details"
 import { ProfileView } from "./profile-view"
@@ -41,6 +42,7 @@ export function Sidebar() {
   const [activeTab, setActiveTab] = useState("discover")
   const [searchQuery, setSearchQuery] = useState("")
   const [showNewListModal, setShowNewListModal] = useState(false)
+  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [showPlaceDetails, setShowPlaceDetails] = useState(false)
   const [showListDetails, setShowListDetails] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -219,6 +221,15 @@ export function Sidebar() {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
+  }
+
+  const handleAddPlace = () => {
+    if (!userIsAuthenticated) {
+      setShowLogin(true)
+      return
+    }
+
+    setShowAddPlaceModal(true)
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -563,7 +574,10 @@ export function Sidebar() {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="font-serif text-lg">All Places</h2>
-                  <Button className="bg-black text-white hover:bg-black/80 px-3 py-1 text-sm flex items-center">
+                  <Button
+                    className="bg-black text-white hover:bg-black/80 px-3 py-1 text-sm flex items-center"
+                    onClick={handleAddPlace}
+                  >
                     <Plus size={16} className="mr-1" /> Add Place
                   </Button>
                 </div>
@@ -613,8 +627,14 @@ export function Sidebar() {
         </>
       )}
 
-      {/* Show modal if active */}
+      {/* Show modals if active */}
       {showNewListModal && <CreateListModal onClose={() => setShowNewListModal(false)} />}
+      {showAddPlaceModal && (
+        <AddPlaceModal
+          onClose={() => setShowAddPlaceModal(false)}
+          userLists={sampleLists.filter((list) => list.isOwner)}
+        />
+      )}
     </div>
   )
 }
