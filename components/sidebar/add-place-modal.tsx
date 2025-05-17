@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CreateListInlineModal } from "./create-list-inline-modal"
+import { LocationPickerModal } from "./location-picker-modal"
 
 interface AddPlaceModalProps {
   onClose: () => void
@@ -32,6 +33,8 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [userLists, setUserLists] = useState(initialUserLists)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
+  const [showLocationPicker, setShowLocationPicker] = useState(false)
+  const [hasSetLocation, setHasSetLocation] = useState(false)
 
   // Count how many lists are selected
   const selectedListCount = Object.values(selectedLists).filter(Boolean).length
@@ -83,6 +86,16 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
     }))
   }
 
+  const handleLocationSelect = (location: { lat: number; lng: number; address?: string }) => {
+    setFormData((prev) => ({
+      ...prev,
+      coordinates: { lat: location.lat, lng: location.lng },
+      // Update address if provided from geocoding
+      ...(location.address ? { address: location.address } : {}),
+    }))
+    setHasSetLocation(true)
+  }
+
   const validateDetailsForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -96,6 +109,10 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
 
     if (!formData.type.trim()) {
       newErrors.type = "Type is required"
+    }
+
+    if (!hasSetLocation) {
+      newErrors.location = "Please set a location on the map"
     }
 
     setErrors(newErrors)
@@ -264,13 +281,29 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
                 </div>
 
                 <div>
-                  <Label className="block mb-1 font-medium">Location</Label>
-                  <div className="h-40 bg-gray-200 rounded-md flex items-center justify-center">
-                    <div className="flex flex-col items-center text-black/60">
-                      <MapPin className="h-6 w-6 mb-2" />
-                      <span>Set location on map</span>
-                    </div>
+                  <Label className="block mb-1 font-medium">Location*</Label>
+                  <div
+                    className={`h-40 bg-gray-200 rounded-md flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors ${
+                      errors.location ? "border-2 border-red-500" : ""
+                    }`}
+                    onClick={() => setShowLocationPicker(true)}
+                  >
+                    {hasSetLocation ? (
+                      <div className="text-center">
+                        <div className="font-medium">Location set</div>
+                        <div className="text-sm text-black/60">
+                          {formData.coordinates.lat.toFixed(6)}, {formData.coordinates.lng.toFixed(6)}
+                        </div>
+                        <div className="mt-2 text-sm text-black/80 underline">Click to edit</div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center text-black/60">
+                        <MapPin className="h-6 w-6 mb-2" />
+                        <span>Set location on map</span>
+                      </div>
+                    )}
                   </div>
+                  {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
                 </div>
               </div>
             </div>
@@ -348,6 +381,15 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
 
       {showCreateListModal && (
         <CreateListInlineModal onClose={() => setShowCreateListModal(false)} onListCreated={handleNewListCreated} />
+      )}
+
+      {showLocationPicker && (
+        <LocationPickerModal
+          onClose={() => setShowLocationPicker(false)}
+          initialLocation={hasSetLocation ? formData.coordinates : undefined}
+          initialAddress={formData.address}
+          onLocationSelect={handleLocationSelect}
+        />
       )}
     </div>
   )
