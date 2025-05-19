@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean
   user: any | null
   dbUser: any | null
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   user: null,
   dbUser: null,
-  logout: () => {},
+  logout: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,23 +79,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // Clear local authentication
-      localStorage.removeItem("user")
+      console.log("Logout function called")
+
+      // Clear local state first
       setIsAuthenticated(false)
       setUser(null)
       setDbUser(null)
 
-      // Sign out from Neynar if available
-      if (typeof neynarSignOut === "function") {
-        await neynarSignOut()
+      // Clear local storage
+      localStorage.removeItem("user")
+
+      // Call server-side logout endpoint
+      try {
+        await fetch("/api/auth/logout", { method: "POST" })
+        console.log("Server-side logout successful")
+      } catch (serverError) {
+        console.error("Server-side logout error:", serverError)
       }
 
-      // Redirect to home page
-      router.push("/")
+      // Try to sign out from Neynar
+      if (typeof neynarSignOut === "function") {
+        try {
+          await neynarSignOut()
+          console.log("Neynar signOut successful")
+        } catch (neynarError) {
+          console.error("Neynar signOut error:", neynarError)
+        }
+      } else {
+        console.log("Neynar signOut function not available")
+      }
+
+      // Force reload the page to clear all state
+      window.location.href = "/"
     } catch (error) {
       console.error("Error during logout:", error)
-      // Still redirect even if there's an error
-      router.push("/")
+      // Force reload even if there's an error
+      window.location.href = "/"
     }
   }
 

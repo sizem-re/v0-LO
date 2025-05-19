@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { ChevronLeft, LogOut, MapPin, List } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -40,34 +42,32 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
       }
 
   // Handle logout directly without relying on the passed prop
-  const handleLogout = () => {
-    // Call the provided onLogout callback if it exists
-    if (typeof onLogout === "function") {
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    console.log("ProfileView logout button clicked")
+
+    try {
+      // Call the provided onLogout callback if it exists
+      if (typeof onLogout === "function") {
+        try {
+          onLogout()
+        } catch (error) {
+          console.error("Error calling onLogout callback:", error)
+        }
+      }
+
+      // Also logout from auth context
       try {
-        onLogout()
+        await authLogout()
+        // The authLogout function now handles the redirect
       } catch (error) {
-        console.error("Error calling onLogout callback:", error)
-      }
-    }
-
-    // Also logout from auth context
-    try {
-      authLogout()
-    } catch (error) {
-      console.error("Error logging out from auth context:", error)
-    }
-
-    // And from Neynar if available
-    try {
-      if (neynarSignOut) {
-        neynarSignOut()
+        console.error("Error logging out from auth context:", error)
+        window.location.href = "/"
       }
     } catch (error) {
-      console.error("Error signing out from Neynar:", error)
+      console.error("Error in handleLogout:", error)
+      window.location.href = "/"
     }
-
-    // Redirect to home page
-    router.push("/")
   }
 
   return (

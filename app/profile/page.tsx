@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -10,8 +12,8 @@ import Link from "next/link"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading, user: authUser, logout: authLogout } = useAuth()
-  const { isAuthenticated: neynarAuthenticated, user: neynarUser, signOut: neynarSignOut } = useNeynarContext()
+  const { isAuthenticated, isLoading, user: authUser, logout } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
   const user = neynarUser || authUser
@@ -24,21 +26,16 @@ export default function ProfilePage() {
   }, [isLoading, userIsAuthenticated, router])
 
   // Handle logout
-  const handleLogout = () => {
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    console.log("Profile page logout button clicked")
+
     try {
-      if (neynarAuthenticated && neynarSignOut) {
-        neynarSignOut()
-      }
-
-      if (isAuthenticated) {
-        authLogout()
-      }
-
-      router.push("/")
+      await logout()
+      // The logout function now handles the redirect
     } catch (error) {
-      console.error("Error during logout:", error)
-      // Still redirect to home page even if there's an error
-      router.push("/")
+      console.error("Error in handleLogout:", error)
+      window.location.href = "/"
     }
   }
 

@@ -166,21 +166,14 @@ export function Sidebar() {
     },
   ]
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    console.log("Sidebar handleLogout called")
     try {
-      if (neynarAuthenticated && signOut) {
-        signOut()
-      }
-
-      if (isAuthenticated && logout) {
-        logout()
-      }
-
-      setShowProfile(false)
-      setActiveTab("discover")
-      router.push("/")
+      await logout()
+      // The logout function now handles the redirect
     } catch (error) {
       console.error("Error during logout:", error)
+      window.location.href = "/"
     }
   }
 
