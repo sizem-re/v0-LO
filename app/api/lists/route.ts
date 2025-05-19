@@ -1,72 +1,68 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase-client"
-import { getUserFromRequest } from "@/lib/auth-utils"
 
-// GET /api/lists - Get all lists for the current user
+// GET /api/lists - Get lists (with filtering options)
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request)
+    const searchParams = request.nextUrl.searchParams
+    const userId = searchParams.get("userId")
+    const visibility = searchParams.get("visibility")
+    const fid = searchParams.get("fid")
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // If fid is provided, get the user's ID from Supabase
+    let dbUserId = userId
+    if (fid && !userId) {
+      const { data: userData } = await supabase.from("users").select("id").eq("farcaster_id", fid).single()
+
+      if (userData) {
+        dbUserId = userData.id
+      }
     }
-
-    // Get query parameters
-    const url = new URL(request.url)
-    const includePublic = url.searchParams.get("includePublic") === "true"
 
     let query = supabase.from("lists").select(`
-        *,
-        places:places_lists(
-          place:places(*)
-        )
-      `)
+      *,
+      owner:users(farcaster_username, farcaster_display_name, farcaster_pfp_url),
+      places:list_places(
+        id,
+        place:places(*)
+      )
+    `)
 
-    if (includePublic) {
-      query = query.or(`user_id.eq.${user.id},privacy.eq.public`)
-    } else {
-      query = query.eq("user_id", user.id)
+    // Apply filters
+    if (dbUserId) {
+      query = query.eq("owner_id", dbUserId)
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false })
+    if (visibility) {
+      if (visibility === "public-community") {
+        query = query.in("visibility", ["public", "community"])
+      } else {
+        query = query.eq("visibility", visibility)
+      }
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error("Error fetching lists:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform data to include place_count
-    const transformedData = data.map((list) => {
-      const places = list.places.map((p: any) => p.place)
-      return {
-        ...list,
-        places,
-        place_count: places.length,
-      }
-    })
-
-    return NextResponse.json(transformedData)
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/lists:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 // POST /api/lists - Create a new list
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request)
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
+    const { title, description, visibility, ownerId, coverImageUrl } = body
 
-    const { title, description, privacy } = body
-
-    if (!title) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    if (!title || !ownerId) {
+      return NextResponse.json({ error: "Title and ownerId are required" }, { status: 400 })
     }
 
     const { data, error } = await supabase
@@ -74,21 +70,20 @@ export async function POST(request: NextRequest) {
       .insert({
         title,
         description,
-        privacy: privacy || "private",
-        user_id: user.id,
-        fid: user.fid || null,
+        visibility: visibility || "private",
+        owner_id: ownerId,
+        cover_image_url: coverImageUrl,
       })
       .select()
-      .single()
 
     if (error) {
       console.error("Error creating list:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data[0])
   } catch (error) {
     console.error("Error in POST /api/lists:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

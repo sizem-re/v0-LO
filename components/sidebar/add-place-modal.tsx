@@ -9,20 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CreateListModal } from "./create-list-modal"
+import { CreateListInlineModal } from "./create-list-inline-modal"
 import { LocationPickerModal } from "./location-picker-modal"
-import { useLists } from "@/hooks/use-lists"
-import { usePlaces } from "@/hooks/use-places"
 
 interface AddPlaceModalProps {
   onClose: () => void
-  onSuccess?: () => void
+  userLists: Array<{ id: number | string; name: string; isOwner: boolean }>
 }
 
-export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
-  const { lists, isLoading: listsLoading } = useLists()
-  const { createPlace } = usePlaces()
-
+export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlaceModalProps) {
   const [step, setStep] = useState<"details" | "lists">("details")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -34,12 +29,12 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
     coordinates: { lat: 0, lng: 0 },
     image: null as File | null,
   })
-  const [selectedLists, setSelectedLists] = useState<Record<string, boolean>>({})
+  const [selectedLists, setSelectedLists] = useState<Record<string | number, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [userLists, setUserLists] = useState(initialUserLists)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [hasSetLocation, setHasSetLocation] = useState(false)
-  const [successMessage, setSuccessMessage] = useState("")
 
   // Count how many lists are selected
   const selectedListCount = Object.values(selectedLists).filter(Boolean).length
@@ -64,7 +59,7 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
     }
   }
 
-  const handleListToggle = (listId: string) => {
+  const handleListToggle = (listId: number | string) => {
     setSelectedLists((prev) => ({
       ...prev,
       [listId]: !prev[listId],
@@ -80,11 +75,14 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
     }
   }
 
-  const handleNewListCreated = (listId: string) => {
+  const handleNewListCreated = (newList: { id: string | number; name: string; isOwner: boolean }) => {
+    // Add the new list to the user's lists
+    setUserLists((prev) => [...prev, newList])
+
     // Automatically select the new list
     setSelectedLists((prev) => ({
       ...prev,
-      [listId]: true,
+      [newList.id]: true,
     }))
   }
 
@@ -96,15 +94,6 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
       ...(location.address ? { address: location.address } : {}),
     }))
     setHasSetLocation(true)
-
-    // Clear location error
-    if (errors.location) {
-      setErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors.location
-        return newErrors
-      })
-    }
   }
 
   const validateDetailsForm = () => {
@@ -150,51 +139,18 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
 
     setIsSubmitting(true)
 
-    try {
-      // Get the list IDs that were selected
-      const listIds = Object.entries(selectedLists)
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    console.log("Submitting place:", {
+      ...formData,
+      lists: Object.entries(selectedLists)
         .filter(([_, isSelected]) => isSelected)
-        .map(([listId]) => listId)
+        .map(([listId]) => listId),
+    })
 
-      // Upload image if provided
-      let imageUrl = undefined
-      if (formData.image) {
-        // In a real app, you would upload the image to a storage service
-        // and get back a URL. For this example, we'll just use a placeholder.
-        imageUrl = "/placeholder.svg?height=200&width=300"
-      }
-
-      // Create the place
-      await createPlace({
-        name: formData.name,
-        address: formData.address,
-        description: formData.description || undefined,
-        type: formData.type || undefined,
-        website: formData.website || undefined,
-        lat: formData.coordinates.lat,
-        lng: formData.coordinates.lng,
-        image_url: imageUrl,
-        listIds,
-      })
-
-      setSuccessMessage(`${formData.name} has been added to ${selectedListCount} list(s)`)
-
-      // Close after a short delay or show success message
-      setTimeout(() => {
-        if (onSuccess) {
-          onSuccess()
-        }
-        onClose()
-      }, 1500)
-    } catch (err) {
-      console.error("Error creating place:", err)
-      setErrors((prev) => ({
-        ...prev,
-        submit: err instanceof Error ? err.message : "Failed to create place",
-      }))
-    } finally {
-      setIsSubmitting(false)
-    }
+    setIsSubmitting(false)
+    onClose()
   }
 
   return (
@@ -208,10 +164,6 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
         </div>
 
         <div className="flex-grow overflow-y-auto">
-          {successMessage && (
-            <div className="m-4 p-3 bg-green-50 text-green-600 rounded-md text-sm">{successMessage}</div>
-          )}
-
           {step === "details" ? (
             <div className="p-4">
               <div className="space-y-4">
@@ -362,51 +314,34 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
               </p>
 
               {errors.lists && <p className="text-red-500 text-sm mb-4">{errors.lists}</p>}
-              {errors.submit && <p className="text-red-500 text-sm mb-4">{errors.submit}</p>}
 
-              {listsLoading ? (
-                <div className="py-8 text-center text-black/60">Loading your lists...</div>
-              ) : lists.length === 0 ? (
-                <div className="text-center py-8 border border-black/10 rounded">
-                  <p className="text-black/60 mb-4">You don't have any lists yet</p>
-                  <Button
-                    className="bg-black text-white hover:bg-black/80"
-                    onClick={() => setShowCreateListModal(true)}
-                  >
-                    <Plus size={16} className="mr-1" /> Create Your First List
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2 mb-4">
-                  {lists.map((list) => (
-                    <div key={list.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`list-${list.id}`}
-                        checked={!!selectedLists[list.id]}
-                        onCheckedChange={() => handleListToggle(list.id)}
-                      />
-                      <Label
-                        htmlFor={`list-${list.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        {list.title}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="space-y-2 mb-4">
+                {userLists.map((list) => (
+                  <div key={list.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`list-${list.id}`}
+                      checked={!!selectedLists[list.id]}
+                      onCheckedChange={() => handleListToggle(list.id)}
+                    />
+                    <Label
+                      htmlFor={`list-${list.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {list.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
 
-              {lists.length > 0 && (
-                <div className="border-t border-black/10 pt-4">
-                  <Button
-                    type="button"
-                    className="bg-black text-white hover:bg-black/80 w-full flex items-center justify-center"
-                    onClick={() => setShowCreateListModal(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Create New List
-                  </Button>
-                </div>
-              )}
+              <div className="border-t border-black/10 pt-4">
+                <Button
+                  type="button"
+                  className="bg-black text-white hover:bg-black/80 w-full flex items-center justify-center"
+                  onClick={() => setShowCreateListModal(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Create New List
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -445,7 +380,7 @@ export function AddPlaceModal({ onClose, onSuccess }: AddPlaceModalProps) {
       </div>
 
       {showCreateListModal && (
-        <CreateListModal onClose={() => setShowCreateListModal(false)} onSuccess={handleNewListCreated} />
+        <CreateListInlineModal onClose={() => setShowCreateListModal(false)} onListCreated={handleNewListCreated} />
       )}
 
       {showLocationPicker && (

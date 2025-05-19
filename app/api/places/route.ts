@@ -1,94 +1,74 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase-client"
-import { getUserFromRequest } from "@/lib/auth-utils"
 
-// GET /api/places - Get all places for the current user
+// GET /api/places - Get places (with filtering options)
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request)
+    const searchParams = request.nextUrl.searchParams
+    const listId = searchParams.get("listId")
+    const query = searchParams.get("query")
+    const lat = searchParams.get("lat")
+    const lng = searchParams.get("lng")
+    const radius = searchParams.get("radius") // in kilometers
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    let dbQuery = supabase.from("places").select(`
+      *,
+      created_by:users(farcaster_username, farcaster_display_name, farcaster_pfp_url),
+      lists:list_places(
+        list_id,
+        list:lists(title, visibility)
+      )
+    `)
 
-    // Get query parameters
-    const url = new URL(request.url)
-    const listId = url.searchParams.get("listId")
-
-    let query
-
+    // Apply filters
     if (listId) {
-      // Get places for a specific list
-      query = supabase
-        .from("places_lists")
-        .select(`
-          place:places(*)
-        `)
-        .eq("list_id", listId)
-    } else {
-      // Get all places created by the user
-      query = supabase
-        .from("places")
-        .select(`
-          *,
-          lists:places_lists(
-            list:lists(*)
-          )
-        `)
-        .eq("user_id", user.id)
+      dbQuery = dbQuery.eq("lists.list_id", listId)
     }
 
-    const { data, error } = await query
+    if (query) {
+      dbQuery = dbQuery.ilike("name", `%${query}%`)
+    }
+
+    // Location-based search
+    if (lat && lng && radius) {
+      // This is a simplified approach - for production, consider using PostGIS for more accurate geospatial queries
+      const latNum = Number.parseFloat(lat)
+      const lngNum = Number.parseFloat(lng)
+      const radiusNum = Number.parseFloat(radius)
+
+      // Approximate conversion of kilometers to degrees (this varies by latitude)
+      const latDelta = radiusNum / 111.0 // 1 degree of latitude is approximately 111 km
+      const lngDelta = radiusNum / (111.0 * Math.cos((latNum * Math.PI) / 180))
+
+      dbQuery = dbQuery
+        .gte("lat", latNum - latDelta)
+        .lte("lat", latNum + latDelta)
+        .gte("lng", lngNum - lngDelta)
+        .lte("lng", lngNum + lngDelta)
+    }
+
+    const { data, error } = await dbQuery
 
     if (error) {
       console.error("Error fetching places:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform data based on query type
-    let transformedData
-
-    if (listId) {
-      // Extract places from the join table results
-      transformedData = data.map((item) => item.place)
-    } else {
-      // Transform data to include list information
-      transformedData = data.map((place) => {
-        const lists = place.lists.map((l: any) => l.list).filter(Boolean)
-        return {
-          ...place,
-          lists,
-        }
-      })
-    }
-
-    return NextResponse.json(transformedData)
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/places:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 // POST /api/places - Create a new place
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request)
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
-
-    const { name, address, description, type, website, lat, lng, image_url, listIds } = body
+    const { name, address, lat, lng, description, type, websiteUrl, createdBy, listId } = body
 
     if (!name || !address || !lat || !lng) {
-      return NextResponse.json(
-        {
-          error: "Name, address, and coordinates are required",
-        },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: "Name, address, lat, and lng are required" }, { status: 400 })
     }
 
     // Start a transaction
@@ -97,42 +77,37 @@ export async function POST(request: NextRequest) {
       .insert({
         name,
         address,
-        description,
-        type,
-        website,
         lat,
         lng,
-        image_url,
-        user_id: user.id,
-        fid: user.fid || null,
+        description,
+        type,
+        website_url: websiteUrl,
+        created_by: createdBy,
       })
       .select()
-      .single()
 
     if (placeError) {
       console.error("Error creating place:", placeError)
       return NextResponse.json({ error: placeError.message }, { status: 500 })
     }
 
-    // If listIds are provided, add the place to those lists
-    if (listIds && listIds.length > 0) {
-      const placesListsData = listIds.map((listId) => ({
-        place_id: place.id,
+    // If listId is provided, add the place to the list
+    if (listId && place && place.length > 0) {
+      const { error: listPlaceError } = await supabase.from("list_places").insert({
         list_id: listId,
-        user_id: user.id,
-      }))
+        place_id: place[0].id,
+        added_by: createdBy,
+      })
 
-      const { error: joinError } = await supabase.from("places_lists").insert(placesListsData)
-
-      if (joinError) {
-        console.error("Error adding place to lists:", joinError)
+      if (listPlaceError) {
+        console.error("Error adding place to list:", listPlaceError)
         // We don't return an error here since the place was created successfully
       }
     }
 
-    return NextResponse.json(place)
+    return NextResponse.json(place[0])
   } catch (error) {
     console.error("Error in POST /api/places:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

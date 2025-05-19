@@ -26,9 +26,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
-import { useLists } from "@/hooks/use-lists"
-import { usePlaces } from "@/hooks/use-places"
-import type { Place } from "@/types/database"
 
 export function Sidebar() {
   // Get miniapp context
@@ -50,17 +47,12 @@ export function Sidebar() {
   const [showListDetails, setShowListDetails] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [selectedListId, setSelectedListId] = useState<string | null>(null)
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
+  const [selectedList, setSelectedList] = useState<number | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
   // Auth context
   const { isAuthenticated, logout } = useAuth()
   const { isAuthenticated: neynarAuthenticated, user, signOut } = useNeynarContext()
-
-  // Data hooks
-  const { lists: userLists, isLoading: listsLoading } = useLists()
-  const { places: userPlaces, isLoading: placesLoading } = usePlaces()
-  const { lists: exploreLists, isLoading: exploreListsLoading } = useLists(true)
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
 
@@ -84,7 +76,7 @@ export function Sidebar() {
     window.addEventListener("resize", checkMobile)
 
     return () => window.removeEventListener("resize", checkMobile)
-  }, [isMiniApp, isCollapsed])
+  }, [isMiniApp])
 
   // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
@@ -97,6 +89,80 @@ export function Sidebar() {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isMobile, isCollapsed])
+
+  // Sample data for demonstration
+  const sampleLists = [
+    { id: 1, name: "BEST (HIDDEN) FOOD IN TACOMA", count: 12, isOwner: true },
+    { id: 2, name: "Weekend Getaways", count: 8, isOwner: true },
+    { id: 3, name: "Hidden Gems", count: 5, isOwner: false },
+    { id: 4, name: "Photo Spots", count: 15, isOwner: true },
+  ]
+
+  const samplePlaces = [
+    {
+      id: 1,
+      name: "The Fish House Cafe",
+      type: "Restaurant",
+      address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
+      lists: ["BEST (HIDDEN) FOOD IN TACOMA", "Photo Spots"],
+      photos: 3,
+      coordinates: { lat: 47.2529, lng: -122.4443 },
+      description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
+      image: "/placeholder.svg?height=200&width=300",
+    },
+    {
+      id: 2,
+      name: "Lighthouse Coffee",
+      type: "Cafe",
+      address: "456 Beach Rd",
+      lists: ["Coffee Shops"],
+      photos: 2,
+      coordinates: { lat: 47.2209, lng: -122.4634 },
+      description: "Great coffee spot with ocean views. Try their specialty cold brew!",
+      image: "/placeholder.svg?height=200&width=300",
+    },
+    {
+      id: 3,
+      name: "Mountain Viewpoint",
+      type: "Scenic Spot",
+      address: "Scenic Route 7",
+      lists: ["Hidden Gems", "Photo Spots"],
+      photos: 5,
+      coordinates: { lat: 47.241, lng: -122.4556 },
+      description: "Beautiful viewpoint with panoramic mountain views. Perfect for sunset photography.",
+      image: "/placeholder.svg?height=200&width=300",
+    },
+  ]
+
+  const exploreLists = [
+    {
+      id: "5",
+      title: "Hidden Gems in Brooklyn",
+      author: "brooklynite.eth",
+      description: "Lesser-known spots in Brooklyn that locals love but tourists rarely find.",
+      timestamp: "Posted 2d ago",
+      image: "/placeholder.svg?height=200&width=300",
+      placeCount: 7,
+    },
+    {
+      id: "6",
+      title: "Tokyo Coffee Tour",
+      author: "coffeelover.eth",
+      description: "A curated list of the best independent coffee shops across Tokyo neighborhoods.",
+      timestamp: "Updated 1 week ago",
+      image: "/placeholder.svg?height=200&width=300",
+      placeCount: 14,
+    },
+    {
+      id: "7",
+      title: "Berlin Underground Music Venues",
+      author: "discussion in /berlin via Warpcast",
+      description: "Lesser-known music venues in Berlin with great atmosphere and interesting performances.",
+      timestamp: "Updated 3 weeks ago",
+      image: "/placeholder.svg?height=200&width=300",
+      placeCount: 9,
+    },
+  ]
 
   const handleLogout = () => {
     if (neynarAuthenticated) {
@@ -128,8 +194,8 @@ export function Sidebar() {
     }
   }
 
-  const handlePlaceClick = (place: Place) => {
-    setSelectedPlaceId(place.id)
+  const handlePlaceClick = (place: any) => {
+    setSelectedPlace(place)
     setShowPlaceDetails(true)
     setShowListDetails(false)
     setShowProfile(false)
@@ -139,8 +205,8 @@ export function Sidebar() {
     }
   }
 
-  const handleListClick = (listId: string) => {
-    setSelectedListId(listId)
+  const handleListClick = (list: any) => {
+    setSelectedList(list.id)
     setShowListDetails(true)
     setShowPlaceDetails(false)
     setShowProfile(false)
@@ -297,14 +363,14 @@ export function Sidebar() {
       </div>
 
       {/* Content based on what's being viewed */}
-      {showPlaceDetails && selectedPlaceId ? (
-        <PlaceDetails placeId={selectedPlaceId} onBack={handleBackClick} onListClick={handleListClick} />
-      ) : showListDetails && selectedListId ? (
+      {showPlaceDetails ? (
+        <PlaceDetails place={selectedPlace} onBack={handleBackClick} />
+      ) : showListDetails ? (
         <ListDetails
-          listId={selectedListId}
+          list={sampleLists.find((l) => l.id === selectedList) || exploreLists.find((l) => l.id === selectedList)}
+          places={samplePlaces}
           onBack={handleBackClick}
           onPlaceClick={handlePlaceClick}
-          onAddPlace={handleAddPlace}
         />
       ) : showProfile ? (
         <ProfileView user={user} onBack={handleBackClick} onLogout={handleLogout} />
@@ -373,52 +439,27 @@ export function Sidebar() {
                     See All
                   </button>
                 </div>
-
-                {exploreListsLoading ? (
-                  <div className="mb-6 space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse p-2 border border-black/10">
-                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-1"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : exploreLists.length === 0 ? (
-                  <div className="mb-6 p-4 border border-black/10 text-center">
-                    <p className="text-black/60">No public lists available</p>
-                  </div>
-                ) : (
-                  <div className="mb-6">
-                    {exploreLists
-                      .filter((list) => list.privacy === "public")
-                      .slice(0, 5)
-                      .map((list) => (
-                        <div
-                          key={list.id}
-                          className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer"
-                          onClick={() => handleListClick(list.id)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-medium">{list.title}</h3>
-                              <p className="text-xs text-black/60">
-                                {list.user_id.substring(0, 8)}... • {list.place_count || 0} places
-                              </p>
-                            </div>
-                            <button
-                              className="text-black hover:bg-black/5 p-1 rounded"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                // Add functionality to save this list
-                              }}
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
+                <div className="mb-6">
+                  {exploreLists.map((list) => (
+                    <div
+                      key={list.id}
+                      className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer"
+                      onClick={() => handleListClick(list)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-medium">{list.title}</h3>
+                          <p className="text-xs text-black/60">
+                            by {list.author} • {list.placeCount} places
+                          </p>
                         </div>
-                      ))}
-                  </div>
-                )}
+                        <button className="text-black hover:bg-black/5 p-1 rounded">
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="font-serif text-lg">Places Near You</h2>
@@ -426,54 +467,32 @@ export function Sidebar() {
                     <Filter size={14} className="mr-1" /> Filter
                   </button>
                 </div>
-
-                {placesLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse p-2 border border-black/10 flex">
-                        <div className="h-12 w-12 bg-gray-200 rounded mr-3"></div>
-                        <div className="flex-grow">
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/2 mb-1"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : userPlaces.length === 0 ? (
-                  <div className="p-4 border border-black/10 text-center">
-                    <p className="text-black/60 mb-4">No places added yet</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
-                      <Plus size={16} className="mr-1" /> Add Your First Place
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    {userPlaces.slice(0, 5).map((place) => (
+                <div>
+                  {samplePlaces.map((place) => (
+                    <div
+                      key={place.id}
+                      className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
+                      onClick={() => handlePlaceClick(place)}
+                    >
                       <div
-                        key={place.id}
-                        className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
-                        onClick={() => handlePlaceClick(place)}
-                      >
-                        <div
-                          className="h-12 w-12 bg-gray-200 rounded mr-3"
-                          style={{
-                            backgroundImage: place.image_url ? `url(${place.image_url})` : undefined,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        ></div>
-                        <div className="flex-grow">
-                          <h3 className="font-medium">{place.name}</h3>
-                          <p className="text-xs text-black/60">{place.address}</p>
-                          <div className="flex text-xs text-black/60 mt-1">
-                            <span className="mr-3">{place.lists?.length || 0} lists</span>
-                          </div>
+                        className="h-12 w-12 bg-gray-200 rounded mr-3"
+                        style={{
+                          backgroundImage: `url(${place.image})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      ></div>
+                      <div className="flex-grow">
+                        <h3 className="font-medium">{place.name}</h3>
+                        <p className="text-xs text-black/60">{place.address}</p>
+                        <div className="flex text-xs text-black/60 mt-1">
+                          <span className="mr-3">{place.lists.length} lists</span>
+                          <span>{place.photos} photos</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -496,49 +515,55 @@ export function Sidebar() {
                       Connect
                     </Button>
                   </div>
-                ) : listsLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse p-3 border rounded">
-                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-1"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : userLists.length === 0 ? (
-                  <div className="text-center py-8 border border-black/10 rounded">
-                    <p className="text-black/60 mb-4">You don't have any lists yet</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowNewListModal(true)}>
-                      <Plus size={16} className="mr-1" /> Create Your First List
-                    </Button>
-                  </div>
                 ) : (
                   <>
                     <div className="mb-6">
                       <h3 className="text-sm font-medium text-black/60 mb-2">YOUR LISTS</h3>
-                      {userLists.map((list) => (
-                        <div
-                          key={list.id}
-                          className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
-                          onClick={() => handleListClick(list.id)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-medium">{list.title}</h3>
-                              <p className="text-sm text-black/60">{list.place_count || 0} places</p>
+                      {sampleLists
+                        .filter((list) => list.isOwner)
+                        .map((list) => (
+                          <div
+                            key={list.id}
+                            className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
+                            onClick={() => handleListClick(list)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h3 className="font-medium">{list.name}</h3>
+                                <p className="text-sm text-black/60">{list.count} places</p>
+                              </div>
+                              <button
+                                className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  // Open settings for this list
+                                }}
+                              >
+                                <Settings size={16} />
+                              </button>
                             </div>
-                            <button
-                              className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                // Open settings for this list
-                              }}
-                            >
-                              <Settings size={16} />
-                            </button>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-black/60 mb-2">SAVED LISTS</h3>
+                      {sampleLists
+                        .filter((list) => !list.isOwner)
+                        .map((list) => (
+                          <div
+                            key={list.id}
+                            className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
+                            onClick={() => handleListClick(list)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h3 className="font-medium">{list.name}</h3>
+                                <p className="text-sm text-black/60">{list.count} places</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </>
                 )}
@@ -566,68 +591,36 @@ export function Sidebar() {
                   </button>
                 </div>
 
-                {!userIsAuthenticated ? (
-                  <div className="text-center py-8">
-                    <p className="mb-4">Connect with Farcaster to add and manage places</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                      Connect
-                    </Button>
-                  </div>
-                ) : placesLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse p-2 border border-black/10 flex">
-                        <div className="h-12 w-12 bg-gray-200 rounded mr-3"></div>
-                        <div className="flex-grow">
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/2 mb-1"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                        </div>
+                {samplePlaces.map((place) => (
+                  <div
+                    key={place.id}
+                    className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
+                    onClick={() => handlePlaceClick(place)}
+                  >
+                    <div
+                      className="h-12 w-12 bg-gray-200 rounded mr-3"
+                      style={{
+                        backgroundImage: `url(${place.image})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    ></div>
+                    <div className="flex-grow">
+                      <h3 className="font-medium">{place.name}</h3>
+                      <p className="text-xs text-black/60">{place.address}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {place.lists.slice(0, 2).map((listName, idx) => (
+                          <span key={idx} className="text-xs bg-gray-100 rounded-full px-2 py-0.5">
+                            {listName}
+                          </span>
+                        ))}
+                        {place.lists.length > 2 && (
+                          <span className="text-xs text-black/60">+{place.lists.length - 2} more</span>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                ) : userPlaces.length === 0 ? (
-                  <div className="text-center py-8 border border-black/10 rounded">
-                    <p className="text-black/60 mb-4">You haven't added any places yet</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
-                      <Plus size={16} className="mr-1" /> Add Your First Place
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    {userPlaces.map((place) => (
-                      <div
-                        key={place.id}
-                        className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
-                        onClick={() => handlePlaceClick(place)}
-                      >
-                        <div
-                          className="h-12 w-12 bg-gray-200 rounded mr-3"
-                          style={{
-                            backgroundImage: place.image_url ? `url(${place.image_url})` : undefined,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        ></div>
-                        <div className="flex-grow">
-                          <h3 className="font-medium">{place.name}</h3>
-                          <p className="text-xs text-black/60">{place.address}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {place.lists &&
-                              place.lists.slice(0, 2).map((list) => (
-                                <span key={list.id} className="text-xs bg-gray-100 rounded-full px-2 py-0.5">
-                                  {list.title}
-                                </span>
-                              ))}
-                            {place.lists && place.lists.length > 2 && (
-                              <span className="text-xs text-black/60">+{place.lists.length - 2} more</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             )}
           </div>
@@ -635,16 +628,11 @@ export function Sidebar() {
       )}
 
       {/* Show modals if active */}
-      {showNewListModal && (
-        <CreateListModal onClose={() => setShowNewListModal(false)} onSuccess={(listId) => handleListClick(listId)} />
-      )}
+      {showNewListModal && <CreateListModal onClose={() => setShowNewListModal(false)} />}
       {showAddPlaceModal && (
         <AddPlaceModal
           onClose={() => setShowAddPlaceModal(false)}
-          onSuccess={() => {
-            // Refresh places data
-            window.location.reload()
-          }}
+          userLists={sampleLists.filter((list) => list.isOwner)}
         />
       )}
     </div>

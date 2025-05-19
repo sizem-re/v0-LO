@@ -7,24 +7,20 @@ import { X, Globe, Lock, ListIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useLists } from "@/hooks/use-lists"
 
-type ListPrivacy = "private" | "public" | "open"
+type ListPrivacy = "private" | "open" | "closed"
 
 interface CreateListModalProps {
   onClose: () => void
-  onSuccess?: (listId: string) => void
 }
 
-export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
-  const { createList } = useLists()
+export function CreateListModal({ onClose }: CreateListModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     privacy: "private" as ListPrivacy,
   })
   const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState("")
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -38,32 +34,15 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title.trim()) {
-      setError("Title is required")
-      return
-    }
+    if (!formData.title.trim()) return
 
     setIsCreating(true)
-    setError("")
 
-    try {
-      const newList = await createList({
-        title: formData.title,
-        description: formData.description || undefined,
-        privacy: formData.privacy,
-      })
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
-      if (onSuccess) {
-        onSuccess(newList.id)
-      }
-
-      onClose()
-    } catch (err) {
-      console.error("Error creating list:", err)
-      setError(err instanceof Error ? err.message : "Failed to create list")
-    } finally {
-      setIsCreating(false)
-    }
+    setIsCreating(false)
+    onClose()
   }
 
   return (
@@ -77,8 +56,6 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4">
-          {error && <div className="mb-4 p-2 bg-red-50 text-red-600 rounded-md text-sm">{error}</div>}
-
           <div className="space-y-4">
             <div>
               <label htmlFor="title" className="block mb-1 font-medium">
@@ -134,26 +111,6 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
 
                 <label
                   className={`border p-3 cursor-pointer ${
-                    formData.privacy === "public" ? "border-black" : "border-black/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="public"
-                    checked={formData.privacy === "public"}
-                    onChange={() => handlePrivacyChange("public")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center text-center">
-                    <Globe className="h-5 w-5 mb-1" />
-                    <div className="font-medium">Public</div>
-                    <div className="text-xs text-black/70">Anyone can view</div>
-                  </div>
-                </label>
-
-                <label
-                  className={`border p-3 cursor-pointer ${
                     formData.privacy === "open" ? "border-black" : "border-black/20"
                   }`}
                 >
@@ -166,9 +123,29 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
                     className="sr-only"
                   />
                   <div className="flex flex-col items-center text-center">
-                    <ListIcon className="h-5 w-5 mb-1" />
+                    <Globe className="h-5 w-5 mb-1" />
                     <div className="font-medium">Open</div>
                     <div className="text-xs text-black/70">Anyone can add</div>
+                  </div>
+                </label>
+
+                <label
+                  className={`border p-3 cursor-pointer ${
+                    formData.privacy === "closed" ? "border-black" : "border-black/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="privacy"
+                    value="closed"
+                    checked={formData.privacy === "closed"}
+                    onChange={() => handlePrivacyChange("closed")}
+                    className="sr-only"
+                  />
+                  <div className="flex flex-col items-center text-center">
+                    <ListIcon className="h-5 w-5 mb-1" />
+                    <div className="font-medium">Closed</div>
+                    <div className="text-xs text-black/70">Only you can add</div>
                   </div>
                 </label>
               </div>
