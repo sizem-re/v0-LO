@@ -1,121 +1,165 @@
 "use client"
 
-import { ChevronLeft, Plus, MapPin, Globe, Edit } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import { ChevronLeft, Globe, MapPin, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { AddToListDialog } from "@/components/add-to-list-dialog"
+import { usePlace } from "@/hooks/use-places"
 
 interface PlaceDetailsProps {
-  place: any
+  placeId: string
   onBack: () => void
+  onListClick?: (listId: string) => void
 }
 
-export function PlaceDetails({ place, onBack }: PlaceDetailsProps) {
+export function PlaceDetails({ placeId, onBack, onListClick }: PlaceDetailsProps) {
+  const { place, isLoading, error } = usePlace(placeId)
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
 
-  if (!place) return null
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center p-4 border-b border-black/10">
+          <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
+            <ChevronLeft size={16} className="mr-1" /> Back
+          </button>
+        </div>
+        <div className="flex-grow overflow-y-auto p-4">
+          <div className="animate-pulse">
+            <div className="h-40 bg-gray-200 rounded-md mb-4"></div>
+            <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mb-6"></div>
+
+            <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded-full w-20"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !place) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center p-4 border-b border-black/10">
+          <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
+            <ChevronLeft size={16} className="mr-1" /> Back
+          </button>
+        </div>
+        <div className="flex-grow overflow-y-auto p-4">
+          <div className="text-center py-8">
+            <p className="text-red-500 mb-4">{error || "Place not found"}</p>
+            <Button className="bg-black text-white hover:bg-black/80" onClick={onBack}>
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center p-4 border-b border-black/10">
+      <div className="flex items-center p-4 border-b border-black/10">
         <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
           <ChevronLeft size={16} className="mr-1" /> Back
-        </button>
-        <button className="text-black/70 hover:text-black hover:bg-black/5 p-1 rounded">
-          <Edit size={16} />
         </button>
       </div>
 
       <div className="flex-grow overflow-y-auto">
-        <div
-          className="h-48 bg-gray-200 relative"
-          style={{
-            backgroundImage: `url(${place.image})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <div className="absolute top-2 right-2 bg-white rounded-full p-1 cursor-pointer hover:bg-gray-100">
-            <Plus size={16} />
-          </div>
-          <div className="absolute bottom-2 right-2 bg-white rounded px-2 py-1 text-xs">{place.photos} photos</div>
-        </div>
-
         <div className="p-4">
-          <h2 className="font-serif text-xl mb-1">{place.name}</h2>
-          <div className="flex items-center text-black/60 text-sm mb-4">
-            <MapPin size={14} className="mr-1" />
-            {place.address}
-          </div>
+          {place.image_url && (
+            <div
+              className="h-40 bg-gray-200 rounded-md mb-4"
+              style={{
+                backgroundImage: `url(${place.image_url})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            ></div>
+          )}
 
-          <div className="mb-6">
-            <h3 className="font-medium text-sm mb-2">On these lists:</h3>
-            <div className="flex flex-wrap gap-2">
-              {place.lists.map((list: string, idx: number) => (
-                <button
-                  key={idx}
-                  className="bg-gray-100 px-2 py-1 rounded-full text-xs hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-black/20"
-                  onClick={() => {
-                    // Navigate to list or show list details
-                    console.log(`Navigating to list: ${list}`)
-                    // You can replace this with actual navigation logic
-                    // For example: router.push(`/lists/${listId}`)
-                  }}
-                >
-                  {list}
-                </button>
-              ))}
-              <button
-                className="bg-black/5 text-black px-2 py-1 rounded-full text-xs flex items-center hover:bg-black/10 transition-colors"
-                onClick={() => setShowAddToListDialog(true)}
-              >
-                <Plus size={12} className="mr-1" /> Add to list
-              </button>
+          <h2 className="text-xl font-serif mb-1">{place.name}</h2>
+          <p className="text-sm text-black/70 mb-4">{place.type}</p>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex items-start">
+              <MapPin className="h-5 w-5 text-black/60 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm">{place.address}</p>
+                <p className="text-xs text-black/60 mt-1">
+                  {place.lat.toFixed(6)}, {place.lng.toFixed(6)}
+                </p>
+              </div>
             </div>
+
+            {place.website && (
+              <div className="flex items-center">
+                <Globe className="h-5 w-5 text-black/60 mr-2" />
+                <a
+                  href={place.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  {place.website.replace(/^https?:\/\//, "")}
+                </a>
+              </div>
+            )}
           </div>
 
           {place.description && (
             <div className="mb-6">
-              <h3 className="font-medium text-sm mb-2">About:</h3>
-              <p className="text-sm text-black/80">{place.description}</p>
+              <h3 className="font-medium text-sm mb-2">Description:</h3>
+              <p className="text-sm">{place.description}</p>
             </div>
           )}
 
           <div className="mb-6">
-            <h3 className="font-medium text-sm mb-2">Location:</h3>
-            <div className="h-40 bg-gray-200 rounded-md flex items-center justify-center">
-              <p className="text-black/60">Map preview</p>
+            <h3 className="font-medium text-sm mb-2">On these lists:</h3>
+            <div className="flex flex-wrap gap-2">
+              {place.lists && place.lists.length > 0 ? (
+                <>
+                  {place.lists.map((list) => (
+                    <button
+                      key={list.id}
+                      className="bg-gray-100 px-2 py-1 rounded-full text-xs hover:bg-gray-200 transition-colors"
+                      onClick={() => onListClick && onListClick(list.id)}
+                    >
+                      {list.title}
+                    </button>
+                  ))}
+                  <button
+                    className="bg-black/5 text-black px-2 py-1 rounded-full text-xs flex items-center hover:bg-black/10 transition-colors"
+                    onClick={() => setShowAddToListDialog(true)}
+                  >
+                    <Plus size={12} className="mr-1" /> Add to list
+                  </button>
+                </>
+              ) : (
+                <div className="w-full">
+                  <p className="text-sm text-black/60 mb-2">This place isn't on any lists yet.</p>
+                  <Button
+                    className="bg-black text-white hover:bg-black/80 text-xs py-1 h-8"
+                    onClick={() => setShowAddToListDialog(true)}
+                  >
+                    <Plus size={14} className="mr-1" /> Add to list
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button className="bg-black text-white hover:bg-black/80 w-full">
-              <MapPin size={16} className="mr-2" /> Get Directions
-            </Button>
-            {place.website && (
-              <Button className="bg-transparent text-black border border-black/20 hover:bg-black/5">
-                <Globe size={16} className="mr-2" /> Website
-              </Button>
-            )}
           </div>
         </div>
       </div>
+
       {showAddToListDialog && (
-        <AddToListDialog
-          open={showAddToListDialog}
-          onOpenChange={setShowAddToListDialog}
-          place={place}
-          lists={[
-            { id: "1", title: "Favorite Places", description: "", privacy: "private", placeCount: 5, author: "You" },
-            { id: "2", title: "Want to Visit", description: "", privacy: "private", placeCount: 3, author: "You" },
-          ]}
-          onCreateList={() => {
-            // Handle create list action
-            console.log("Create new list")
-            setShowAddToListDialog(false)
-            // You can add navigation to create list page or open a create list modal
-          }}
-        />
+        <AddToListDialog place={{ id: place.id, name: place.name }} onClose={() => setShowAddToListDialog(false)} />
       )}
     </div>
   )
