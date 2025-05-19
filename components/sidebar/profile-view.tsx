@@ -1,11 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { ChevronLeft, LogOut, MapPin, List } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext } from "@neynar/react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import Link from "next/link"
 
 interface ProfileViewProps {
@@ -14,7 +12,7 @@ interface ProfileViewProps {
   onLogout?: () => void // Make this prop optional
 }
 
-export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
+export function ProfileView({ user, onBack }: ProfileViewProps) {
   const router = useRouter()
   const { logout: authLogout } = useAuth()
   const { signOut: neynarSignOut } = useNeynarContext()
@@ -41,47 +39,16 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
         bio: "This is a demo profile",
       }
 
-  // Handle logout directly without relying on the passed prop
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    console.log("ProfileView logout button clicked")
-
-    try {
-      // Call the provided onLogout callback if it exists
-      if (typeof onLogout === "function") {
-        try {
-          onLogout()
-        } catch (error) {
-          console.error("Error calling onLogout callback:", error)
-        }
-      }
-
-      // Also logout from auth context
-      try {
-        await authLogout()
-        // The authLogout function now handles the redirect
-      } catch (error) {
-        console.error("Error logging out from auth context:", error)
-        window.location.href = "/"
-      }
-    } catch (error) {
-      console.error("Error in handleLogout:", error)
-      window.location.href = "/"
-    }
-  }
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center p-4 border-b border-black/10">
         <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
           <ChevronLeft size={16} className="mr-1" /> Back
         </button>
-        <button
-          className="text-black/70 hover:text-black hover:bg-black/5 p-1 rounded flex items-center"
-          onClick={handleLogout}
-        >
+        {/* Use the Neynar button directly for sign out */}
+        <NeynarAuthButton className="text-black/70 hover:text-black hover:bg-black/5 p-1 rounded flex items-center">
           <LogOut size={16} className="mr-1" /> Logout
-        </button>
+        </NeynarAuthButton>
       </div>
 
       <div className="flex-grow overflow-y-auto p-4">

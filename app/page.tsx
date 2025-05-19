@@ -49,11 +49,18 @@ const MOCK_PLACES: Place[] = [
 
 export default function MapPage() {
   const [places, setPlaces] = useState<Place[]>([])
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     // In a real app, you would fetch places from an API
     setPlaces(MOCK_PLACES)
+    setIsMounted(true)
   }, [])
+
+  // Don't render until client-side to avoid hydration issues
+  if (!isMounted) {
+    return null
+  }
 
   return (
     <div className="fixed inset-0 flex h-screen w-screen overflow-hidden">

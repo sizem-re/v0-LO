@@ -59,6 +59,7 @@ export function UserMenu() {
             <Link href="/lists" className="block px-4 py-2 hover:bg-black/5" onClick={() => setIsOpen(false)}>
               My Lists
             </Link>
+            {/* Use the Neynar button directly for sign out */}
             <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-black/80">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>

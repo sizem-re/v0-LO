@@ -53,8 +53,8 @@ export function Sidebar() {
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
   // Auth context
-  const { isAuthenticated, logout } = useAuth()
-  const { isAuthenticated: neynarAuthenticated, user, signOut } = useNeynarContext()
+  const { isAuthenticated } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
 
@@ -67,9 +67,9 @@ export function Sidebar() {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
 
-      // Auto-collapse sidebar on mobile and miniapp
-      if ((mobile || isMiniApp) && !isCollapsed) {
-        setIsCollapsed(true)
+      // Only auto-collapse on initial load, not on resize
+      if (!sidebarRef.current) {
+        setIsCollapsed(mobile || isMiniApp)
       }
     }
 
@@ -78,7 +78,7 @@ export function Sidebar() {
     window.addEventListener("resize", checkMobile)
 
     return () => window.removeEventListener("resize", checkMobile)
-  }, [isMiniApp, isCollapsed])
+  }, [isMiniApp])
 
   // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
@@ -165,17 +165,6 @@ export function Sidebar() {
       placeCount: 9,
     },
   ]
-
-  const handleLogout = async () => {
-    console.log("Sidebar handleLogout called")
-    try {
-      await logout()
-      // The logout function now handles the redirect
-    } catch (error) {
-      console.error("Error during logout:", error)
-      window.location.href = "/"
-    }
-  }
 
   const handleProfileClick = () => {
     if (userIsAuthenticated) {
@@ -352,7 +341,7 @@ export function Sidebar() {
           onPlaceClick={handlePlaceClick}
         />
       ) : showProfile ? (
-        <ProfileView user={user} onBack={handleBackClick} onLogout={handleLogout} />
+        <ProfileView user={user} onBack={handleBackClick} />
       ) : showLogin ? (
         <LoginView
           onBack={handleBackClick}

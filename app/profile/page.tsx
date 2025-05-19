@@ -1,18 +1,16 @@
 "use client"
 
-import type React from "react"
-
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext } from "@neynar/react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import { Button } from "@/components/ui/button"
 import { LogOut, List, MapPin, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading, user: authUser, logout } = useAuth()
+  const { isAuthenticated, isLoading, user: authUser } = useAuth()
   const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
@@ -24,20 +22,6 @@ export default function ProfilePage() {
       router.push("/login")
     }
   }, [isLoading, userIsAuthenticated, router])
-
-  // Handle logout
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    console.log("Profile page logout button clicked")
-
-    try {
-      await logout()
-      // The logout function now handles the redirect
-    } catch (error) {
-      console.error("Error in handleLogout:", error)
-      window.location.href = "/"
-    }
-  }
 
   if (isLoading) {
     return <div className="p-8 text-center">Loading...</div>
@@ -76,12 +60,10 @@ export default function ProfilePage() {
         <button className="flex items-center text-black hover:bg-black/5 p-2 rounded" onClick={() => router.back()}>
           <ChevronLeft size={16} className="mr-1" /> Back
         </button>
-        <button
-          className="flex items-center text-black/70 hover:text-black hover:bg-black/5 p-2 rounded"
-          onClick={handleLogout}
-        >
+        {/* Use the Neynar button directly for sign out */}
+        <NeynarAuthButton className="flex items-center text-black/70 hover:text-black hover:bg-black/5 p-2 rounded">
           <LogOut size={16} className="mr-1" /> Logout
-        </button>
+        </NeynarAuthButton>
       </div>
 
       {/* Profile Info */}
