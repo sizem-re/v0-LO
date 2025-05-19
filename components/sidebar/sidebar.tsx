@@ -26,10 +26,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
+import { useRouter } from "next/navigation"
 
 export function Sidebar() {
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
+  const router = useRouter()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -76,7 +78,7 @@ export function Sidebar() {
     window.addEventListener("resize", checkMobile)
 
     return () => window.removeEventListener("resize", checkMobile)
-  }, [isMiniApp])
+  }, [isMiniApp, isCollapsed])
 
   // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
@@ -165,13 +167,21 @@ export function Sidebar() {
   ]
 
   const handleLogout = () => {
-    if (neynarAuthenticated) {
-      signOut()
-    } else if (isAuthenticated) {
-      logout()
+    try {
+      if (neynarAuthenticated && signOut) {
+        signOut()
+      }
+
+      if (isAuthenticated && logout) {
+        logout()
+      }
+
+      setShowProfile(false)
+      setActiveTab("discover")
+      router.push("/")
+    } catch (error) {
+      console.error("Error during logout:", error)
     }
-    setShowProfile(false)
-    setActiveTab("discover")
   }
 
   const handleProfileClick = () => {
@@ -180,17 +190,13 @@ export function Sidebar() {
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowLogin(false)
-      if (isMobile || isMiniApp) {
-        setIsCollapsed(false)
-      }
+      setIsCollapsed(false) // Always expand sidebar when showing profile
     } else {
       setShowLogin(true)
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowProfile(false)
-      if (isMobile || isMiniApp) {
-        setIsCollapsed(false)
-      }
+      setIsCollapsed(false) // Always expand sidebar when showing login
     }
   }
 
@@ -200,9 +206,7 @@ export function Sidebar() {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
-    if (isMobile || isMiniApp) {
-      setIsCollapsed(false)
-    }
+    setIsCollapsed(false) // Always expand sidebar when showing place details
   }
 
   const handleListClick = (list: any) => {
@@ -211,9 +215,7 @@ export function Sidebar() {
     setShowPlaceDetails(false)
     setShowProfile(false)
     setShowLogin(false)
-    if (isMobile || isMiniApp) {
-      setIsCollapsed(false)
-    }
+    setIsCollapsed(false) // Always expand sidebar when showing list details
   }
 
   const handleBackClick = () => {
@@ -226,10 +228,17 @@ export function Sidebar() {
   const handleAddPlace = () => {
     if (!userIsAuthenticated) {
       setShowLogin(true)
+      setIsCollapsed(false) // Always expand sidebar when showing login
       return
     }
 
     setShowAddPlaceModal(true)
+  }
+
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab)
+    handleBackClick()
+    setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -269,39 +278,21 @@ export function Sidebar() {
 
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "discover" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setActiveTab("discover")
-            handleBackClick()
-            if (isMobile || isMiniApp) {
-              setIsCollapsed(false)
-            }
-          }}
+          onClick={() => handleTabClick("discover")}
           aria-label="Discover"
         >
           <Home size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "mylists" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setActiveTab("mylists")
-            handleBackClick()
-            if (isMobile || isMiniApp) {
-              setIsCollapsed(false)
-            }
-          }}
+          onClick={() => handleTabClick("mylists")}
           aria-label="My Lists"
         >
           <List size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setActiveTab("places")
-            handleBackClick()
-            if (isMobile || isMiniApp) {
-              setIsCollapsed(false)
-            }
-          }}
+          onClick={() => handleTabClick("places")}
           aria-label="Places"
         >
           <MapPin size={20} />
@@ -309,12 +300,7 @@ export function Sidebar() {
         <div className="flex-grow"></div>
         <button
           className="p-2 rounded-full text-black hover:bg-gray-100"
-          onClick={() => {
-            handleProfileClick()
-            if (isMobile || isMiniApp) {
-              setIsCollapsed(false)
-            }
-          }}
+          onClick={handleProfileClick}
           aria-label="Profile"
         >
           {userIsAuthenticated && user?.pfp_url ? (

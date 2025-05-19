@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
-import { Sidebar } from "@/components/sidebar/sidebar"
+import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import type { Place } from "@/types/place"
 import { FarcasterReady } from "@/components/farcaster-ready"
 
@@ -67,7 +67,7 @@ export default function MapPage() {
 
       {/* Sidebar with higher z-index */}
       <div className="absolute top-0 left-0 h-full z-50">
-        <Sidebar />
+        <SidebarWrapper />
       </div>
     </div>
   )
