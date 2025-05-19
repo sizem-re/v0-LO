@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useNeynarContext } from "@neynar/react"
-import { supabase } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
 
 interface AuthContextType {
@@ -35,90 +34,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true)
       setUser(neynarUser)
 
-      // Create or update user in Supabase
+      // Create or update user in Supabase via server-side API
       const createOrUpdateUser = async () => {
         try {
-          // Check if user exists
-          const { data: existingUser, error: fetchError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("farcaster_id", neynarUser.fid.toString())
-            .maybeSingle()
+          // Use the server-side API to create/update user (bypasses RLS)
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              farcaster_id: neynarUser.fid.toString(),
+              farcaster_username: neynarUser.username || "",
+              farcaster_display_name: neynarUser.display_name || "",
+              farcaster_pfp_url: neynarUser.pfp_url || "",
+            }),
+          })
 
-          if (fetchError && fetchError.code !== "PGRST116") {
-            console.error("Error fetching user:", fetchError)
-            setIsLoading(false)
-            return
-          }
+          if (!response.ok) {
+            const errorData = await response.json()
+            console.error("Error registering user:", errorData)
 
-          if (existingUser) {
-            // Update existing user
-            const { data, error } = await supabase
-              .from("users")
-              .update({
-                farcaster_username: neynarUser.username || "",
-                farcaster_display_name: neynarUser.display_name || "",
-                farcaster_pfp_url: neynarUser.pfp_url || "",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("farcaster_id", neynarUser.fid.toString())
-              .select()
-
-            if (error) {
-              console.error("Error updating user:", error)
-            } else {
-              setDbUser(data?.[0] || null)
-            }
+            // Even if registration fails, we'll still consider the user authenticated with Neynar
           } else {
-            // Create new user - try client-side first
-            try {
-              const { data, error } = await supabase
-                .from("users")
-                .insert({
-                  farcaster_id: neynarUser.fid.toString(),
-                  farcaster_username: neynarUser.username || "",
-                  farcaster_display_name: neynarUser.display_name || "",
-                  farcaster_pfp_url: neynarUser.pfp_url || "",
-                })
-                .select()
-
-              if (error) {
-                console.error("Error creating user client-side:", error)
-
-                // If client-side fails, try the API
-                try {
-                  const response = await fetch("/api/users/create", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      farcaster_id: neynarUser.fid.toString(),
-                      farcaster_username: neynarUser.username || "",
-                      farcaster_display_name: neynarUser.display_name || "",
-                      farcaster_pfp_url: neynarUser.pfp_url || "",
-                    }),
-                  })
-
-                  if (!response.ok) {
-                    const errorData = await response.json()
-                    console.error("Error creating user via API:", errorData)
-
-                    // Even if both methods fail, we'll still consider the user authenticated
-                    // They just won't have a database record yet
-                  } else {
-                    const userData = await response.json()
-                    setDbUser(userData)
-                  }
-                } catch (apiError) {
-                  console.error("API call error:", apiError)
-                }
-              } else {
-                setDbUser(data?.[0] || null)
-              }
-            } catch (clientError) {
-              console.error("Client-side creation error:", clientError)
-            }
+            const userData = await response.json()
+            setDbUser(userData)
+            console.log("User registered successfully:", userData)
           }
         } catch (error) {
           console.error("Error in createOrUpdateUser:", error)
