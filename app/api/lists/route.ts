@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase-client"
+import { v4 as uuidv4 } from "uuid"
 
 // GET /api/lists - Get lists (with filtering options)
 export async function GET(request: NextRequest) {
@@ -65,14 +66,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Title and ownerId are required" }, { status: 400 })
     }
 
+    // Generate a UUID for the new list
+    const listId = uuidv4()
+
     const { data, error } = await supabase
       .from("lists")
       .insert({
+        id: listId,
         title,
         description,
         visibility: visibility || "private",
         owner_id: ownerId,
         cover_image_url: coverImageUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
 

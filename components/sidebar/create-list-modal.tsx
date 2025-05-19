@@ -7,6 +7,7 @@ import { X, Globe, Lock, ListIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/lib/auth-context"
 
 type ListPrivacy = "private" | "open" | "closed"
 
@@ -15,12 +16,14 @@ interface CreateListModalProps {
 }
 
 export function CreateListModal({ onClose }: CreateListModalProps) {
+  const { dbUser } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     privacy: "private" as ListPrivacy,
   })
   const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -34,15 +37,50 @@ export function CreateListModal({ onClose }: CreateListModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title.trim()) return
+    if (!formData.title.trim()) {
+      setError("Title is required")
+      return
+    }
+
+    if (!dbUser?.id) {
+      setError("You must be logged in to create a list")
+      return
+    }
 
     setIsCreating(true)
+    setError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    try {
+      // Map privacy to visibility
+      const visibility =
+        formData.privacy === "open" ? "public" : formData.privacy === "closed" ? "community" : "private"
 
-    setIsCreating(false)
-    onClose()
+      const response = await fetch("/api/lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          visibility: visibility,
+          ownerId: dbUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create list")
+      }
+
+      await response.json()
+      setIsCreating(false)
+      onClose()
+    } catch (err) {
+      console.error("Error creating list:", err)
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -56,6 +94,10 @@ export function CreateListModal({ onClose }: CreateListModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">{error}</div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label htmlFor="title" className="block mb-1 font-medium">

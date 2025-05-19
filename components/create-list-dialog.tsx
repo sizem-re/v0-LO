@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { X, Globe, Lock, ListIcon } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 type ListPrivacy = "private" | "open" | "closed"
 
@@ -23,12 +24,14 @@ interface CreateListDialogProps {
 }
 
 export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateListDialogProps) {
+  const { dbUser } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     privacy: "private" as ListPrivacy,
   })
   const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!open) return null
 
@@ -39,6 +42,7 @@ export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateLi
       description: "",
       privacy: "private",
     })
+    setError(null)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -53,25 +57,61 @@ export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateLi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title.trim()) return
-
-    setIsCreating(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Create a new list with a random ID
-    const newList: ListItem = {
-      id: `l${Math.floor(Math.random() * 10000)}`,
-      title: formData.title,
-      description: formData.description,
-      privacy: formData.privacy,
-      placeCount: 0,
-      author: "user123", // In a real app, this would be the current user
+    if (!formData.title.trim()) {
+      setError("Title is required")
+      return
     }
 
-    setIsCreating(false)
-    onListCreated(newList)
+    if (!dbUser?.id) {
+      setError("You must be logged in to create a list")
+      return
+    }
+
+    setIsCreating(true)
+    setError(null)
+
+    try {
+      // Map privacy to visibility
+      const visibility =
+        formData.privacy === "open" ? "public" : formData.privacy === "closed" ? "community" : "private"
+
+      const response = await fetch("/api/lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          visibility: visibility,
+          ownerId: dbUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create list")
+      }
+
+      const newList = await response.json()
+
+      // Create a list item to pass back to the parent component
+      const listItem: ListItem = {
+        id: newList.id,
+        title: newList.title,
+        description: newList.description,
+        privacy: formData.privacy,
+        placeCount: 0,
+        author: dbUser.farcaster_username || dbUser.farcaster_display_name || "You",
+      }
+
+      setIsCreating(false)
+      onListCreated(listItem)
+    } catch (err) {
+      console.error("Error creating list:", err)
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -85,6 +125,10 @@ export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateLi
         </div>
 
         <form onSubmit={handleSubmit} className="p-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">{error}</div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label htmlFor="title" className="block mb-1 font-medium">

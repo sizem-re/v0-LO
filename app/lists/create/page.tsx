@@ -4,25 +4,73 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Globe, Lock } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/lib/auth-context"
 
 function CreateListPage() {
+  const router = useRouter()
+  const { dbUser } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     visibility: "private",
   })
+  const [error, setError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
-    // Handle form submission
+
+    if (!formData.title.trim()) {
+      setError("Title is required")
+      return
+    }
+
+    if (!dbUser?.id) {
+      setError("You must be logged in to create a list")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const response = await fetch("/api/lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          visibility: formData.visibility,
+          ownerId: dbUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create list")
+      }
+
+      const newList = await response.json()
+      console.log("List created:", newList)
+
+      // Redirect to the new list page
+      router.push(`/lists/${newList.id}`)
+    } catch (err) {
+      console.error("Error creating list:", err)
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -33,6 +81,8 @@ function CreateListPage() {
       </Link>
 
       <h1 className="text-3xl md:text-4xl font-serif mb-8">Create a New List</h1>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
 
       <form onSubmit={handleSubmit} className="max-w-2xl">
         <div className="space-y-6">
@@ -111,8 +161,8 @@ function CreateListPage() {
         </div>
 
         <div className="mt-8 space-x-4">
-          <button type="submit" className="lo-button">
-            CREATE LIST
+          <button type="submit" className="lo-button" disabled={isSubmitting}>
+            {isSubmitting ? "CREATING..." : "CREATE LIST"}
           </button>
           <Link href="/lists">
             <button type="button" className="lo-button bg-transparent">

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { useAuth } from "@/lib/auth-context"
 
 type ListPrivacy = "private" | "open" | "closed"
 
@@ -17,6 +18,7 @@ interface CreateListInlineModalProps {
 }
 
 export function CreateListInlineModal({ onClose, onListCreated }: CreateListInlineModalProps) {
+  const { dbUser } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -50,6 +52,10 @@ export function CreateListInlineModal({ onClose, onListCreated }: CreateListInli
       newErrors.name = "List name is required"
     }
 
+    if (!dbUser?.id) {
+      newErrors.user = "You must be logged in to create a list"
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -63,21 +69,47 @@ export function CreateListInlineModal({ onClose, onListCreated }: CreateListInli
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Map privacy to visibility
+      const visibility =
+        formData.privacy === "open" ? "public" : formData.privacy === "closed" ? "community" : "private"
 
-    // Generate a random ID for the new list
-    const newListId = `l${Math.floor(Math.random() * 10000)}`
+      const response = await fetch("/api/lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: formData.name,
+          description: formData.description,
+          visibility: visibility,
+          ownerId: dbUser.id,
+        }),
+      })
 
-    // Call the callback with the new list
-    onListCreated({
-      id: newListId,
-      name: formData.name,
-      isOwner: true,
-    })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create list")
+      }
 
-    setIsSubmitting(false)
-    onClose()
+      const newList = await response.json()
+
+      // Call the callback with the new list
+      onListCreated({
+        id: newList.id,
+        name: newList.title,
+        isOwner: true,
+      })
+
+      setIsSubmitting(false)
+      onClose()
+    } catch (err) {
+      console.error("Error creating list:", err)
+      setErrors({
+        submit: err instanceof Error ? err.message : "An unknown error occurred",
+      })
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -92,6 +124,18 @@ export function CreateListInlineModal({ onClose, onListCreated }: CreateListInli
 
         <div className="flex-grow overflow-y-auto p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errors.user && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                {errors.user}
+              </div>
+            )}
+
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                {errors.submit}
+              </div>
+            )}
+
             <div>
               <Label htmlFor="name" className="block mb-1 font-medium">
                 List Name*

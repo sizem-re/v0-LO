@@ -1,45 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Plus, Grid, ListIcon, MapPin } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
-// Import the PageLayout at the top
 import { PageLayout } from "@/components/page-layout"
+import { useAuth } from "@/lib/auth-context"
 
-// Mock data for user lists
-const USER_LISTS = [
-  {
-    id: "1",
-    title: "My Favorite Cafes",
-    description: "The best places to get coffee in the city",
-    places: 8,
-    visibility: "public",
-    saves: 12,
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "2",
-    title: "Weekend Hikes",
-    description: "Great trails within an hour of the city",
-    places: 6,
-    visibility: "public",
-    saves: 8,
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "3",
-    title: "Date Night Spots",
-    description: "Romantic restaurants and bars",
-    places: 10,
-    visibility: "private",
-    saves: 0,
-    image: "/placeholder.svg?height=200&width=300",
-  },
-]
+interface List {
+  id: string
+  title: string
+  description: string | null
+  visibility: string
+  created_at: string
+  owner_id: string
+  cover_image_url: string | null
+  places: { id: string; place: any }[]
+  owner: {
+    farcaster_username: string | null
+    farcaster_display_name: string | null
+    farcaster_pfp_url: string | null
+  }
+}
 
 function ListsPage() {
+  const { dbUser, isAuthenticated } = useAuth()
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [lists, setLists] = useState<List[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchLists = async () => {
+      if (!dbUser?.id) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch lists")
+        }
+
+        const data = await response.json()
+        setLists(data)
+      } catch (err) {
+        console.error("Error fetching lists:", err)
+        setError(err instanceof Error ? err.message : "An unknown error occurred")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLists()
+  }, [dbUser?.id])
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -69,7 +85,26 @@ function ListsPage() {
         </div>
       </div>
 
-      {USER_LISTS.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <p>Loading your lists...</p>
+        </div>
+      ) : error ? (
+        <div className="border border-red-200 bg-red-50 p-4 text-red-700 rounded">
+          <p>{error}</p>
+          <Link href="/lists/create" className="underline mt-2 inline-block">
+            Try creating a new list
+          </Link>
+        </div>
+      ) : !isAuthenticated ? (
+        <div className="border border-black p-8 text-center">
+          <h2 className="text-2xl font-serif mb-4">SIGN IN TO VIEW YOUR LISTS</h2>
+          <p className="mb-6">Sign in with your Farcaster account to create and view your lists.</p>
+          <Link href="/login" className="lo-button">
+            SIGN IN
+          </Link>
+        </div>
+      ) : lists.length === 0 ? (
         <div className="border border-black p-8 text-center">
           <h2 className="text-2xl font-serif mb-4">YOU DON'T HAVE ANY LISTS YET</h2>
           <p className="mb-6">Create your first list to start collecting your favorite places.</p>
@@ -79,13 +114,13 @@ function ListsPage() {
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {USER_LISTS.map((list) => (
+          {lists.map((list) => (
             <Link key={list.id} href={`/lists/${list.id}`} className="block group">
               <div className="border border-black/20 group-hover:border-black transition-colors h-full">
                 <div
                   className="aspect-[4/3] bg-gray-100"
                   style={{
-                    backgroundImage: `url(${list.image})`,
+                    backgroundImage: `url(${list.cover_image_url || "/map-of-locations.png"})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
@@ -96,11 +131,13 @@ function ListsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-sm">
                       <MapPin className="h-4 w-4 mr-1" />
-                      {list.places} places
+                      {list.places?.length || 0} places
                     </div>
                     <div className="text-sm">
                       {list.visibility === "public" ? (
                         <span className="text-black/70">🌎 Public</span>
+                      ) : list.visibility === "community" ? (
+                        <span className="text-black/70">👥 Community</span>
                       ) : (
                         <span className="text-black/70">🔒 Private</span>
                       )}
@@ -113,7 +150,7 @@ function ListsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {USER_LISTS.map((list) => (
+          {lists.map((list) => (
             <div key={list.id} className="border border-black/20 hover:border-black transition-colors p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="md:w-1/4">
@@ -121,7 +158,7 @@ function ListsPage() {
                     <div
                       className="aspect-[4/3] bg-gray-100"
                       style={{
-                        backgroundImage: `url(${list.image})`,
+                        backgroundImage: `url(${list.cover_image_url || "/map-of-locations.png"})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                       }}
@@ -136,16 +173,17 @@ function ListsPage() {
                   <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-1" />
-                      {list.places} places
+                      {list.places?.length || 0} places
                     </div>
                     <div>
                       {list.visibility === "public" ? (
                         <span className="text-black/70">🌎 Public</span>
+                      ) : list.visibility === "community" ? (
+                        <span className="text-black/70">👥 Community</span>
                       ) : (
                         <span className="text-black/70">🔒 Private</span>
                       )}
                     </div>
-                    {list.visibility === "public" && <div className="text-black/70">{list.saves} saves</div>}
                   </div>
                 </div>
               </div>
