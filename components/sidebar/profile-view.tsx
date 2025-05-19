@@ -9,7 +9,7 @@ import Link from "next/link"
 interface ProfileViewProps {
   user: any
   onBack: () => void
-  onLogout: () => void
+  onLogout?: () => void // Make this prop optional
 }
 
 export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
@@ -39,17 +39,31 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
         bio: "This is a demo profile",
       }
 
-  // Handle logout with both auth systems
+  // Handle logout directly without relying on the passed prop
   const handleLogout = () => {
-    // Call the provided onLogout callback
-    onLogout()
+    // Call the provided onLogout callback if it exists
+    if (typeof onLogout === "function") {
+      try {
+        onLogout()
+      } catch (error) {
+        console.error("Error calling onLogout callback:", error)
+      }
+    }
 
     // Also logout from auth context
-    authLogout()
+    try {
+      authLogout()
+    } catch (error) {
+      console.error("Error logging out from auth context:", error)
+    }
 
     // And from Neynar if available
-    if (neynarSignOut) {
-      neynarSignOut()
+    try {
+      if (neynarSignOut) {
+        neynarSignOut()
+      }
+    } catch (error) {
+      console.error("Error signing out from Neynar:", error)
     }
 
     // Redirect to home page
