@@ -5,7 +5,6 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
-import { AuthDebug } from "@/components/auth-debug" // Declare the AuthDebug variable
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,10 +54,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
-            <AuthProvider>
-              {children}
-              {process.env.NODE_ENV === "development" && <AuthDebug />}
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>
       </body>
