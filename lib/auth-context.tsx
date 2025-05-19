@@ -70,51 +70,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setDbUser(data?.[0] || null)
             }
           } else {
-            // Try to create the user with a server-side API call
+            // Create new user - try client-side first
             try {
-              const response = await fetch("/api/users/create", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
+              const { data, error } = await supabase
+                .from("users")
+                .insert({
                   farcaster_id: neynarUser.fid.toString(),
                   farcaster_username: neynarUser.username || "",
                   farcaster_display_name: neynarUser.display_name || "",
                   farcaster_pfp_url: neynarUser.pfp_url || "",
-                }),
-              })
+                })
+                .select()
 
-              if (!response.ok) {
-                const errorData = await response.json()
-                console.error("Error creating user via API:", errorData)
-              } else {
-                const userData = await response.json()
-                setDbUser(userData)
-              }
-            } catch (apiError) {
-              console.error("API call error:", apiError)
+              if (error) {
+                console.error("Error creating user client-side:", error)
 
-              // Fallback to direct client-side creation if API fails
-              try {
-                const { data, error } = await supabase
-                  .from("users")
-                  .insert({
-                    farcaster_id: neynarUser.fid.toString(),
-                    farcaster_username: neynarUser.username || "",
-                    farcaster_display_name: neynarUser.display_name || "",
-                    farcaster_pfp_url: neynarUser.pfp_url || "",
+                // If client-side fails, try the API
+                try {
+                  const response = await fetch("/api/users/create", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      farcaster_id: neynarUser.fid.toString(),
+                      farcaster_username: neynarUser.username || "",
+                      farcaster_display_name: neynarUser.display_name || "",
+                      farcaster_pfp_url: neynarUser.pfp_url || "",
+                    }),
                   })
-                  .select()
 
-                if (error) {
-                  console.error("Error in fallback user creation:", error)
-                } else {
-                  setDbUser(data?.[0] || null)
+                  if (!response.ok) {
+                    const errorData = await response.json()
+                    console.error("Error creating user via API:", errorData)
+
+                    // Even if both methods fail, we'll still consider the user authenticated
+                    // They just won't have a database record yet
+                  } else {
+                    const userData = await response.json()
+                    setDbUser(userData)
+                  }
+                } catch (apiError) {
+                  console.error("API call error:", apiError)
                 }
-              } catch (fallbackError) {
-                console.error("Fallback creation error:", fallbackError)
+              } else {
+                setDbUser(data?.[0] || null)
               }
+            } catch (clientError) {
+              console.error("Client-side creation error:", clientError)
             }
           }
         } catch (error) {
