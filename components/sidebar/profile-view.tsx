@@ -1,6 +1,10 @@
 "use client"
 
 import { ChevronLeft, LogOut, MapPin, List } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
+import { useNeynarContext } from "@neynar/react"
+import Link from "next/link"
 
 interface ProfileViewProps {
   user: any
@@ -9,6 +13,10 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
+  const router = useRouter()
+  const { logout: authLogout } = useAuth()
+  const { signOut: neynarSignOut } = useNeynarContext()
+
   // Use Neynar user data if available
   const displayUser = user
     ? {
@@ -31,6 +39,23 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
         bio: "This is a demo profile",
       }
 
+  // Handle logout with both auth systems
+  const handleLogout = () => {
+    // Call the provided onLogout callback
+    onLogout()
+
+    // Also logout from auth context
+    authLogout()
+
+    // And from Neynar if available
+    if (neynarSignOut) {
+      neynarSignOut()
+    }
+
+    // Redirect to home page
+    router.push("/")
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center p-4 border-b border-black/10">
@@ -39,7 +64,7 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
         </button>
         <button
           className="text-black/70 hover:text-black hover:bg-black/5 p-1 rounded flex items-center"
-          onClick={onLogout}
+          onClick={handleLogout}
         >
           <LogOut size={16} className="mr-1" /> Logout
         </button>
@@ -63,11 +88,17 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="border border-black/10 p-4 rounded text-center">
+          <Link
+            href="/lists"
+            className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors"
+          >
             <div className="text-2xl font-medium">12</div>
             <div className="text-sm text-black/70">Lists</div>
-          </div>
-          <div className="border border-black/10 p-4 rounded text-center">
+          </Link>
+          <div
+            className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors cursor-pointer"
+            onClick={() => router.push("/places")}
+          >
             <div className="text-2xl font-medium">48</div>
             <div className="text-sm text-black/70">Places</div>
           </div>
@@ -78,11 +109,17 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
             <List size={16} className="mr-2" /> Recent Lists
           </h3>
           <div className="space-y-2">
-            <div className="p-3 border border-black/10 rounded">
+            <div
+              className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors cursor-pointer"
+              onClick={() => router.push("/lists/hidden-food-tacoma")}
+            >
               <h4 className="font-medium">BEST (HIDDEN) FOOD IN TACOMA</h4>
               <p className="text-xs text-black/60">12 places</p>
             </div>
-            <div className="p-3 border border-black/10 rounded">
+            <div
+              className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors cursor-pointer"
+              onClick={() => router.push("/lists/weekend-getaways")}
+            >
               <h4 className="font-medium">Weekend Getaways</h4>
               <p className="text-xs text-black/60">8 places</p>
             </div>
@@ -94,7 +131,10 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
             <MapPin size={16} className="mr-2" /> Recent Places
           </h3>
           <div className="space-y-2">
-            <div className="p-3 border border-black/10 rounded flex">
+            <div
+              className="p-3 border border-black/10 rounded flex hover:bg-black/5 transition-colors cursor-pointer"
+              onClick={() => router.push("/places/fish-house-cafe")}
+            >
               <div
                 className="h-10 w-10 bg-gray-200 rounded mr-3"
                 style={{
@@ -108,7 +148,10 @@ export function ProfileView({ user, onBack, onLogout }: ProfileViewProps) {
                 <p className="text-xs text-black/60">Tacoma, WA</p>
               </div>
             </div>
-            <div className="p-3 border border-black/10 rounded flex">
+            <div
+              className="p-3 border border-black/10 rounded flex hover:bg-black/5 transition-colors cursor-pointer"
+              onClick={() => router.push("/places/lighthouse-coffee")}
+            >
               <div
                 className="h-10 w-10 bg-gray-200 rounded mr-3"
                 style={{
