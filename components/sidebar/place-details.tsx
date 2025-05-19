@@ -2,6 +2,8 @@
 
 import { ChevronLeft, Plus, MapPin, Globe, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { AddToListDialog } from "@/components/add-to-list-dialog"
 
 interface PlaceDetailsProps {
   place: any
@@ -9,6 +11,8 @@ interface PlaceDetailsProps {
 }
 
 export function PlaceDetails({ place, onBack }: PlaceDetailsProps) {
+  const [showAddToListDialog, setShowAddToListDialog] = useState(false)
+
   if (!place) return null
 
   return (
@@ -48,11 +52,23 @@ export function PlaceDetails({ place, onBack }: PlaceDetailsProps) {
             <h3 className="font-medium text-sm mb-2">On these lists:</h3>
             <div className="flex flex-wrap gap-2">
               {place.lists.map((list: string, idx: number) => (
-                <span key={idx} className="bg-gray-100 px-2 py-1 rounded-full text-xs">
+                <button
+                  key={idx}
+                  className="bg-gray-100 px-2 py-1 rounded-full text-xs hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-black/20"
+                  onClick={() => {
+                    // Navigate to list or show list details
+                    console.log(`Navigating to list: ${list}`)
+                    // You can replace this with actual navigation logic
+                    // For example: router.push(`/lists/${listId}`)
+                  }}
+                >
                   {list}
-                </span>
+                </button>
               ))}
-              <button className="bg-black/5 text-black px-2 py-1 rounded-full text-xs flex items-center">
+              <button
+                className="bg-black/5 text-black px-2 py-1 rounded-full text-xs flex items-center hover:bg-black/10 transition-colors"
+                onClick={() => setShowAddToListDialog(true)}
+              >
                 <Plus size={12} className="mr-1" /> Add to list
               </button>
             </div>
@@ -84,6 +100,23 @@ export function PlaceDetails({ place, onBack }: PlaceDetailsProps) {
           </div>
         </div>
       </div>
+      {showAddToListDialog && (
+        <AddToListDialog
+          open={showAddToListDialog}
+          onOpenChange={setShowAddToListDialog}
+          place={place}
+          lists={[
+            { id: "1", title: "Favorite Places", description: "", privacy: "private", placeCount: 5, author: "You" },
+            { id: "2", title: "Want to Visit", description: "", privacy: "private", placeCount: 3, author: "You" },
+          ]}
+          onCreateList={() => {
+            // Handle create list action
+            console.log("Create new list")
+            setShowAddToListDialog(false)
+            // You can add navigation to create list page or open a create list modal
+          }}
+        />
+      )}
     </div>
   )
 }
