@@ -44,12 +44,18 @@ export default function HomePage() {
       }
     }
 
-    fetchPlaces()
+    if (isMounted) {
+      fetchPlaces()
+    }
+  }, [isMounted])
+
+  // Set isMounted to true after component mounts
+  useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  // Don't render until client-side to avoid hydration issues
-  if (!isMounted) {
+  // Don't render anything during SSR
+  if (typeof window === "undefined") {
     return null
   }
 

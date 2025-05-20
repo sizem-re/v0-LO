@@ -21,6 +21,8 @@ export default function VanillaLocationPicker({
 
   // Function to clean up the map instance
   const cleanupMap = () => {
+    if (typeof window === "undefined") return
+
     if (mapInstanceRef.current) {
       // Remove marker if it exists
       if (markerRef.current) {
@@ -37,6 +39,7 @@ export default function VanillaLocationPicker({
 
   // Function to initialize the map
   const initMap = () => {
+    if (typeof window === "undefined") return
     if (!mapRef.current || !window.L || isMapInitialized || !mapRef.current.id) return
 
     // Clean up any existing map first
@@ -110,6 +113,8 @@ export default function VanillaLocationPicker({
   }
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     // Load Leaflet CSS
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link")
@@ -142,6 +147,8 @@ export default function VanillaLocationPicker({
 
   // Effect to update marker when initialLocation changes
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     if (mapInstanceRef.current && isMapInitialized && initialLocation) {
       // Update marker position
       if (markerRef.current) {
@@ -154,6 +161,18 @@ export default function VanillaLocationPicker({
       mapInstanceRef.current.setView([initialLocation.lat, initialLocation.lng], 13)
     }
   }, [initialLocation, isMapInitialized])
+
+  // Don't render anything during SSR
+  if (typeof window === "undefined") {
+    return (
+      <div
+        style={{ height, width: "100%" }}
+        className="border border-black/10 bg-gray-100 flex items-center justify-center"
+      >
+        <p className="text-gray-500">Loading map...</p>
+      </div>
+    )
+  }
 
   return (
     <div id={mapId} ref={mapRef} style={{ height, width: "100%" }} className="border border-black/10 bg-gray-100" />
