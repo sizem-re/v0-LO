@@ -29,7 +29,6 @@ import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { AddPlaceToList } from "./add-place-to-list"
 
 interface SidebarList {
   id: string
@@ -90,9 +89,9 @@ export function Sidebar({ initialState }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
+  const [addPlaceToListId, setAddPlaceToListId] = useState<string | null>(null)
   const [showPlaceDetails, setShowPlaceDetails] = useState(initialState?.showPlaceDetails || false)
   const [showListDetails, setShowListDetails] = useState(initialState?.showListDetails || false)
-  const [showAddPlaceToList, setShowAddPlaceToList] = useState(initialState?.showAddPlaceToList || false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [selectedList, setSelectedList] = useState<string | null>(initialState?.selectedListId || null)
@@ -265,11 +264,6 @@ export function Sidebar({ initialState }: SidebarProps) {
         params.set("place", selectedPlace.id)
       }
 
-      if (showAddPlaceToList && selectedList) {
-        params.set("list", selectedList)
-        params.set("action", "addPlace")
-      }
-
       const queryString = params.toString()
       const url = queryString ? `/?${queryString}` : "/"
 
@@ -278,7 +272,7 @@ export function Sidebar({ initialState }: SidebarProps) {
     }, 300) // 300ms debounce
 
     return () => clearTimeout(updateUrlTimeout)
-  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, showAddPlaceToList, pathname, router])
+  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, pathname, router])
 
   const handleProfileClick = () => {
     if (userIsAuthenticated) {
@@ -286,14 +280,12 @@ export function Sidebar({ initialState }: SidebarProps) {
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowLogin(false)
-      setShowAddPlaceToList(false)
       setIsCollapsed(false) // Always expand sidebar when showing profile
     } else {
       setShowLogin(true)
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowProfile(false)
-      setShowAddPlaceToList(false)
       setIsCollapsed(false) // Always expand sidebar when showing login
     }
   }
@@ -304,7 +296,6 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
-    setShowAddPlaceToList(false)
     setIsCollapsed(false) // Always expand sidebar when showing place details
   }
 
@@ -314,7 +305,6 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowPlaceDetails(false)
     setShowProfile(false)
     setShowLogin(false)
-    setShowAddPlaceToList(false)
     setIsCollapsed(false) // Always expand sidebar when showing list details
   }
 
@@ -323,7 +313,6 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
-    setShowAddPlaceToList(false)
   }
 
   const handleAddPlace = () => {
@@ -333,6 +322,7 @@ export function Sidebar({ initialState }: SidebarProps) {
       return
     }
 
+    setAddPlaceToListId(null)
     setShowAddPlaceModal(true)
   }
 
@@ -343,13 +333,8 @@ export function Sidebar({ initialState }: SidebarProps) {
       return
     }
 
-    setSelectedList(listId)
-    setShowAddPlaceToList(true)
-    setShowListDetails(false)
-    setShowPlaceDetails(false)
-    setShowProfile(false)
-    setShowLogin(false)
-    setIsCollapsed(false)
+    setAddPlaceToListId(listId)
+    setShowAddPlaceModal(true)
   }
 
   const handleTabClick = (tab: string) => {
@@ -546,21 +531,6 @@ export function Sidebar({ initialState }: SidebarProps) {
           onShare={handleShareList}
           onDelete={handleDeleteList}
           onAddPlace={handleAddPlaceToList}
-        />
-      ) : showAddPlaceToList && selectedList ? (
-        <AddPlaceToList
-          listId={selectedList}
-          onBack={() => {
-            setShowAddPlaceToList(false)
-            setShowListDetails(true)
-          }}
-          onSuccess={() => {
-            setShowAddPlaceToList(false)
-            setShowListDetails(true)
-            // Refresh the list details
-            // This could be improved by updating the state directly
-            router.refresh()
-          }}
         />
       ) : showProfile ? (
         <ProfileView user={user} onBack={handleBackClick} onSignOut={handleSignOut} />
@@ -876,7 +846,23 @@ export function Sidebar({ initialState }: SidebarProps) {
 
       {/* Show modals if active */}
       {showNewListModal && <CreateListModal onClose={() => setShowNewListModal(false)} />}
-      {showAddPlaceModal && <AddPlaceModal onClose={() => setShowAddPlaceModal(false)} userLists={userLists} />}
+      {showAddPlaceModal && (
+        <AddPlaceModal
+          onClose={() => setShowAddPlaceModal(false)}
+          userLists={userLists}
+          preSelectedListId={addPlaceToListId}
+          onSuccess={() => {
+            setShowAddPlaceModal(false)
+            // If we were adding to a specific list, go back to list details
+            if (addPlaceToListId) {
+              setSelectedList(addPlaceToListId)
+              setShowListDetails(true)
+              // Refresh to show the updated list
+              router.refresh()
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

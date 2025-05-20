@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { X, MapPin, Camera, Plus } from "lucide-react"
+import { useState, useEffect } from "react"
+import { X, MapPin, Camera, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,13 +11,23 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CreateListInlineModal } from "./create-list-inline-modal"
 import { LocationPickerModal } from "./location-picker-modal"
+import { useAuth } from "@/lib/auth-context"
+import { v4 as uuidv4 } from "uuid"
 
 interface AddPlaceModalProps {
   onClose: () => void
   userLists: Array<{ id: number | string; name: string; isOwner: boolean }>
+  preSelectedListId?: string | number | null
+  onSuccess?: () => void
 }
 
-export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlaceModalProps) {
+export function AddPlaceModal({
+  onClose,
+  userLists: initialUserLists,
+  preSelectedListId = null,
+  onSuccess,
+}: AddPlaceModalProps) {
+  const { dbUser } = useAuth()
   const [step, setStep] = useState<"details" | "lists">("details")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -35,6 +45,16 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
   const [showCreateListModal, setShowCreateListModal] = useState(false)
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [hasSetLocation, setHasSetLocation] = useState(false)
+
+  // Initialize selected lists with the pre-selected list if provided
+  useEffect(() => {
+    if (preSelectedListId) {
+      setSelectedLists((prev) => ({
+        ...prev,
+        [preSelectedListId]: true,
+      }))
+    }
+  }, [preSelectedListId])
 
   // Count how many lists are selected
   const selectedListCount = Object.values(selectedLists).filter(Boolean).length
@@ -121,7 +141,13 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
 
   const handleContinue = () => {
     if (validateDetailsForm()) {
-      setStep("lists")
+      // If we have a pre-selected list and it's the only one we want to add to,
+      // we can skip the list selection step
+      if (preSelectedListId && Object.keys(selectedLists).length === 1 && selectedLists[preSelectedListId]) {
+        handleSubmit(new Event("submit") as React.FormEvent)
+      } else {
+        setStep("lists")
+      }
     }
   }
 
@@ -137,20 +163,74 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
       return
     }
 
+    if (!dbUser?.id) {
+      setErrors((prev) => ({ ...prev, auth: "You must be logged in to add a place" }))
+      return
+    }
+
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // 1. Create the place
+      const placeId = uuidv4()
+      const placeResponse = await fetch("/api/places", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: placeId,
+          name: formData.name,
+          type: formData.type,
+          description: formData.description,
+          address: formData.address,
+          lat: formData.coordinates.lat,
+          lng: formData.coordinates.lng,
+          website_url: formData.website,
+          created_by: dbUser.id,
+        }),
+      })
 
-    console.log("Submitting place:", {
-      ...formData,
-      lists: Object.entries(selectedLists)
+      if (!placeResponse.ok) {
+        throw new Error("Failed to create place")
+      }
+
+      // 2. Add the place to selected lists
+      const selectedListIds = Object.entries(selectedLists)
         .filter(([_, isSelected]) => isSelected)
-        .map(([listId]) => listId),
-    })
+        .map(([listId]) => listId)
 
-    setIsSubmitting(false)
-    onClose()
+      for (const listId of selectedListIds) {
+        const listPlaceResponse = await fetch("/api/list-places", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            listId: listId,
+            placeId: placeId,
+            userId: dbUser.id,
+            note: "",
+          }),
+        })
+
+        if (!listPlaceResponse.ok) {
+          console.error(`Failed to add place to list ${listId}`)
+        }
+      }
+
+      // Call onSuccess if provided
+      if (onSuccess) {
+        onSuccess()
+      }
+
+      onClose()
+    } catch (err) {
+      console.error("Error adding place:", err)
+      setErrors((prev) => ({ ...prev, submit: "Failed to add place. Please try again." }))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -348,8 +428,19 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
 
         <div className="p-4 border-t border-black/10 flex gap-3">
           {step === "details" ? (
-            <Button type="button" className="flex-1 bg-black text-white hover:bg-black/80" onClick={handleContinue}>
-              Continue
+            <Button
+              type="button"
+              className="flex-1 bg-black text-white hover:bg-black/80"
+              onClick={handleContinue}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...
+                </>
+              ) : (
+                "Continue"
+              )}
             </Button>
           ) : (
             <>
@@ -357,6 +448,7 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
                 type="button"
                 className="bg-transparent text-black border border-black/20 hover:bg-black/5"
                 onClick={handleBack}
+                disabled={isSubmitting}
               >
                 Back
               </Button>
@@ -367,7 +459,9 @@ export function AddPlaceModal({ onClose, userLists: initialUserLists }: AddPlace
                 disabled={selectedListCount === 0 || isSubmitting}
               >
                 {isSubmitting ? (
-                  "Adding..."
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...
+                  </>
                 ) : (
                   <>
                     Add to {selectedListCount} {selectedListCount === 1 ? "List" : "Lists"}

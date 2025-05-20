@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Sidebar } from "./sidebar"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { Sidebar } from "./sidebar"
 
 export function SidebarWrapper() {
   const searchParams = useSearchParams()
@@ -10,37 +10,38 @@ export function SidebarWrapper() {
     activeTab: "discover",
     showListDetails: false,
     showPlaceDetails: false,
-    selectedListId: null as string | null,
-    selectedPlaceId: null as string | null,
+    selectedListId: null,
+    selectedPlaceId: null,
     showAddPlaceToList: false,
   })
-
-  // Use a separate state to track if we've processed the URL params
+  const [isReady, setIsReady] = useState(false)
   const [hasProcessedParams, setHasProcessedParams] = useState(false)
 
   useEffect(() => {
-    // Only process URL parameters once
-    if (!hasProcessedParams) {
-      // Parse URL parameters to set initial state
-      const tab = searchParams.get("tab")
-      const listId = searchParams.get("list")
-      const placeId = searchParams.get("place")
-      const action = searchParams.get("action")
+    if (hasProcessedParams) return
 
-      // Create a new state object based on URL parameters
-      const newState = {
-        activeTab: tab || "discover",
-        showListDetails: !!listId && action !== "addPlace",
-        showPlaceDetails: !!placeId,
-        selectedListId: listId,
-        selectedPlaceId: placeId,
-        showAddPlaceToList: !!listId && action === "addPlace",
-      }
+    const tab = searchParams.get("tab")
+    const listId = searchParams.get("list")
+    const placeId = searchParams.get("place")
+    const action = searchParams.get("action")
 
-      setInitialState(newState)
-      setHasProcessedParams(true)
+    const newState = {
+      activeTab: tab || "discover",
+      showListDetails: !!listId && action !== "addPlace",
+      showPlaceDetails: !!placeId,
+      selectedListId: listId,
+      selectedPlaceId: placeId,
+      showAddPlaceToList: !!listId && action === "addPlace",
     }
+
+    setInitialState(newState)
+    setIsReady(true)
+    setHasProcessedParams(true)
   }, [searchParams, hasProcessedParams])
+
+  if (!isReady) {
+    return <div className="h-full w-full bg-white"></div>
+  }
 
   return <Sidebar initialState={initialState} />
 }
