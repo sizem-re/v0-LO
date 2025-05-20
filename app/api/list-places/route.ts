@@ -1,67 +1,40 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase-client"
+import { supabaseAdmin } from "@/lib/supabase-client"
+import { v4 as uuidv4 } from "uuid"
 
 // POST /api/list-places - Add a place to a list
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { listId, placeId, addedBy, note, photoUrl } = body
+    const { listId, placeId, userId, note, photoUrl } = body
 
-    if (!listId || !placeId || !addedBy) {
-      return NextResponse.json({ error: "ListId, placeId, and addedBy are required" }, { status: 400 })
+    if (!listId || !placeId) {
+      return NextResponse.json({ error: "List ID and Place ID are required" }, { status: 400 })
     }
 
-    // Check if the place is already in the list
-    const { data: existingEntry, error: checkError } = await supabase
+    // Generate a UUID for the new list-place relationship
+    const id = uuidv4()
+
+    // Use the admin client to bypass RLS
+    const { data, error } = await supabaseAdmin
       .from("list_places")
-      .select("id")
-      .eq("list_id", listId)
-      .eq("place_id", placeId)
-      .eq("added_by", addedBy)
+      .insert({
+        id,
+        list_id: listId,
+        place_id: placeId,
+        added_by: userId || null,
+        note: note || null,
+        photo_url: photoUrl || null,
+        added_at: new Date().toISOString(),
+      })
+      .select()
 
-    if (checkError) {
-      console.error("Error checking list_places:", checkError)
-      return NextResponse.json({ error: checkError.message }, { status: 500 })
+    if (error) {
+      console.error("Error adding place to list:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    if (existingEntry && existingEntry.length > 0) {
-      // Update existing entry
-      const { data, error } = await supabase
-        .from("list_places")
-        .update({
-          note,
-          photo_url: photoUrl,
-          added_at: new Date().toISOString(),
-        })
-        .eq("id", existingEntry[0].id)
-        .select()
-
-      if (error) {
-        console.error("Error updating list_places:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
-      }
-
-      return NextResponse.json(data[0])
-    } else {
-      // Create new entry
-      const { data, error } = await supabase
-        .from("list_places")
-        .insert({
-          list_id: listId,
-          place_id: placeId,
-          added_by: addedBy,
-          note,
-          photo_url: photoUrl,
-        })
-        .select()
-
-      if (error) {
-        console.error("Error creating list_places:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
-      }
-
-      return NextResponse.json(data[0])
-    }
+    return NextResponse.json(data[0])
   } catch (error) {
     console.error("Error in POST /api/list-places:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -74,22 +47,27 @@ export async function DELETE(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const listId = searchParams.get("listId")
     const placeId = searchParams.get("placeId")
-    const addedBy = searchParams.get("addedBy")
+    const id = searchParams.get("id")
 
-    if (!listId || !placeId) {
-      return NextResponse.json({ error: "ListId and placeId are required" }, { status: 400 })
+    if ((!listId || !placeId) && !id) {
+      return NextResponse.json(
+        { error: "Either list ID and place ID, or the relationship ID are required" },
+        { status: 400 },
+      )
     }
 
-    let query = supabase.from("list_places").delete().eq("list_id", listId).eq("place_id", placeId)
+    let query = supabaseAdmin.from("list_places").delete()
 
-    if (addedBy) {
-      query = query.eq("added_by", addedBy)
+    if (id) {
+      query = query.eq("id", id)
+    } else {
+      query = query.eq("list_id", listId).eq("place_id", placeId)
     }
 
     const { error } = await query
 
     if (error) {
-      console.error("Error deleting from list_places:", error)
+      console.error("Error removing place from list:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

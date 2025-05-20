@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase-client"
+import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 import { v4 as uuidv4 } from "uuid"
 
 // GET /api/lists - Get lists (with filtering options)
@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
     // Generate a UUID for the new list
     const listId = uuidv4()
 
-    const { data, error } = await supabase
+    // Use the admin client to bypass RLS
+    const { data, error } = await supabaseAdmin
       .from("lists")
       .insert({
         id: listId,
