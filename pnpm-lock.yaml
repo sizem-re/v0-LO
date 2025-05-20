@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@farcaster/frame-sdk':
         specifier: latest
-        version: 0.0.46(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
+        version: 0.0.47(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.9.1(react-hook-form@7.54.1(react@19.0.0))
@@ -358,11 +358,11 @@ packages:
   '@farcaster/frame-core@0.0.40':
     resolution: {integrity: sha512-FfuaZKwsIKAFi2IcPbMqTGz670uEkbrVuq3647XTBPkWqY7fFLJzx3jh66ufPO0arXThjzv+lrp7uSMUQ1gW3g==}
 
-  '@farcaster/frame-sdk@0.0.46':
-    resolution: {integrity: sha512-W83NNrPv8aqayhhTkLGgqhtHaWo7DhipMbPKzWH78h5MimL/q33+idzvRdIotwbpXhXofqalS7YooQ4tV7Q41Q==}
+  '@farcaster/frame-sdk@0.0.47':
+    resolution: {integrity: sha512-6Ffh079XXIobh4NdyDncZj4syx79YQrf63AR+n5L11IQ5guXRangxTTXr0ggBylTQCBcXvXJn7apZ4LuVIEdLQ==}
 
-  '@farcaster/quick-auth@0.0.4':
-    resolution: {integrity: sha512-yyFEyJiGUxxB4bvlza2t7FIz9NY67UMVD2V4LuExurntDqV1fQDLh5c6kzghJ/xm0Ow0GGUiF5zRDd7aybuKkw==}
+  '@farcaster/quick-auth@0.0.5':
+    resolution: {integrity: sha512-Z8hWz/7c33zlmII2AJHja/Wz0C03mm2o+CEBtBylmiun1wC4FMgx1Fal699VQvBUG1lpcJ662WxuRNxKogktDw==}
     peerDependencies:
       typescript: 5.8.3
 
@@ -3545,10 +3545,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@farcaster/frame-sdk@0.0.46(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
+  '@farcaster/frame-sdk@0.0.47(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
     dependencies:
       '@farcaster/frame-core': 0.0.40(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)
-      '@farcaster/quick-auth': 0.0.4(typescript@5.0.2)
+      '@farcaster/quick-auth': 0.0.5(typescript@5.0.2)
       comlink: 4.4.2
       eventemitter3: 5.0.1
       ox: 0.4.4(typescript@5.0.2)(zod@3.24.1)
@@ -3559,7 +3559,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@farcaster/quick-auth@0.0.4(typescript@5.0.2)':
+  '@farcaster/quick-auth@0.0.5(typescript@5.0.2)':
     dependencies:
       jose: 5.10.0
       typescript: 5.0.2
