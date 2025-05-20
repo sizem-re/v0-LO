@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { redirect } from "next/navigation"
 
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
@@ -142,6 +143,7 @@ const PLACE_LIST_RELATIONSHIPS = [
 const PLACE_TYPES = Array.from(new Set(MOCK_PLACES.map((place) => place.type)))
 
 export default function MapPage() {
+  redirect("/")
   const { isAuthenticated, user } = useAuth()
   const [places, setPlaces] = useState<Place[]>([])
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([])

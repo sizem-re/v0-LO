@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   Search,
   MapPin,
-  List,
+  ListIcon,
   Plus,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   X,
   Home,
   Menu,
+  Share2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
@@ -26,7 +27,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import Link from "next/link"
 
 interface SidebarList {
   id: string
@@ -37,6 +39,9 @@ interface SidebarList {
   owner_id: string
   cover_image_url: string | null
   places: { id: string; place: any }[]
+  owner?: {
+    farcaster_username?: string
+  }
 }
 
 interface Place {
@@ -54,9 +59,10 @@ interface Place {
 }
 
 export function Sidebar() {
-  // Get miniapp context
+  // Get miniapp context and router
   const { isMiniApp } = useMiniApp()
   const router = useRouter()
+  const pathname = usePathname()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -88,8 +94,8 @@ export function Sidebar() {
   const [placesError, setPlacesError] = useState<string | null>(null)
 
   // Auth context
-  const { isAuthenticated, dbUser } = useAuth()
-  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
+  const { isAuthenticated, dbUser, signOut } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user, signOut: neynarSignOut } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
 
@@ -265,6 +271,23 @@ export function Sidebar() {
     setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
+  const handleSignOut = async () => {
+    if (neynarAuthenticated) {
+      await neynarSignOut()
+    } else if (isAuthenticated) {
+      await signOut()
+    }
+
+    // Reset state
+    setShowProfile(false)
+    setActiveTab("discover")
+  }
+
+  const handleShareList = (listId: string) => {
+    // Implement sharing functionality
+    console.log(`Sharing list: ${listId}`)
+  }
+
   // For very small screens, we can completely hide the sidebar
   if (isHidden) {
     return (
@@ -288,7 +311,9 @@ export function Sidebar() {
       >
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
-          <h1 className="font-serif text-xl font-bold">LO</h1>
+          <Link href="/" className="font-serif text-xl font-bold">
+            LO
+          </Link>
           <button
             className="mt-2 p-1 hover:bg-gray-100 rounded-full"
             onClick={() => setIsCollapsed(false)}
@@ -312,7 +337,7 @@ export function Sidebar() {
           onClick={() => handleTabClick("mylists")}
           aria-label="My Lists"
         >
-          <List size={20} />
+          <ListIcon size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
@@ -362,7 +387,9 @@ export function Sidebar() {
     >
       {/* Header with collapse button */}
       <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
-        <h1 className="font-serif text-xl">LO</h1>
+        <Link href="/" className="font-serif text-xl">
+          LO
+        </Link>
         <button
           className="p-1 hover:bg-gray-100 rounded-full"
           onClick={() => setIsCollapsed(true)}
@@ -376,9 +403,14 @@ export function Sidebar() {
       {showPlaceDetails ? (
         <PlaceDetails place={selectedPlace} onBack={handleBackClick} />
       ) : showListDetails ? (
-        <ListDetails listId={selectedList} onBack={handleBackClick} onPlaceClick={handlePlaceClick} />
+        <ListDetails
+          listId={selectedList}
+          onBack={handleBackClick}
+          onPlaceClick={handlePlaceClick}
+          onShare={handleShareList}
+        />
       ) : showProfile ? (
-        <ProfileView user={user} onBack={handleBackClick} />
+        <ProfileView user={user} onBack={handleBackClick} onSignOut={handleSignOut} />
       ) : showLogin ? (
         <LoginView
           onBack={handleBackClick}
@@ -465,8 +497,14 @@ export function Sidebar() {
                               by {list.owner?.farcaster_username || "Anonymous"} • {list.places?.length || 0} places
                             </p>
                           </div>
-                          <button className="text-black hover:bg-black/5 p-1 rounded">
-                            <Plus size={16} />
+                          <button
+                            className="text-black hover:bg-black/5 p-1 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleShareList(list.id)
+                            }}
+                          >
+                            <Share2 size={16} />
                           </button>
                         </div>
                       </div>
@@ -565,16 +603,27 @@ export function Sidebar() {
                                 <h3 className="font-medium">{list.title}</h3>
                                 <p className="text-sm text-black/60">{list.places?.length || 0} places</p>
                               </div>
-                              <button
-                                className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  // Open settings for this list
-                                  router.push(`/lists/${list.id}/edit`)
-                                }}
-                              >
-                                <Settings size={16} />
-                              </button>
+                              <div className="flex">
+                                <button
+                                  className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded mr-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleShareList(list.id)
+                                  }}
+                                >
+                                  <Share2 size={16} />
+                                </button>
+                                <button
+                                  className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    // Open settings for this list
+                                    router.push(`/lists/${list.id}/edit`)
+                                  }}
+                                >
+                                  <Settings size={16} />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -595,6 +644,15 @@ export function Sidebar() {
                                 <h3 className="font-medium">{list.title}</h3>
                                 <p className="text-sm text-black/60">{list.places?.length || 0} places</p>
                               </div>
+                              <button
+                                className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleShareList(list.id)
+                                }}
+                              >
+                                <Share2 size={16} />
+                              </button>
                             </div>
                           </div>
                         ))}

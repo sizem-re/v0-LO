@@ -1,152 +1,90 @@
 "use client"
 
-import { ChevronLeft, LogOut, MapPin, List } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { ChevronLeft, LogOut, Settings, User, ListIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface ProfileViewProps {
   user: any
   onBack: () => void
-  onLogout?: () => void // Make this prop optional
+  onSignOut?: () => void
 }
 
-export function ProfileView({ user, onBack }: ProfileViewProps) {
+export function ProfileView({ user, onBack, onSignOut }: ProfileViewProps) {
+  const { dbUser } = useAuth()
   const router = useRouter()
-  const { logout: authLogout } = useAuth()
-  const { signOut: neynarSignOut } = useNeynarContext()
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
-  // Use Neynar user data if available
-  const displayUser = user
-    ? {
-        displayName:
-          typeof user.display_name === "string"
-            ? user.display_name
-            : typeof user.username === "string"
-              ? user.username
-              : "User",
-        username: typeof user.username === "string" ? user.username : "user",
-        pfp: user.pfp_url || "/placeholder.svg",
-        fid: user.fid?.toString() || "0",
-        bio: typeof user.profile?.bio === "string" ? user.profile.bio : "",
-      }
-    : {
-        displayName: "Demo User",
-        username: "demo_user",
-        pfp: "/placeholder.svg",
-        fid: "123456",
-        bio: "This is a demo profile",
-      }
+  const handleSignOut = async () => {
+    if (!onSignOut) return
+
+    setIsSigningOut(true)
+    try {
+      await onSignOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center p-4 border-b border-black/10">
-        <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
-          <ChevronLeft size={16} className="mr-1" /> Back
+      <div className="p-4 border-b border-black/10 flex items-center">
+        <button onClick={onBack} className="p-1 mr-2 hover:bg-gray-100 rounded-sm" aria-label="Back">
+          <ChevronLeft size={18} />
         </button>
-        {/* Use the Neynar button directly for sign out */}
-        <NeynarAuthButton className="text-black/70 hover:text-black hover:bg-black/5 p-1 rounded flex items-center">
-          <LogOut size={16} className="mr-1" /> Logout
-        </NeynarAuthButton>
+        <h2 className="font-medium">Profile</h2>
       </div>
 
-      <div className="flex-grow overflow-y-auto p-4">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="w-16 h-16 border border-black/10 rounded-full overflow-hidden">
-            <img
-              src={displayUser.pfp || "/placeholder.svg"}
-              alt={displayUser.displayName}
-              className="w-full h-full object-cover"
-            />
+      <div className="p-4 flex flex-col items-center border-b border-black/10">
+        {user?.pfp_url ? (
+          <img
+            src={user.pfp_url || "/placeholder.svg"}
+            alt={user.displayName || user.username || "User"}
+            className="w-20 h-20 rounded-full border border-black/10 mb-3"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-full border border-black/10 flex items-center justify-center mb-3 bg-gray-100">
+            <User className="h-10 w-10 text-gray-400" />
           </div>
-          <div>
-            <h2 className="font-serif text-xl mb-1">{displayUser.displayName}</h2>
-            <p className="text-black/70 text-sm">@{displayUser.username}</p>
-            {displayUser.bio && <p className="text-sm mt-2">{displayUser.bio}</p>}
-            <p className="text-xs text-black/60 mt-1">Farcaster ID: {displayUser.fid}</p>
-          </div>
-        </div>
+        )}
+        <h3 className="font-medium text-lg">{user?.displayName || user?.username || "User"}</h3>
+        {user?.username && <p className="text-sm text-black/60">@{user.username}</p>}
+      </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Link
-            href="/lists"
-            className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors"
+      <div className="p-4 flex-grow">
+        <div className="space-y-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start border-black/20 hover:bg-gray-50"
+            onClick={() => router.push("/lists")}
           >
-            <div className="text-2xl font-medium">12</div>
-            <div className="text-sm text-black/70">Lists</div>
-          </Link>
-          <div
-            className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors cursor-pointer"
-            onClick={() => router.push("/places")}
+            <ListIcon className="mr-2 h-4 w-4" />
+            My Lists
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start border-black/20 hover:bg-gray-50"
+            onClick={() => router.push("/profile")}
           >
-            <div className="text-2xl font-medium">48</div>
-            <div className="text-sm text-black/70">Places</div>
-          </div>
-        </div>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
 
-        <div className="mb-6">
-          <h3 className="font-medium mb-3 flex items-center">
-            <List size={16} className="mr-2" /> Recent Lists
-          </h3>
-          <div className="space-y-2">
-            <div
-              className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors cursor-pointer"
-              onClick={() => router.push("/lists/hidden-food-tacoma")}
-            >
-              <h4 className="font-medium">BEST (HIDDEN) FOOD IN TACOMA</h4>
-              <p className="text-xs text-black/60">12 places</p>
-            </div>
-            <div
-              className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors cursor-pointer"
-              onClick={() => router.push("/lists/weekend-getaways")}
-            >
-              <h4 className="font-medium">Weekend Getaways</h4>
-              <p className="text-xs text-black/60">8 places</p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="font-medium mb-3 flex items-center">
-            <MapPin size={16} className="mr-2" /> Recent Places
-          </h3>
-          <div className="space-y-2">
-            <div
-              className="p-3 border border-black/10 rounded flex hover:bg-black/5 transition-colors cursor-pointer"
-              onClick={() => router.push("/places/fish-house-cafe")}
-            >
-              <div
-                className="h-10 w-10 bg-gray-200 rounded mr-3"
-                style={{
-                  backgroundImage: `url(/placeholder.svg?height=200&width=300)`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
-              <div>
-                <h4 className="font-medium">The Fish House Cafe</h4>
-                <p className="text-xs text-black/60">Tacoma, WA</p>
-              </div>
-            </div>
-            <div
-              className="p-3 border border-black/10 rounded flex hover:bg-black/5 transition-colors cursor-pointer"
-              onClick={() => router.push("/places/lighthouse-coffee")}
-            >
-              <div
-                className="h-10 w-10 bg-gray-200 rounded mr-3"
-                style={{
-                  backgroundImage: `url(/placeholder.svg?height=200&width=300)`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
-              <div>
-                <h4 className="font-medium">Lighthouse Coffee</h4>
-                <p className="text-xs text-black/60">Beach Rd</p>
-              </div>
-            </div>
-          </div>
+          <Button
+            variant="outline"
+            className="w-full justify-start border-black/20 hover:bg-gray-50 text-red-600 hover:text-red-700"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isSigningOut ? "Signing Out..." : "Sign Out"}
+          </Button>
         </div>
       </div>
     </div>
