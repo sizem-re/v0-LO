@@ -535,9 +535,9 @@ export function Sidebar({ initialState }: SidebarProps) {
           onDelete={handleDeleteList}
           onAddPlace={handleAddPlaceToList}
         />
-      ) : showAddPlaceToList ? (
+      ) : showAddPlaceToList && selectedList ? (
         <AddPlaceToList
-          listId={selectedList!}
+          listId={selectedList}
           onBack={() => {
             setShowAddPlaceToList(false)
             setShowListDetails(true)

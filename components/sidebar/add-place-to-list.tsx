@@ -45,6 +45,12 @@ export function AddPlaceToList({ listId, onBack, onSuccess }: AddPlaceToListProp
 
   useEffect(() => {
     const fetchList = async () => {
+      if (!listId || !dbUser?.id) {
+        setError("Missing list ID or user not authenticated")
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         const response = await fetch(`/api/lists/${listId}`)
@@ -56,8 +62,8 @@ export function AddPlaceToList({ listId, onBack, onSuccess }: AddPlaceToListProp
         const data = await response.json()
         setList(data)
 
-        // Check if user is the owner
-        if (data.owner.id !== dbUser?.id) {
+        // Check if user is the owner - safely access owner.id with optional chaining
+        if (data.owner_id !== dbUser.id) {
           setError("You don't have permission to add places to this list")
         }
       } catch (err) {

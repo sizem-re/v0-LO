@@ -1,38 +1,37 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Sidebar } from "./sidebar"
+import { useSearchParams } from "next/navigation"
 
 export function SidebarWrapper() {
   const searchParams = useSearchParams()
-  const [initialState, setInitialState] = useState({
-    activeTab: "discover",
-    showListDetails: false,
-    showPlaceDetails: false,
-    selectedListId: null as string | null,
-    selectedPlaceId: null as string | null,
-  })
+  const [initialState, setInitialState] = useState<any>(null)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    // Get state from URL parameters
+    // Parse URL parameters to set initial state
     const tab = searchParams.get("tab")
     const listId = searchParams.get("list")
     const placeId = searchParams.get("place")
+    const action = searchParams.get("action")
 
-    // Set initial state based on URL parameters
-    if (tab) {
-      setInitialState((prev) => ({ ...prev, activeTab: tab }))
+    const state: any = {
+      activeTab: tab || "discover",
+      showListDetails: !!listId && action !== "addPlace",
+      showPlaceDetails: !!placeId,
+      selectedListId: listId,
+      selectedPlaceId: placeId,
+      showAddPlaceToList: !!listId && action === "addPlace",
     }
 
-    if (listId) {
-      setInitialState((prev) => ({ ...prev, showListDetails: true, selectedListId: listId }))
-    }
-
-    if (placeId) {
-      setInitialState((prev) => ({ ...prev, showPlaceDetails: true, selectedPlaceId: placeId }))
-    }
+    setInitialState(state)
+    setIsReady(true)
   }, [searchParams])
+
+  if (!isReady) {
+    return null
+  }
 
   return <Sidebar initialState={initialState} />
 }
