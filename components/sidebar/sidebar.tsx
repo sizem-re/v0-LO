@@ -65,6 +65,7 @@ interface SidebarInitialState {
   showPlaceDetails: boolean
   selectedListId: string | null
   selectedPlaceId: string | null
+  showAddPlaceToList?: boolean
 }
 
 interface SidebarProps {
@@ -91,7 +92,7 @@ export function Sidebar({ initialState }: SidebarProps) {
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [showPlaceDetails, setShowPlaceDetails] = useState(initialState?.showPlaceDetails || false)
   const [showListDetails, setShowListDetails] = useState(initialState?.showListDetails || false)
-  const [showAddPlaceToList, setShowAddPlaceToList] = useState(false)
+  const [showAddPlaceToList, setShowAddPlaceToList] = useState(initialState?.showAddPlaceToList || false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [selectedList, setSelectedList] = useState<string | null>(initialState?.selectedListId || null)
@@ -116,6 +117,9 @@ export function Sidebar({ initialState }: SidebarProps) {
 
   // Ref for the sidebar element
   const sidebarRef = useRef<HTMLDivElement>(null)
+
+  // Ref to track if URL has been updated
+  const hasUpdatedUrlRef = useRef(false)
 
   // Detect mobile devices and set initial sidebar state
   useEffect(() => {
@@ -237,35 +241,43 @@ export function Sidebar({ initialState }: SidebarProps) {
     fetchNearbyPlaces()
   }, [dbUser?.id, userIsAuthenticated, selectedPlaceId])
 
-  // Update URL when sidebar state changes
+  // Update URL when sidebar state changes - use a debounced approach
   useEffect(() => {
-    // Only update URL if we're on the home page
-    if (pathname !== "/") return
-
-    const params = new URLSearchParams()
-
-    if (activeTab !== "discover") {
-      params.set("tab", activeTab)
+    // Only update URL if we're on the home page and not during initial render
+    if (pathname !== "/" || !hasUpdatedUrlRef.current) {
+      hasUpdatedUrlRef.current = true
+      return
     }
 
-    if (showListDetails && selectedList) {
-      params.set("list", selectedList)
-    }
+    // Use a timeout to debounce URL updates
+    const updateUrlTimeout = setTimeout(() => {
+      const params = new URLSearchParams()
 
-    if (showPlaceDetails && selectedPlace?.id) {
-      params.set("place", selectedPlace.id)
-    }
+      if (activeTab !== "discover") {
+        params.set("tab", activeTab)
+      }
 
-    if (showAddPlaceToList && selectedList) {
-      params.set("list", selectedList)
-      params.set("action", "addPlace")
-    }
+      if (showListDetails && selectedList) {
+        params.set("list", selectedList)
+      }
 
-    const queryString = params.toString()
-    const url = queryString ? `/?${queryString}` : "/"
+      if (showPlaceDetails && selectedPlace?.id) {
+        params.set("place", selectedPlace.id)
+      }
 
-    // Use router.replace to avoid adding to history
-    router.replace(url, { scroll: false })
+      if (showAddPlaceToList && selectedList) {
+        params.set("list", selectedList)
+        params.set("action", "addPlace")
+      }
+
+      const queryString = params.toString()
+      const url = queryString ? `/?${queryString}` : "/"
+
+      // Use router.replace to avoid adding to history
+      router.replace(url, { scroll: false })
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(updateUrlTimeout)
   }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, showAddPlaceToList, pathname, router])
 
   const handleProfileClick = () => {
