@@ -1,7 +1,8 @@
-import { Suspense } from "react"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import { FarcasterReady } from "@/components/farcaster-ready"
-import MapClientWrapper from "@/components/map/map-client-wrapper"
+import MapContainer from "@/components/map/map-container"
+
+export const dynamic = "force-dynamic"
 
 export default function HomePage() {
   return (
@@ -11,23 +12,13 @@ export default function HomePage() {
 
       {/* Map container with lower z-index */}
       <div className="w-full h-full relative z-0">
-        <Suspense fallback={<MapLoadingFallback />}>
-          <MapClientWrapper />
-        </Suspense>
+        <MapContainer />
       </div>
 
       {/* Sidebar with higher z-index */}
       <div className="absolute top-0 left-0 h-full z-50">
         <SidebarWrapper />
       </div>
-    </div>
-  )
-}
-
-function MapLoadingFallback() {
-  return (
-    <div className="h-full w-full flex items-center justify-center bg-gray-100">
-      <p className="text-gray-500">Loading map...</p>
     </div>
   )
 }

@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import type { Place } from "@/types/place"
 
+// Define the Leaflet global to avoid TypeScript errors
+declare global {
+  interface Window {
+    L: any
+  }
+}
+
 interface VanillaMapProps {
   places: Place[]
   height?: string | number
@@ -27,8 +34,6 @@ export default function VanillaMap({
 
   // Function to clean up the map instance
   const cleanupMap = () => {
-    if (typeof window === "undefined") return
-
     if (mapInstanceRef.current) {
       // Remove all markers
       markersRef.current.forEach((marker) => {
@@ -51,7 +56,6 @@ export default function VanillaMap({
 
   // Function to initialize the map
   const initMap = () => {
-    if (typeof window === "undefined") return
     if (!mapRef.current || !window.L || isMapInitialized || !mapRef.current.id) return
 
     // Clean up any existing map first
@@ -237,8 +241,6 @@ export default function VanillaMap({
   }
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-
     // Load Leaflet CSS
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link")
@@ -271,8 +273,6 @@ export default function VanillaMap({
 
   // Effect to update markers when places change
   useEffect(() => {
-    if (typeof window === "undefined") return
-
     if (mapInstanceRef.current && isMapInitialized) {
       // Remove existing markers
       markersRef.current.forEach((marker) => {
