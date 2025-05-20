@@ -22,6 +22,14 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ),
 })
 
+interface ListOwner {
+  id: string
+  farcaster_id?: string
+  farcaster_username?: string
+  farcaster_display_name?: string
+  farcaster_pfp_url?: string
+}
+
 interface ListData {
   id: string
   title: string
@@ -30,13 +38,7 @@ interface ListData {
   cover_image_url?: string
   created_at: string
   updated_at: string
-  owner: {
-    id: string
-    farcaster_id: string
-    farcaster_username: string
-    farcaster_display_name: string
-    farcaster_pfp_url: string
-  }
+  owner: ListOwner
   places: Place[]
 }
 
@@ -53,13 +55,17 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
     const fetchList = async () => {
       try {
         setLoading(true)
+        console.log(`Fetching list with ID: ${params.id}`)
         const response = await fetch(`/api/lists/${params.id}`)
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch list: ${response.statusText}`)
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.error || response.statusText
+          throw new Error(`Failed to fetch list: ${errorMessage}`)
         }
 
         const data = await response.json()
+        console.log("List data received:", data)
         setList(data)
       } catch (err) {
         console.error("Error fetching list:", err)
@@ -69,7 +75,12 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       }
     }
 
-    fetchList()
+    if (params.id) {
+      fetchList()
+    } else {
+      setError("List ID is missing")
+      setLoading(false)
+    }
   }, [params.id])
 
   const handleAddPlace = () => {
@@ -105,7 +116,13 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
     )
   }
 
-  const isOwner = isAuthenticated && user?.id === list.owner.id
+  // Safely check if the user is the owner
+  const isOwner = isAuthenticated && user?.id && list.owner && user.id === list.owner.id
+
+  // Get owner display name safely
+  const ownerName = list.owner
+    ? list.owner.farcaster_display_name || list.owner.farcaster_username || "Unknown user"
+    : "Unknown user"
 
   return (
     <PageLayout>
@@ -118,9 +135,7 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
           <div className="flex justify-between items-start mt-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-serif mb-2">{list.title}</h1>
-              <p className="text-sm text-black/70 mb-4">
-                by {list.owner.farcaster_display_name || list.owner.farcaster_username}
-              </p>
+              <p className="text-sm text-black/70 mb-4">by {ownerName}</p>
               {list.description && <p className="text-lg max-w-2xl mb-4">{list.description}</p>}
               <p className="text-sm text-black/60">
                 {new Date(list.created_at).toLocaleDateString(undefined, {

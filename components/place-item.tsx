@@ -10,7 +10,11 @@ interface PlaceItemProps {
   onClick?: () => void
 }
 
-export function PlaceItem({ place, isSelected, onClick }: PlaceItemProps) {
+export function PlaceItem({ place, isSelected = false, onClick }: PlaceItemProps) {
+  if (!place) {
+    return null
+  }
+
   const formattedDate = place.addedAt
     ? new Date(place.addedAt).toLocaleDateString(undefined, {
         year: "numeric",
@@ -38,15 +42,17 @@ export function PlaceItem({ place, isSelected, onClick }: PlaceItemProps) {
           />
         </div>
         <div className="md:col-span-2">
-          <Link href={`/places/${place.id}`}>
-            <h3 className="text-lg font-medium mb-1 hover:underline">{place.name}</h3>
+          <Link href={`/places/${place.id}`} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-medium mb-1 hover:underline">{place.name || "Unnamed Place"}</h3>
           </Link>
-          <p className="text-sm text-black/70 mb-2">{place.type}</p>
+          <p className="text-sm text-black/70 mb-2">{place.type || "Place"}</p>
 
-          <div className="flex items-center text-sm text-black/60 mb-2">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span>{place.address}</span>
-          </div>
+          {place.address && (
+            <div className="flex items-center text-sm text-black/60 mb-2">
+              <MapPin className="h-4 w-4 mr-1" />
+              <span>{place.address}</span>
+            </div>
+          )}
 
           {place.website && (
             <div className="flex items-center text-sm text-black/60 mb-2">
