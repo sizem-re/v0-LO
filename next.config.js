@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
@@ -8,7 +7,6 @@ const nextConfig = {
         hostname: "**",
       },
     ],
-    domains: ["cdn.warpcast.com", "i.imgur.com"],
     unoptimized: true,
   },
   eslint: {
@@ -16,9 +14,6 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  },
-  experimental: {
-    serverComponentsExternalPackages: ["leaflet"],
   },
   async headers() {
     return [
