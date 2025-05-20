@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth-context"
-import { v4 as uuidv4 } from "uuid"
 
 type ListPrivacy = "private" | "open" | "closed"
 
@@ -68,15 +67,12 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
       const visibility =
         formData.privacy === "open" ? "public" : formData.privacy === "closed" ? "community" : "private"
 
-      const listId = uuidv4()
-
       const response = await fetch("/api/lists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id: listId,
           title: formData.title,
           description: formData.description,
           visibility: visibility,
@@ -94,7 +90,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
       // Call onSuccess if provided
       if (onSuccess) {
         onSuccess({
-          id: data.id || listId,
+          id: data.id || "temp-id",
           title: formData.title,
           description: formData.description,
           visibility: visibility,

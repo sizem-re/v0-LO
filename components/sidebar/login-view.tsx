@@ -23,7 +23,9 @@ export function LoginView({ onBack, onLoginSuccess }: LoginViewProps) {
           <p className="text-center text-black/70 mb-8">
             Sign in with your Farcaster account to create and save lists.
           </p>
-          <FarcasterAuth onSuccess={onLoginSuccess} />
+          <div onClick={onLoginSuccess}>
+            <FarcasterAuth />
+          </div>
         </div>
       </div>
     </div>

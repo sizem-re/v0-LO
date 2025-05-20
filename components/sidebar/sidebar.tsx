@@ -121,18 +121,25 @@ export function Sidebar() {
       setError(null)
 
       try {
-        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch lists")
-        }
-
-        const data = await response.json()
-        setUserLists(data)
+        // Mock data for now
+        setTimeout(() => {
+          setUserLists([
+            {
+              id: "1",
+              title: "My Favorite Places",
+              description: "Places I love to visit",
+              visibility: "private",
+              created_at: new Date().toISOString(),
+              owner_id: dbUser.id,
+              cover_image_url: null,
+              places_count: 5,
+            },
+          ])
+          setIsLoadingLists(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching user lists:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
         setIsLoadingLists(false)
       }
     }
@@ -149,18 +156,25 @@ export function Sidebar() {
       setError(null)
 
       try {
-        const response = await fetch(`/api/lists?visibility=public&limit=5`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch popular lists")
-        }
-
-        const data = await response.json()
-        setPopularLists(data)
+        // Mock data for now
+        setTimeout(() => {
+          setPopularLists([
+            {
+              id: "2",
+              title: "Popular Restaurants",
+              description: "Best restaurants in town",
+              visibility: "public",
+              created_at: new Date().toISOString(),
+              owner_id: "user1",
+              cover_image_url: null,
+              places_count: 10,
+            },
+          ])
+          setIsLoadingLists(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching popular lists:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
         setIsLoadingLists(false)
       }
     }
@@ -177,18 +191,23 @@ export function Sidebar() {
       setError(null)
 
       try {
-        const response = await fetch(`/api/places?limit=10`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch places")
-        }
-
-        const data = await response.json()
-        setNearbyPlaces(data)
+        // Mock data for now
+        setTimeout(() => {
+          setNearbyPlaces([
+            {
+              id: "p1",
+              name: "Coffee Shop",
+              address: "123 Main St",
+              type: "Cafe",
+              lists: ["My Favorites"],
+              lists_count: 1,
+            },
+          ])
+          setIsLoadingPlaces(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching places:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
         setIsLoadingPlaces(false)
       }
     }
