@@ -31,15 +31,6 @@ export default function ClientMap({ places, height = "500px", onPlaceSelect }: M
     setIsMounted(true)
   }, [])
 
-  // Don't render anything during SSR
-  if (typeof window === "undefined") {
-    return (
-      <div style={{ height }} className="border border-black/10 flex items-center justify-center bg-gray-100">
-        <p className="text-gray-500">Loading map...</p>
-      </div>
-    )
-  }
-
   if (!isMounted) {
     return (
       <div style={{ height }} className="border border-black/10 flex items-center justify-center bg-gray-100">

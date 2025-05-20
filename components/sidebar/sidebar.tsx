@@ -58,7 +58,19 @@ interface Place {
   website_url: string | null
 }
 
-export function Sidebar() {
+interface SidebarInitialState {
+  activeTab: string
+  showListDetails: boolean
+  showPlaceDetails: boolean
+  selectedListId: string | null
+  selectedPlaceId: string | null
+}
+
+interface SidebarProps {
+  initialState?: SidebarInitialState
+}
+
+export function Sidebar({ initialState }: SidebarProps) {
   // Get miniapp context and router
   const { isMiniApp } = useMiniApp()
   const router = useRouter()
@@ -72,16 +84,17 @@ export function Sidebar() {
   const [isHidden, setIsHidden] = useState(false)
 
   // Sidebar content state
-  const [activeTab, setActiveTab] = useState("discover")
+  const [activeTab, setActiveTab] = useState(initialState?.activeTab || "discover")
   const [searchQuery, setSearchQuery] = useState("")
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [showPlaceDetails, setShowPlaceDetails] = useState(false)
-  const [showListDetails, setShowListDetails] = useState(false)
+  const [showPlaceDetails, setShowPlaceDetails] = useState(initialState?.showPlaceDetails || false)
+  const [showListDetails, setShowListDetails] = useState(initialState?.showListDetails || false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [selectedList, setSelectedList] = useState<string | null>(null)
+  const [selectedList, setSelectedList] = useState<string | null>(initialState?.selectedListId || null)
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(initialState?.selectedPlaceId || null)
 
   // Lists and places state
   const [userLists, setUserLists] = useState<SidebarList[]>([])
@@ -198,6 +211,14 @@ export function Sidebar() {
 
         const data = await response.json()
         setNearbyPlaces(data.slice(0, 5)) // Take top 5 for now
+
+        // If we have a selectedPlaceId, find the place and set it
+        if (selectedPlaceId) {
+          const place = data.find((p: Place) => p.id === selectedPlaceId)
+          if (place) {
+            setSelectedPlace(place)
+          }
+        }
       } catch (err) {
         console.error("Error fetching places:", err)
         setPlacesError(err instanceof Error ? err.message : "An unknown error occurred")
@@ -212,7 +233,33 @@ export function Sidebar() {
 
     fetchPopularLists()
     fetchNearbyPlaces()
-  }, [dbUser?.id, userIsAuthenticated])
+  }, [dbUser?.id, userIsAuthenticated, selectedPlaceId])
+
+  // Update URL when sidebar state changes
+  useEffect(() => {
+    // Only update URL if we're on the home page
+    if (pathname !== "/") return
+
+    const params = new URLSearchParams()
+
+    if (activeTab !== "discover") {
+      params.set("tab", activeTab)
+    }
+
+    if (showListDetails && selectedList) {
+      params.set("list", selectedList)
+    }
+
+    if (showPlaceDetails && selectedPlace?.id) {
+      params.set("place", selectedPlace.id)
+    }
+
+    const queryString = params.toString()
+    const url = queryString ? `/?${queryString}` : "/"
+
+    // Use router.replace to avoid adding to history
+    router.replace(url, { scroll: false })
+  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, pathname, router])
 
   const handleProfileClick = () => {
     if (userIsAuthenticated) {
@@ -286,6 +333,55 @@ export function Sidebar() {
   const handleShareList = (listId: string) => {
     // Implement sharing functionality
     console.log(`Sharing list: ${listId}`)
+
+    // Create a shareable URL
+    const shareUrl = `${window.location.origin}/?list=${listId}`
+
+    // Use the Web Share API if available
+    if (navigator.share) {
+      navigator
+        .share({
+          title: "Check out this list on LO",
+          text: "I found this interesting list of places on LO",
+          url: shareUrl,
+        })
+        .catch((error) => console.log("Error sharing", error))
+    } else {
+      // Fallback to copying to clipboard
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          alert("Link copied to clipboard!")
+        })
+        .catch((err) => {
+          console.error("Failed to copy: ", err)
+        })
+    }
+  }
+
+  const handleDeleteList = async (listId: string) => {
+    if (!confirm("Are you sure you want to delete this list? This action cannot be undone.")) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lists/${listId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete list")
+      }
+
+      // Remove the list from the state
+      setUserLists(userLists.filter((list) => list.id !== listId))
+
+      // Go back to the lists view
+      handleBackClick()
+    } catch (error) {
+      console.error("Error deleting list:", error)
+      alert("Failed to delete list. Please try again.")
+    }
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -408,6 +504,7 @@ export function Sidebar() {
           onBack={handleBackClick}
           onPlaceClick={handlePlaceClick}
           onShare={handleShareList}
+          onDelete={handleDeleteList}
         />
       ) : showProfile ? (
         <ProfileView user={user} onBack={handleBackClick} onSignOut={handleSignOut} />
@@ -618,7 +715,7 @@ export function Sidebar() {
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     // Open settings for this list
-                                    router.push(`/lists/${list.id}/edit`)
+                                    router.push(`/?list=${list.id}&edit=true`)
                                   }}
                                 >
                                   <Settings size={16} />

@@ -1,7 +1,9 @@
 import { DiscoverMap } from "@/components/discover-map"
 import { PopularLists } from "@/components/popular-lists"
+import { redirect } from "next/navigation"
 
 export default function DiscoverPage() {
+  redirect("/")
   return (
     <main className="min-h-screen p-4">
       <header className="border-b border-black pb-4 mb-8">

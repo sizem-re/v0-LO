@@ -1,61 +1,27 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
 import { Card } from "@/components/ui/card"
 
-interface MapPreviewProps {
-  lat: number
-  lng: number
-  zoom?: number
-  className?: string
-}
-
-export function MapPreview({ lat, lng, zoom = 13, className = "" }: MapPreviewProps) {
+export function MapPreview() {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<L.Map | null>(null)
 
   useEffect(() => {
-    if (!mapRef.current) return
-
-    // Initialize map if it doesn't exist
-    if (!mapInstanceRef.current) {
-      mapInstanceRef.current = L.map(mapRef.current).setView([lat, lng], zoom)
-
-      // Add OpenStreetMap tile layer
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(mapInstanceRef.current)
-    } else {
-      // Update view if map already exists
-      mapInstanceRef.current.setView([lat, lng], zoom)
-    }
-
-    // Add marker
-    const marker = L.marker([lat, lng]).addTo(mapInstanceRef.current)
-
-    // Clean up
-    return () => {
-      if (mapInstanceRef.current) {
-        marker.remove()
-      }
-    }
-  }, [lat, lng, zoom])
-
-  // Clean up map on unmount
-  useEffect(() => {
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-      }
+    // This is a placeholder for the actual map implementation
+    // We're using a placeholder image instead of Leaflet to avoid issues
+    if (mapRef.current) {
+      const mapElement = mapRef.current
+      mapElement.style.backgroundImage = "url('/placeholder.svg?height=300&width=500')"
+      mapElement.style.backgroundSize = "cover"
+      mapElement.style.backgroundPosition = "center"
     }
   }, [])
 
   return (
-    <Card className={`brutalist-card h-[300px] w-full overflow-hidden ${className}`}>
-      <div ref={mapRef} className="w-full h-full" />
+    <Card className="brutalist-card h-[300px] w-full overflow-hidden">
+      <div ref={mapRef} className="w-full h-full flex items-center justify-center text-gray-500">
+        Map will be displayed here
+      </div>
     </Card>
   )
 }

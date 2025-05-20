@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import type { Place } from "@/types/place"
 import { FarcasterReady } from "@/components/farcaster-ready"
+import { useSearchParams } from "next/navigation"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -21,6 +22,10 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
+
+  const searchParams = useSearchParams()
+  const placeId = searchParams.get("place")
 
   useEffect(() => {
     const fetchPlaces = async () => {
@@ -36,6 +41,14 @@ export default function HomePage() {
 
         const data = await response.json()
         setPlaces(data)
+
+        // If there's a place ID in the URL, find and select that place
+        if (placeId) {
+          const place = data.find((p: Place) => p.id === placeId)
+          if (place) {
+            setSelectedPlace(place)
+          }
+        }
       } catch (err) {
         console.error("Error fetching places:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
@@ -44,18 +57,12 @@ export default function HomePage() {
       }
     }
 
-    if (isMounted) {
-      fetchPlaces()
-    }
-  }, [isMounted])
-
-  // Set isMounted to true after component mounts
-  useEffect(() => {
+    fetchPlaces()
     setIsMounted(true)
-  }, [])
+  }, [placeId])
 
-  // Don't render anything during SSR
-  if (typeof window === "undefined") {
+  // Don't render until client-side to avoid hydration issues
+  if (!isMounted) {
     return null
   }
 
@@ -75,7 +82,7 @@ export default function HomePage() {
             <p className="text-red-500">Error: {error}</p>
           </div>
         ) : (
-          <VanillaMap places={places} height="100%" />
+          <VanillaMap places={places} height="100%" selectedPlace={selectedPlace} />
         )}
       </div>
 
