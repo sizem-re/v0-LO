@@ -13,8 +13,8 @@ export function Navigation() {
 
   const navItems = [
     { path: "/", label: "Home", icon: Home },
-    { path: "/discover", label: "Discover", icon: Map },
-    { path: "/map", label: "Map", icon: Search },
+    { path: "/discover", label: "Discover", icon: Search },
+    { path: "/map", label: "Map", icon: Map },
     { path: "/profile", label: "Profile", icon: User },
   ]
 

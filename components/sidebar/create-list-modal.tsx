@@ -8,14 +8,27 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth-context"
+import { v4 as uuidv4 } from "uuid"
 
 type ListPrivacy = "private" | "open" | "closed"
 
-interface CreateListModalProps {
-  onClose: () => void
+interface SidebarList {
+  id: string
+  title: string
+  description: string | null
+  visibility: string
+  created_at: string
+  owner_id: string
+  cover_image_url: string | null
+  places_count: number
 }
 
-export function CreateListModal({ onClose }: CreateListModalProps) {
+interface CreateListModalProps {
+  onClose: () => void
+  onSuccess?: (list: SidebarList) => void
+}
+
+export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
   const { dbUser } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
@@ -55,12 +68,15 @@ export function CreateListModal({ onClose }: CreateListModalProps) {
       const visibility =
         formData.privacy === "open" ? "public" : formData.privacy === "closed" ? "community" : "private"
 
+      const listId = uuidv4()
+
       const response = await fetch("/api/lists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          id: listId,
           title: formData.title,
           description: formData.description,
           visibility: visibility,
@@ -73,7 +89,22 @@ export function CreateListModal({ onClose }: CreateListModalProps) {
         throw new Error(errorData.error || "Failed to create list")
       }
 
-      await response.json()
+      const data = await response.json()
+
+      // Call onSuccess if provided
+      if (onSuccess) {
+        onSuccess({
+          id: data.id || listId,
+          title: formData.title,
+          description: formData.description,
+          visibility: visibility,
+          created_at: new Date().toISOString(),
+          owner_id: dbUser.id,
+          cover_image_url: null,
+          places_count: 0,
+        })
+      }
+
       setIsCreating(false)
       onClose()
     } catch (err) {

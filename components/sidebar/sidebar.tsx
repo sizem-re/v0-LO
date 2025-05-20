@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   Search,
   MapPin,
-  List,
+  ListIcon,
   Plus,
   ChevronLeft,
   ChevronRight,
@@ -309,7 +309,7 @@ export function Sidebar() {
           onClick={() => handleTabClick("mylists")}
           aria-label="My Lists"
         >
-          <List size={20} />
+          <ListIcon size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
