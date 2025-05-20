@@ -11,23 +11,11 @@ import { useAuth } from "@/lib/auth-context"
 
 type ListPrivacy = "private" | "open" | "closed"
 
-interface SidebarList {
-  id: string
-  title: string
-  description: string | null
-  visibility: string
-  created_at: string
-  owner_id: string
-  cover_image_url: string | null
-  places_count: number
-}
-
 interface CreateListModalProps {
   onClose: () => void
-  onSuccess?: (list: SidebarList) => void
 }
 
-export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
+export function CreateListModal({ onClose }: CreateListModalProps) {
   const { dbUser } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
@@ -85,22 +73,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
         throw new Error(errorData.error || "Failed to create list")
       }
 
-      const data = await response.json()
-
-      // Call onSuccess if provided
-      if (onSuccess) {
-        onSuccess({
-          id: data.id || "temp-id",
-          title: formData.title,
-          description: formData.description,
-          visibility: visibility,
-          created_at: new Date().toISOString(),
-          owner_id: dbUser.id,
-          cover_image_url: null,
-          places_count: 0,
-        })
-      }
-
+      await response.json()
       setIsCreating(false)
       onClose()
     } catch (err) {

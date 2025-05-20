@@ -1,61 +1,46 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-client"
+import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params
+    const listId = params.id
 
-    if (!id) {
-      console.log("List ID is missing")
+    if (!listId) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 })
     }
 
-    console.log(`Fetching list with ID: ${id}`)
-
-    // Fetch the list with its owner
-    const { data: list, error: listError } = await supabaseAdmin
+    // First, get the list details
+    const { data: list, error: listError } = await supabase
       .from("lists")
       .select(`
         *,
-        owner:owner_id(id, farcaster_id, farcaster_username, farcaster_display_name, farcaster_pfp_url)
+        owner:users(id, farcaster_username, farcaster_display_name, farcaster_pfp_url)
       `)
-      .eq("id", id)
+      .eq("id", listId)
       .single()
 
     if (listError) {
       console.error("Error fetching list:", listError)
-      return NextResponse.json({ error: listError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch list" }, { status: 500 })
     }
 
     if (!list) {
-      console.log(`List with ID ${id} not found`)
       return NextResponse.json({ error: "List not found" }, { status: 404 })
     }
 
-    console.log(`List found: ${list.title}`)
-
-    // Fetch the places in this list
-    const { data: listPlaces, error: placesError } = await supabaseAdmin
+    // Then, get the list_places entries for this list
+    const { data: listPlaces, error: listPlacesError } = await supabase
       .from("list_places")
-      .select(`
-        id,
-        note,
-        photo_url,
-        added_at,
-        added_by,
-        place_id
-      `)
-      .eq("list_id", id)
+      .select("id, place_id, added_at, added_by, note, photo_url")
+      .eq("list_id", listId)
 
-    if (placesError) {
-      console.error("Error fetching list places:", placesError)
-      return NextResponse.json({ error: placesError.message }, { status: 500 })
+    if (listPlacesError) {
+      console.error("Error fetching list places:", listPlacesError)
+      return NextResponse.json({ error: "Failed to fetch list places" }, { status: 500 })
     }
 
-    console.log(`Found ${listPlaces.length} places in the list`)
-
     // If there are no places, return the list with an empty places array
-    if (listPlaces.length === 0) {
+    if (!listPlaces || listPlaces.length === 0) {
       return NextResponse.json({
         ...list,
         places: [],
@@ -63,59 +48,98 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Get all place IDs
-    const placeIds = listPlaces.map((item) => item.place_id)
+    const placeIds = listPlaces.map((lp) => lp.place_id)
 
     // Fetch all places in one query
-    const { data: places, error: placesDataError } = await supabaseAdmin.from("places").select("*").in("id", placeIds)
+    const { data: places, error: placesError } = await supabase.from("places").select("*").in("id", placeIds)
 
-    if (placesDataError) {
-      console.error("Error fetching places data:", placesDataError)
-      return NextResponse.json({ error: placesDataError.message }, { status: 500 })
+    if (placesError) {
+      console.error("Error fetching places:", placesError)
+      return NextResponse.json({ error: "Failed to fetch places" }, { status: 500 })
     }
 
-    // Create a map of places for easy lookup
-    const placesMap = places.reduce((acc, place) => {
-      acc[place.id] = place
-      return acc
-    }, {})
+    // Combine list_places with places
+    const placesWithDetails = listPlaces.map((lp) => {
+      const place = places.find((p) => p.id === lp.place_id)
+      return {
+        id: lp.id,
+        place: place || null,
+        added_at: lp.added_at,
+        added_by: lp.added_by,
+        note: lp.note,
+        photo_url: lp.photo_url,
+      }
+    })
 
-    // Format the places data
-    const formattedPlaces = listPlaces
-      .map((item) => {
-        const place = placesMap[item.place_id]
-
-        if (!place) {
-          console.warn(`Place with ID ${item.place_id} not found`)
-          return null
-        }
-
-        return {
-          id: place.id,
-          name: place.name,
-          type: place.type || "Place",
-          address: place.address || "",
-          coordinates: {
-            lat: Number(place.lat) || 0,
-            lng: Number(place.lng) || 0,
-          },
-          description: place.description || "",
-          website: place.website_url || "",
-          image: item.photo_url || "",
-          notes: item.note || "",
-          listPlaceId: item.id,
-          addedAt: item.added_at,
-          addedBy: item.added_by,
-        }
-      })
-      .filter(Boolean)
-
-    // Return the list with its places
+    // Return the list with places
     return NextResponse.json({
       ...list,
-      places: formattedPlaces,
+      places: placesWithDetails,
     })
   } catch (error) {
     console.error("Error in GET /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const listId = params.id
+
+    if (!listId) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    // Use the admin client to bypass RLS
+    const { error } = await supabaseAdmin.from("lists").delete().eq("id", listId)
+
+    if (error) {
+      console.error("Error deleting list:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error in DELETE /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const listId = params.id
+    const body = await request.json()
+    const { title, description, visibility, coverImageUrl } = body
+
+    if (!listId) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    // Use the admin client to bypass RLS
+    const { data, error } = await supabaseAdmin
+      .from("lists")
+      .update({
+        title,
+        description,
+        visibility: visibility || "private",
+        cover_image_url: coverImageUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", listId)
+      .select()
+
+    if (error) {
+      console.error("Error updating list:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(data[0])
+  } catch (error) {
+    console.error("Error in PATCH /api/lists/[id]:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
