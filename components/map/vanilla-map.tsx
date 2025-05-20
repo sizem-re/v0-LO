@@ -27,6 +27,8 @@ export default function VanillaMap({
 
   // Function to clean up the map instance
   const cleanupMap = () => {
+    if (typeof window === "undefined") return
+
     if (mapInstanceRef.current) {
       // Remove all markers
       markersRef.current.forEach((marker) => {
@@ -49,6 +51,7 @@ export default function VanillaMap({
 
   // Function to initialize the map
   const initMap = () => {
+    if (typeof window === "undefined") return
     if (!mapRef.current || !window.L || isMapInitialized || !mapRef.current.id) return
 
     // Clean up any existing map first
@@ -60,12 +63,12 @@ export default function VanillaMap({
 
     if (places.length > 0) {
       if (places.length === 1) {
-        center = [places[0].coordinates.lat, places[0].coordinates.lng]
+        center = [places[0].coordinates?.lat || places[0].lat, places[0].coordinates?.lng || places[0].lng]
         zoom = 15
       } else {
         // Calculate bounds
-        const lats = places.map((place) => place.coordinates.lat)
-        const lngs = places.map((place) => place.coordinates.lng)
+        const lats = places.map((place) => place.coordinates?.lat || place.lat)
+        const lngs = places.map((place) => place.coordinates?.lng || place.lng)
 
         const minLat = Math.min(...lats)
         const maxLat = Math.max(...lats)
@@ -171,12 +174,15 @@ export default function VanillaMap({
 
       // Add markers
       markersRef.current = places.map((place) => {
-        const marker = window.L.marker([place.coordinates.lat, place.coordinates.lng])
+        const lat = place.coordinates?.lat || place.lat
+        const lng = place.coordinates?.lng || place.lng
+
+        const marker = window.L.marker([lat, lng])
           .addTo(map)
           .bindPopup(`
             <div class="p-1">
               <h3 class="font-bold text-base">${place.name}</h3>
-              <p class="text-xs text-black/70">${place.type}</p>
+              <p class="text-xs text-black/70">${place.type || ""}</p>
               ${place.address ? `<p class="text-xs mt-1">${place.address}</p>` : ""}
               <button class="text-xs underline block mt-2 view-details" data-id="${place.id}">Show details</button>
             </div>
@@ -231,6 +237,8 @@ export default function VanillaMap({
   }
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     // Load Leaflet CSS
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link")
@@ -263,6 +271,8 @@ export default function VanillaMap({
 
   // Effect to update markers when places change
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     if (mapInstanceRef.current && isMapInitialized) {
       // Remove existing markers
       markersRef.current.forEach((marker) => {
@@ -272,12 +282,15 @@ export default function VanillaMap({
 
       // Add new markers
       markersRef.current = places.map((place) => {
-        const marker = window.L.marker([place.coordinates.lat, place.coordinates.lng])
+        const lat = place.coordinates?.lat || place.lat
+        const lng = place.coordinates?.lng || place.lng
+
+        const marker = window.L.marker([lat, lng])
           .addTo(mapInstanceRef.current)
           .bindPopup(`
           <div class="p-1">
             <h3 class="font-bold text-base">${place.name}</h3>
-            <p class="text-xs text-black/70">${place.type}</p>
+            <p class="text-xs text-black/70">${place.type || ""}</p>
             ${place.address ? `<p class="text-xs mt-1">${place.address}</p>` : ""}
             <button class="text-xs underline block mt-2 view-details" data-id="${place.id}">Show details</button>
           </div>
@@ -295,10 +308,18 @@ export default function VanillaMap({
       // Update map view if places have changed
       if (places.length > 0) {
         if (places.length === 1) {
-          mapInstanceRef.current.setView([places[0].coordinates.lat, places[0].coordinates.lng], 15)
+          const lat = places[0].coordinates?.lat || places[0].lat
+          const lng = places[0].coordinates?.lng || places[0].lng
+          mapInstanceRef.current.setView([lat, lng], 15)
         } else {
           // Create bounds from all places
-          const bounds = window.L.latLngBounds(places.map((place) => [place.coordinates.lat, place.coordinates.lng]))
+          const bounds = window.L.latLngBounds(
+            places.map((place) => {
+              const lat = place.coordinates?.lat || place.lat
+              const lng = place.coordinates?.lng || place.lng
+              return [lat, lng]
+            }),
+          )
           mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] })
         }
       }
