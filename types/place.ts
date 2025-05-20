@@ -11,4 +11,7 @@ export interface Place {
   website?: string
   image?: string
   notes?: string
+  listPlaceId?: string
+  addedAt?: string
+  addedBy?: string
 }
