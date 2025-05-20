@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, MapPin, Share2, Plus, Settings } from "lucide-react"
+import { ChevronLeft, MapPin, Share2, Plus, Settings, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -11,9 +11,11 @@ interface ListDetailsProps {
   onBack: () => void
   onPlaceClick: (place: any) => void
   onShare?: (listId: string) => void
+  onDelete?: (listId: string) => void
+  onAddPlace?: (listId: string) => void
 }
 
-export function ListDetails({ listId, onBack, onPlaceClick, onShare }: ListDetailsProps) {
+export function ListDetails({ listId, onBack, onPlaceClick, onShare, onDelete, onAddPlace }: ListDetailsProps) {
   const router = useRouter()
   const { dbUser } = useAuth()
   const [list, setList] = useState<any>(null)
@@ -57,8 +59,8 @@ export function ListDetails({ listId, onBack, onPlaceClick, onShare }: ListDetai
   const isOwner = list && dbUser ? list.owner_id === dbUser.id : false
 
   const handleAddPlace = () => {
-    if (listId) {
-      router.push(`/lists/${listId}/add-place`)
+    if (listId && onAddPlace) {
+      onAddPlace(listId)
     }
   }
 
@@ -71,6 +73,12 @@ export function ListDetails({ listId, onBack, onPlaceClick, onShare }: ListDetai
   const handleShareList = () => {
     if (listId && onShare) {
       onShare(listId)
+    }
+  }
+
+  const handleDeleteList = () => {
+    if (listId && onDelete) {
+      onDelete(listId)
     }
   }
 
@@ -88,9 +96,14 @@ export function ListDetails({ listId, onBack, onPlaceClick, onShare }: ListDetai
             <Share2 size={18} />
           </button>
           {isOwner && (
-            <button onClick={handleEditList} className="p-1 hover:bg-gray-100 rounded-sm" aria-label="Edit List">
-              <Settings size={18} />
-            </button>
+            <>
+              <button onClick={handleEditList} className="p-1 hover:bg-gray-100 rounded-sm mr-1" aria-label="Edit List">
+                <Settings size={18} />
+              </button>
+              <button onClick={handleDeleteList} className="p-1 hover:bg-gray-100 rounded-sm" aria-label="Delete List">
+                <Trash2 size={18} />
+              </button>
+            </>
           )}
         </div>
       </div>

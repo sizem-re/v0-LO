@@ -29,6 +29,7 @@ import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
+import { AddPlaceToList } from "./add-place-to-list"
 
 interface SidebarList {
   id: string
@@ -90,6 +91,7 @@ export function Sidebar({ initialState }: SidebarProps) {
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [showPlaceDetails, setShowPlaceDetails] = useState(initialState?.showPlaceDetails || false)
   const [showListDetails, setShowListDetails] = useState(initialState?.showListDetails || false)
+  const [showAddPlaceToList, setShowAddPlaceToList] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [selectedList, setSelectedList] = useState<string | null>(initialState?.selectedListId || null)
@@ -254,12 +256,17 @@ export function Sidebar({ initialState }: SidebarProps) {
       params.set("place", selectedPlace.id)
     }
 
+    if (showAddPlaceToList && selectedList) {
+      params.set("list", selectedList)
+      params.set("action", "addPlace")
+    }
+
     const queryString = params.toString()
     const url = queryString ? `/?${queryString}` : "/"
 
     // Use router.replace to avoid adding to history
     router.replace(url, { scroll: false })
-  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, pathname, router])
+  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, showAddPlaceToList, pathname, router])
 
   const handleProfileClick = () => {
     if (userIsAuthenticated) {
@@ -267,12 +274,14 @@ export function Sidebar({ initialState }: SidebarProps) {
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowLogin(false)
+      setShowAddPlaceToList(false)
       setIsCollapsed(false) // Always expand sidebar when showing profile
     } else {
       setShowLogin(true)
       setShowPlaceDetails(false)
       setShowListDetails(false)
       setShowProfile(false)
+      setShowAddPlaceToList(false)
       setIsCollapsed(false) // Always expand sidebar when showing login
     }
   }
@@ -283,6 +292,7 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
+    setShowAddPlaceToList(false)
     setIsCollapsed(false) // Always expand sidebar when showing place details
   }
 
@@ -292,6 +302,7 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowPlaceDetails(false)
     setShowProfile(false)
     setShowLogin(false)
+    setShowAddPlaceToList(false)
     setIsCollapsed(false) // Always expand sidebar when showing list details
   }
 
@@ -300,6 +311,7 @@ export function Sidebar({ initialState }: SidebarProps) {
     setShowListDetails(false)
     setShowProfile(false)
     setShowLogin(false)
+    setShowAddPlaceToList(false)
   }
 
   const handleAddPlace = () => {
@@ -310,6 +322,22 @@ export function Sidebar({ initialState }: SidebarProps) {
     }
 
     setShowAddPlaceModal(true)
+  }
+
+  const handleAddPlaceToList = (listId: string) => {
+    if (!userIsAuthenticated) {
+      setShowLogin(true)
+      setIsCollapsed(false)
+      return
+    }
+
+    setSelectedList(listId)
+    setShowAddPlaceToList(true)
+    setShowListDetails(false)
+    setShowPlaceDetails(false)
+    setShowProfile(false)
+    setShowLogin(false)
+    setIsCollapsed(false)
   }
 
   const handleTabClick = (tab: string) => {
@@ -505,6 +533,22 @@ export function Sidebar({ initialState }: SidebarProps) {
           onPlaceClick={handlePlaceClick}
           onShare={handleShareList}
           onDelete={handleDeleteList}
+          onAddPlace={handleAddPlaceToList}
+        />
+      ) : showAddPlaceToList ? (
+        <AddPlaceToList
+          listId={selectedList!}
+          onBack={() => {
+            setShowAddPlaceToList(false)
+            setShowListDetails(true)
+          }}
+          onSuccess={() => {
+            setShowAddPlaceToList(false)
+            setShowListDetails(true)
+            // Refresh the list details
+            // This could be improved by updating the state directly
+            router.refresh()
+          }}
         />
       ) : showProfile ? (
         <ProfileView user={user} onBack={handleBackClick} onSignOut={handleSignOut} />
