@@ -7,7 +7,9 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { PageLayout } from "@/components/page-layout"
 import Link from "next/link"
-import { Loader2 } from "lucide-react"
+import { Loader2, Search, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import dynamic from "next/dynamic"
 import { v4 as uuidv4 } from "uuid"
 
@@ -75,9 +77,6 @@ export default function AddPlaceToListPage({ params }: { params: { id: string } 
     }
 
     fetchList()
-
-    // Redirect to the home page with the appropriate parameters
-    router.replace(`/?list=${params.id}&action=addPlace`)
   }, [params.id, isAuthenticated, router, user?.id])
 
   const handleSearch = async () => {
@@ -200,8 +199,139 @@ export default function AddPlaceToListPage({ params }: { params: { id: string } 
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p>Redirecting...</p>
-    </div>
+    <PageLayout>
+      <div className="container mx-auto px-4 py-8">
+        <Link href={`/lists/${params.id}`} className="text-sm hover:underline mb-4 inline-block">
+          ← Back to list
+        </Link>
+
+        <h1 className="text-3xl font-serif mb-6">Add Place to "{list.title}"</h1>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <div className="mb-6">
+              <h2 className="text-xl font-medium mb-4">Search for a location</h2>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Search for a place..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="flex-1"
+                />
+                <Button onClick={handleSearch} disabled={searching}>
+                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              {searchResults.length > 0 && (
+                <div className="mt-4 border border-black/10 rounded-md overflow-hidden">
+                  <ul>
+                    {searchResults.map((result) => (
+                      <li
+                        key={result.place_id}
+                        className="p-3 hover:bg-black/5 cursor-pointer border-b border-black/10 last:border-b-0"
+                        onClick={() => handleSelectSearchResult(result)}
+                      >
+                        <p className="font-medium">{result.name || result.display_name.split(",")[0]}</p>
+                        <p className="text-sm text-black/60">{result.display_name}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-xl font-medium mb-4">Select on map</h2>
+              <VanillaLocationPicker
+                height="400px"
+                initialLocation={selectedLocation}
+                onLocationSelect={setSelectedLocation}
+              />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-medium mb-4">Place details</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium mb-1">
+                  Name *
+                </label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={placeName}
+                  onChange={(e) => setPlaceName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium mb-1">
+                  Type
+                </label>
+                <Input
+                  id="type"
+                  type="text"
+                  placeholder="Restaurant, Park, Museum, etc."
+                  value={placeType}
+                  onChange={(e) => setPlaceType(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium mb-1">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  className="w-full p-2 border border-black/20 rounded-md"
+                  rows={3}
+                  value={placeDescription}
+                  onChange={(e) => setPlaceDescription(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="website" className="block text-sm font-medium mb-1">
+                  Website
+                </label>
+                <Input
+                  id="website"
+                  type="url"
+                  placeholder="https://..."
+                  value={placeWebsite}
+                  onChange={(e) => setPlaceWebsite(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium mb-1">
+                  Notes
+                </label>
+                <textarea
+                  id="notes"
+                  className="w-full p-2 border border-black/20 rounded-md"
+                  rows={3}
+                  placeholder="Your personal notes about this place..."
+                  value={placeNotes}
+                  onChange={(e) => setPlaceNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-4">
+                <Button type="submit" disabled={!selectedLocation || !placeName || submitting} className="w-full">
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                  Add Place to List
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </PageLayout>
   )
 }

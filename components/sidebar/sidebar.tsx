@@ -14,7 +14,6 @@ import {
   X,
   Home,
   Menu,
-  Share2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
@@ -27,8 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
-import { useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface SidebarList {
   id: string
@@ -38,44 +36,13 @@ interface SidebarList {
   created_at: string
   owner_id: string
   cover_image_url: string | null
-  places: { id: string; place: any }[]
-  owner?: {
-    farcaster_username?: string
-  }
+  places_count: number
 }
 
-interface Place {
-  id: string
-  name: string
-  description: string | null
-  address: string | null
-  lat: number
-  lng: number
-  type: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-  website_url: string | null
-}
-
-interface SidebarInitialState {
-  activeTab: string
-  showListDetails: boolean
-  showPlaceDetails: boolean
-  selectedListId: string | null
-  selectedPlaceId: string | null
-  showAddPlaceToList?: boolean
-}
-
-interface SidebarProps {
-  initialState?: SidebarInitialState
-}
-
-export function Sidebar({ initialState }: SidebarProps) {
-  // Get miniapp context and router
+export function Sidebar() {
+  // Get miniapp context
   const { isMiniApp } = useMiniApp()
   const router = useRouter()
-  const pathname = usePathname()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -85,40 +52,34 @@ export function Sidebar({ initialState }: SidebarProps) {
   const [isHidden, setIsHidden] = useState(false)
 
   // Sidebar content state
-  const [activeTab, setActiveTab] = useState(initialState?.activeTab || "discover")
+  const [activeTab, setActiveTab] = useState("discover")
   const [searchQuery, setSearchQuery] = useState("")
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [addPlaceToListId, setAddPlaceToListId] = useState<string | null>(null)
-  const [showPlaceDetails, setShowPlaceDetails] = useState(initialState?.showPlaceDetails || false)
-  const [showListDetails, setShowListDetails] = useState(initialState?.showListDetails || false)
+  const [showPlaceDetails, setShowPlaceDetails] = useState(false)
+  const [showListDetails, setShowListDetails] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [selectedList, setSelectedList] = useState<string | null>(initialState?.selectedListId || null)
+  const [selectedList, setSelectedList] = useState<string | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(initialState?.selectedPlaceId || null)
 
   // Lists and places state
   const [userLists, setUserLists] = useState<SidebarList[]>([])
   const [savedLists, setSavedLists] = useState<SidebarList[]>([])
   const [popularLists, setPopularLists] = useState<SidebarList[]>([])
-  const [nearbyPlaces, setNearbyPlaces] = useState<Place[]>([])
+  const [nearbyPlaces, setNearbyPlaces] = useState<any[]>([])
   const [isLoadingLists, setIsLoadingLists] = useState(false)
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
-  const [listsError, setListsError] = useState<string | null>(null)
-  const [placesError, setPlacesError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Auth context
-  const { isAuthenticated, dbUser, signOut } = useAuth()
-  const { isAuthenticated: neynarAuthenticated, user, signOut: neynarSignOut } = useNeynarContext()
+  const { isAuthenticated, dbUser } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
 
   // Ref for the sidebar element
   const sidebarRef = useRef<HTMLDivElement>(null)
-
-  // Ref to track if URL has been updated
-  const hasUpdatedUrlRef = useRef(false)
 
   // Detect mobile devices and set initial sidebar state
   useEffect(() => {
@@ -151,128 +112,108 @@ export function Sidebar({ initialState }: SidebarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isMobile, isCollapsed])
 
-  // Fetch user's lists
+  // Fetch user lists when the user is authenticated and the active tab is "mylists"
   useEffect(() => {
     const fetchUserLists = async () => {
-      if (!dbUser?.id) return
+      if (!dbUser?.id || activeTab !== "mylists") return
 
       setIsLoadingLists(true)
-      setListsError(null)
+      setError(null)
 
       try {
-        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch lists")
-        }
-
-        const data = await response.json()
-        setUserLists(data)
+        // Mock data for now
+        setTimeout(() => {
+          setUserLists([
+            {
+              id: "1",
+              title: "My Favorite Places",
+              description: "Places I love to visit",
+              visibility: "private",
+              created_at: new Date().toISOString(),
+              owner_id: dbUser.id,
+              cover_image_url: null,
+              places_count: 5,
+            },
+          ])
+          setIsLoadingLists(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching user lists:", err)
-        setListsError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
+        setError(err instanceof Error ? err.message : "An unknown error occurred")
         setIsLoadingLists(false)
       }
     }
 
-    // Fetch popular lists (public and community)
+    fetchUserLists()
+  }, [dbUser?.id, activeTab])
+
+  // Fetch popular lists when the active tab is "discover"
+  useEffect(() => {
     const fetchPopularLists = async () => {
+      if (activeTab !== "discover") return
+
       setIsLoadingLists(true)
-      setListsError(null)
+      setError(null)
 
       try {
-        const response = await fetch(`/api/lists?visibility=public-community`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch popular lists")
-        }
-
-        const data = await response.json()
-        // Sort by number of places (most places first)
-        const sortedLists = data.sort(
-          (a: SidebarList, b: SidebarList) => (b.places?.length || 0) - (a.places?.length || 0),
-        )
-        setPopularLists(sortedLists.slice(0, 5)) // Take top 5
+        // Mock data for now
+        setTimeout(() => {
+          setPopularLists([
+            {
+              id: "2",
+              title: "Popular Restaurants",
+              description: "Best restaurants in town",
+              visibility: "public",
+              created_at: new Date().toISOString(),
+              owner_id: "user1",
+              cover_image_url: null,
+              places_count: 10,
+            },
+          ])
+          setIsLoadingLists(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching popular lists:", err)
-        setListsError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
+        setError(err instanceof Error ? err.message : "An unknown error occurred")
         setIsLoadingLists(false)
       }
     }
 
-    // Fetch nearby places
+    fetchPopularLists()
+  }, [activeTab])
+
+  // Fetch nearby places when the active tab is "places"
+  useEffect(() => {
     const fetchNearbyPlaces = async () => {
+      if (activeTab !== "places") return
+
       setIsLoadingPlaces(true)
-      setPlacesError(null)
+      setError(null)
 
       try {
-        const response = await fetch(`/api/places`)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch places")
-        }
-
-        const data = await response.json()
-        setNearbyPlaces(data.slice(0, 5)) // Take top 5 for now
-
-        // If we have a selectedPlaceId, find the place and set it
-        if (selectedPlaceId) {
-          const place = data.find((p: Place) => p.id === selectedPlaceId)
-          if (place) {
-            setSelectedPlace(place)
-          }
-        }
+        // Mock data for now
+        setTimeout(() => {
+          setNearbyPlaces([
+            {
+              id: "p1",
+              name: "Coffee Shop",
+              address: "123 Main St",
+              type: "Cafe",
+              lists: ["My Favorites"],
+              lists_count: 1,
+            },
+          ])
+          setIsLoadingPlaces(false)
+        }, 500)
       } catch (err) {
         console.error("Error fetching places:", err)
-        setPlacesError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
+        setError(err instanceof Error ? err.message : "An unknown error occurred")
         setIsLoadingPlaces(false)
       }
     }
 
-    if (userIsAuthenticated) {
-      fetchUserLists()
-    }
-
-    fetchPopularLists()
     fetchNearbyPlaces()
-  }, [dbUser?.id, userIsAuthenticated, selectedPlaceId])
-
-  // Update URL when sidebar state changes - use a debounced approach
-  useEffect(() => {
-    // Only update URL if we're on the home page and not during initial render
-    if (pathname !== "/" || !hasUpdatedUrlRef.current) {
-      hasUpdatedUrlRef.current = true
-      return
-    }
-
-    // Use a timeout to debounce URL updates
-    const updateUrlTimeout = setTimeout(() => {
-      const params = new URLSearchParams()
-
-      if (activeTab !== "discover") {
-        params.set("tab", activeTab)
-      }
-
-      if (showListDetails && selectedList) {
-        params.set("list", selectedList)
-      }
-
-      if (showPlaceDetails && selectedPlace?.id) {
-        params.set("place", selectedPlace.id)
-      }
-
-      const queryString = params.toString()
-      const url = queryString ? `/?${queryString}` : "/"
-
-      // Use router.replace to avoid adding to history
-      router.replace(url, { scroll: false })
-    }, 300) // 300ms debounce
-
-    return () => clearTimeout(updateUrlTimeout)
-  }, [activeTab, showListDetails, selectedList, showPlaceDetails, selectedPlace, pathname, router])
+  }, [activeTab])
 
   const handleProfileClick = () => {
     if (userIsAuthenticated) {
@@ -322,18 +263,6 @@ export function Sidebar({ initialState }: SidebarProps) {
       return
     }
 
-    setAddPlaceToListId(null)
-    setShowAddPlaceModal(true)
-  }
-
-  const handleAddPlaceToList = (listId: string) => {
-    if (!userIsAuthenticated) {
-      setShowLogin(true)
-      setIsCollapsed(false)
-      return
-    }
-
-    setAddPlaceToListId(listId)
     setShowAddPlaceModal(true)
   }
 
@@ -343,70 +272,13 @@ export function Sidebar({ initialState }: SidebarProps) {
     setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
-  const handleSignOut = async () => {
-    if (neynarAuthenticated) {
-      await neynarSignOut()
-    } else if (isAuthenticated) {
-      await signOut()
-    }
+  const handleCreateListSuccess = (newList: SidebarList) => {
+    setShowNewListModal(false)
+    setUserLists((prev) => [newList, ...prev])
 
-    // Reset state
-    setShowProfile(false)
-    setActiveTab("discover")
-  }
-
-  const handleShareList = (listId: string) => {
-    // Implement sharing functionality
-    console.log(`Sharing list: ${listId}`)
-
-    // Create a shareable URL
-    const shareUrl = `${window.location.origin}/?list=${listId}`
-
-    // Use the Web Share API if available
-    if (navigator.share) {
-      navigator
-        .share({
-          title: "Check out this list on LO",
-          text: "I found this interesting list of places on LO",
-          url: shareUrl,
-        })
-        .catch((error) => console.log("Error sharing", error))
-    } else {
-      // Fallback to copying to clipboard
-      navigator.clipboard
-        .writeText(shareUrl)
-        .then(() => {
-          alert("Link copied to clipboard!")
-        })
-        .catch((err) => {
-          console.error("Failed to copy: ", err)
-        })
-    }
-  }
-
-  const handleDeleteList = async (listId: string) => {
-    if (!confirm("Are you sure you want to delete this list? This action cannot be undone.")) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/lists/${listId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete list")
-      }
-
-      // Remove the list from the state
-      setUserLists(userLists.filter((list) => list.id !== listId))
-
-      // Go back to the lists view
-      handleBackClick()
-    } catch (error) {
-      console.error("Error deleting list:", error)
-      alert("Failed to delete list. Please try again.")
-    }
+    // Navigate to the list details
+    setSelectedList(newList.id)
+    setShowListDetails(true)
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -432,9 +304,7 @@ export function Sidebar({ initialState }: SidebarProps) {
       >
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
-          <Link href="/" className="font-serif text-xl font-bold">
-            LO
-          </Link>
+          <h1 className="font-serif text-xl font-bold">LO</h1>
           <button
             className="mt-2 p-1 hover:bg-gray-100 rounded-full"
             onClick={() => setIsCollapsed(false)}
@@ -508,9 +378,7 @@ export function Sidebar({ initialState }: SidebarProps) {
     >
       {/* Header with collapse button */}
       <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
-        <Link href="/" className="font-serif text-xl">
-          LO
-        </Link>
+        <h1 className="font-serif text-xl">LO</h1>
         <button
           className="p-1 hover:bg-gray-100 rounded-full"
           onClick={() => setIsCollapsed(true)}
@@ -524,16 +392,9 @@ export function Sidebar({ initialState }: SidebarProps) {
       {showPlaceDetails ? (
         <PlaceDetails place={selectedPlace} onBack={handleBackClick} />
       ) : showListDetails ? (
-        <ListDetails
-          listId={selectedList}
-          onBack={handleBackClick}
-          onPlaceClick={handlePlaceClick}
-          onShare={handleShareList}
-          onDelete={handleDeleteList}
-          onAddPlace={handleAddPlaceToList}
-        />
+        <ListDetails listId={selectedList} onBack={handleBackClick} onPlaceClick={handlePlaceClick} />
       ) : showProfile ? (
-        <ProfileView user={user} onBack={handleBackClick} onSignOut={handleSignOut} />
+        <ProfileView user={user} onBack={handleBackClick} />
       ) : showLogin ? (
         <LoginView
           onBack={handleBackClick}
@@ -601,11 +462,17 @@ export function Sidebar({ initialState }: SidebarProps) {
                 </div>
                 <div className="mb-6">
                   {isLoadingLists ? (
-                    <div className="text-center py-4">Loading lists...</div>
-                  ) : listsError ? (
-                    <div className="text-red-500 text-center py-4">Error: {listsError}</div>
+                    <div className="text-center py-4">
+                      <p className="text-black/60">Loading lists...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-4">
+                      <p className="text-red-500">{error}</p>
+                    </div>
                   ) : popularLists.length === 0 ? (
-                    <div className="text-center py-4">No lists found</div>
+                    <div className="text-center py-4">
+                      <p className="text-black/60">No popular lists found</p>
+                    </div>
                   ) : (
                     popularLists.map((list) => (
                       <div
@@ -616,18 +483,10 @@ export function Sidebar({ initialState }: SidebarProps) {
                         <div className="flex justify-between items-center">
                           <div>
                             <h3 className="font-medium">{list.title}</h3>
-                            <p className="text-xs text-black/60">
-                              by {list.owner?.farcaster_username || "Anonymous"} • {list.places?.length || 0} places
-                            </p>
+                            <p className="text-xs text-black/60">{list.places_count} places</p>
                           </div>
-                          <button
-                            className="text-black hover:bg-black/5 p-1 rounded"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleShareList(list.id)
-                            }}
-                          >
-                            <Share2 size={16} />
+                          <button className="text-black hover:bg-black/5 p-1 rounded">
+                            <Plus size={16} />
                           </button>
                         </div>
                       </div>
@@ -643,11 +502,17 @@ export function Sidebar({ initialState }: SidebarProps) {
                 </div>
                 <div>
                   {isLoadingPlaces ? (
-                    <div className="text-center py-4">Loading places...</div>
-                  ) : placesError ? (
-                    <div className="text-red-500 text-center py-4">Error: {placesError}</div>
+                    <div className="text-center py-4">
+                      <p className="text-black/60">Loading places...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-4">
+                      <p className="text-red-500">{error}</p>
+                    </div>
                   ) : nearbyPlaces.length === 0 ? (
-                    <div className="text-center py-4">No places found</div>
+                    <div className="text-center py-4">
+                      <p className="text-black/60">No places found nearby</p>
+                    </div>
                   ) : (
                     nearbyPlaces.map((place) => (
                       <div
@@ -658,16 +523,16 @@ export function Sidebar({ initialState }: SidebarProps) {
                         <div
                           className="h-12 w-12 bg-gray-200 rounded mr-3"
                           style={{
-                            backgroundImage: `url(/placeholder.svg?height=200&width=300&query=${encodeURIComponent(place.name)})`,
+                            backgroundImage: place.photo_url ? `url(${place.photo_url})` : undefined,
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                           }}
                         ></div>
                         <div className="flex-grow">
                           <h3 className="font-medium">{place.name}</h3>
-                          <p className="text-xs text-black/60">{place.address || "No address"}</p>
+                          <p className="text-xs text-black/60">{place.address}</p>
                           <div className="flex text-xs text-black/60 mt-1">
-                            <span className="mr-3">{place.type || "Place"}</span>
+                            <span className="mr-3">{place.lists_count || 0} lists</span>
                           </div>
                         </div>
                       </div>
@@ -697,60 +562,47 @@ export function Sidebar({ initialState }: SidebarProps) {
                     </Button>
                   </div>
                 ) : isLoadingLists ? (
-                  <div className="text-center py-4">Loading your lists...</div>
-                ) : listsError ? (
-                  <div className="text-red-500 text-center py-4">Error: {listsError}</div>
+                  <div className="text-center py-4">
+                    <p className="text-black/60">Loading your lists...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-4">
+                    <p className="text-red-500">{error}</p>
+                  </div>
+                ) : userLists.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="mb-4">You haven't created any lists yet</p>
+                    <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowNewListModal(true)}>
+                      Create Your First List
+                    </Button>
+                  </div>
                 ) : (
                   <>
                     <div className="mb-6">
                       <h3 className="text-sm font-medium text-black/60 mb-2">YOUR LISTS</h3>
-                      {userLists.length === 0 ? (
-                        <div className="text-center py-4">
-                          <p>You haven't created any lists yet.</p>
-                          <Button
-                            className="mt-2 bg-black text-white hover:bg-black/80"
-                            onClick={() => setShowNewListModal(true)}
-                          >
-                            Create Your First List
-                          </Button>
-                        </div>
-                      ) : (
-                        userLists.map((list) => (
-                          <div
-                            key={list.id}
-                            className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
-                            onClick={() => handleListClick(list)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-medium">{list.title}</h3>
-                                <p className="text-sm text-black/60">{list.places?.length || 0} places</p>
-                              </div>
-                              <div className="flex">
-                                <button
-                                  className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded mr-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleShareList(list.id)
-                                  }}
-                                >
-                                  <Share2 size={16} />
-                                </button>
-                                <button
-                                  className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    // Open settings for this list
-                                    router.push(`/?list=${list.id}&edit=true`)
-                                  }}
-                                >
-                                  <Settings size={16} />
-                                </button>
-                              </div>
+                      {userLists.map((list) => (
+                        <div
+                          key={list.id}
+                          className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
+                          onClick={() => handleListClick(list)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="font-medium">{list.title}</h3>
+                              <p className="text-sm text-black/60">{list.places_count || 0} places</p>
                             </div>
+                            <button
+                              className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/lists/${list.id}/edit`)
+                              }}
+                            >
+                              <Settings size={16} />
+                            </button>
                           </div>
-                        ))
-                      )}
+                        </div>
+                      ))}
                     </div>
 
                     {savedLists.length > 0 && (
@@ -765,17 +617,8 @@ export function Sidebar({ initialState }: SidebarProps) {
                             <div className="flex justify-between items-center">
                               <div>
                                 <h3 className="font-medium">{list.title}</h3>
-                                <p className="text-sm text-black/60">{list.places?.length || 0} places</p>
+                                <p className="text-sm text-black/60">{list.places_count || 0} places</p>
                               </div>
-                              <button
-                                className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleShareList(list.id)
-                                }}
-                              >
-                                <Share2 size={16} />
-                              </button>
                             </div>
                           </div>
                         ))}
@@ -808,11 +651,20 @@ export function Sidebar({ initialState }: SidebarProps) {
                 </div>
 
                 {isLoadingPlaces ? (
-                  <div className="text-center py-4">Loading places...</div>
-                ) : placesError ? (
-                  <div className="text-red-500 text-center py-4">Error: {placesError}</div>
+                  <div className="text-center py-4">
+                    <p className="text-black/60">Loading places...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-4">
+                    <p className="text-red-500">{error}</p>
+                  </div>
                 ) : nearbyPlaces.length === 0 ? (
-                  <div className="text-center py-4">No places found</div>
+                  <div className="text-center py-8">
+                    <p className="mb-4">No places found</p>
+                    <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
+                      Add Your First Place
+                    </Button>
+                  </div>
                 ) : (
                   nearbyPlaces.map((place) => (
                     <div
@@ -823,16 +675,24 @@ export function Sidebar({ initialState }: SidebarProps) {
                       <div
                         className="h-12 w-12 bg-gray-200 rounded mr-3"
                         style={{
-                          backgroundImage: `url(/placeholder.svg?height=200&width=300&query=${encodeURIComponent(place.name)})`,
+                          backgroundImage: place.photo_url ? `url(${place.photo_url})` : undefined,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                         }}
                       ></div>
                       <div className="flex-grow">
                         <h3 className="font-medium">{place.name}</h3>
-                        <p className="text-xs text-black/60">{place.address || "No address"}</p>
-                        <div className="flex text-xs text-black/60 mt-1">
-                          <span>{place.type || "Place"}</span>
+                        <p className="text-xs text-black/60">{place.address}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {place.lists &&
+                            place.lists.slice(0, 2).map((listName: string, idx: number) => (
+                              <span key={idx} className="text-xs bg-gray-100 rounded-full px-2 py-0.5">
+                                {listName}
+                              </span>
+                            ))}
+                          {place.lists && place.lists.length > 2 && (
+                            <span className="text-xs text-black/60">+{place.lists.length - 2} more</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -845,24 +705,10 @@ export function Sidebar({ initialState }: SidebarProps) {
       )}
 
       {/* Show modals if active */}
-      {showNewListModal && <CreateListModal onClose={() => setShowNewListModal(false)} />}
-      {showAddPlaceModal && (
-        <AddPlaceModal
-          onClose={() => setShowAddPlaceModal(false)}
-          userLists={userLists}
-          preSelectedListId={addPlaceToListId}
-          onSuccess={() => {
-            setShowAddPlaceModal(false)
-            // If we were adding to a specific list, go back to list details
-            if (addPlaceToListId) {
-              setSelectedList(addPlaceToListId)
-              setShowListDetails(true)
-              // Refresh to show the updated list
-              router.refresh()
-            }
-          }}
-        />
+      {showNewListModal && (
+        <CreateListModal onClose={() => setShowNewListModal(false)} onSuccess={handleCreateListSuccess} />
       )}
+      {showAddPlaceModal && <AddPlaceModal onClose={() => setShowAddPlaceModal(false)} userLists={userLists} />}
     </div>
   )
 }

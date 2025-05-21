@@ -1,6 +1,5 @@
 import { ListItem } from "@/components/list-item"
 import { PageLayout } from "@/components/page-layout"
-import { redirect } from "next/navigation"
 
 // Mock data for lists
 const EXPLORE_LISTS = [
@@ -31,7 +30,6 @@ const EXPLORE_LISTS = [
 ]
 
 export default function ExplorePage() {
-  redirect("/")
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">

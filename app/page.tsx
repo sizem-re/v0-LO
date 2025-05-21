@@ -5,7 +5,6 @@ import dynamic from "next/dynamic"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import type { Place } from "@/types/place"
 import { FarcasterReady } from "@/components/farcaster-ready"
-import { useSearchParams } from "next/navigation"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -17,49 +16,46 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ),
 })
 
-export default function HomePage() {
-  const [places, setPlaces] = useState<Place[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isMounted, setIsMounted] = useState(false)
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
+// Mock data for places
+const MOCK_PLACES: Place[] = [
+  {
+    id: "p1",
+    name: "The Fish House Cafe",
+    type: "Restaurant",
+    address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
+    coordinates: { lat: 47.2529, lng: -122.4443 },
+    description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
+    image: "/placeholder.svg?height=200&width=300",
+  },
+  {
+    id: "p2",
+    name: "Vien Dong",
+    type: "Vietnamese Restaurant",
+    address: "3801 Yakima Ave, Tacoma, WA 98418",
+    coordinates: { lat: 47.2209, lng: -122.4634 },
+    description: "Casual Vietnamese spot serving pho, rice plates & other traditional dishes in a simple setting.",
+    image: "/placeholder.svg?height=200&width=300",
+  },
+  {
+    id: "p3",
+    name: "Burger Seoul",
+    type: "Korean Fusion",
+    address: "1750 S Prospect St, Tacoma, WA 98405",
+    coordinates: { lat: 47.241, lng: -122.4556 },
+    description: "Korean-inspired burgers and sides with unique flavors.",
+    image: "/placeholder.svg?height=200&width=300",
+  },
+]
 
-  const searchParams = useSearchParams()
-  const placeId = searchParams.get("place")
+export default function MapPage() {
+  const [places, setPlaces] = useState<Place[]>([])
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    const fetchPlaces = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch("/api/places")
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch places")
-        }
-
-        const data = await response.json()
-        setPlaces(data)
-
-        // If there's a place ID in the URL, find and select that place
-        if (placeId) {
-          const place = data.find((p: Place) => p.id === placeId)
-          if (place) {
-            setSelectedPlace(place)
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching places:", err)
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchPlaces()
+    // In a real app, you would fetch places from an API
+    setPlaces(MOCK_PLACES)
     setIsMounted(true)
-  }, [placeId])
+  }, [])
 
   // Don't render until client-side to avoid hydration issues
   if (!isMounted) {
@@ -73,17 +69,7 @@ export default function HomePage() {
 
       {/* Map container with lower z-index */}
       <div className="w-full h-full relative z-0">
-        {isLoading ? (
-          <div className="h-full w-full flex items-center justify-center bg-gray-100">
-            <p className="text-gray-500">Loading map...</p>
-          </div>
-        ) : error ? (
-          <div className="h-full w-full flex items-center justify-center bg-gray-100">
-            <p className="text-red-500">Error: {error}</p>
-          </div>
-        ) : (
-          <VanillaMap places={places} height="100%" selectedPlace={selectedPlace} />
-        )}
+        <VanillaMap places={places} height="100%" />
       </div>
 
       {/* Sidebar with higher z-index */}

@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from "react-leaflet"
+import { useEffect, useMemo, useRef } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import type { Place } from "@/types/place"
@@ -14,6 +13,9 @@ interface MapComponentProps {
 }
 
 const MapComponent = ({ places, height = "500px", onPlaceSelect }: MapComponentProps) => {
+  const mapRef = useRef<L.Map | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+
   // Set up Leaflet icons
   useEffect(() => {
     // Fix for Leaflet marker icons in Next.js
@@ -70,31 +72,23 @@ const MapComponent = ({ places, height = "500px", onPlaceSelect }: MapComponentP
     }
   }
 
-  return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom={true}
-      style={{ height }}
-      className="border border-black/10 z-0"
-      zoomControl={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        className="grayscale"
-      />
-      <ZoomControl position="bottomright" />
+  useEffect(() => {
+    // Initialize map only on client-side
+    if (typeof window !== "undefined" && !mapRef.current && mapContainerRef.current) {
+      // Create map instance
+      mapRef.current = L.map(mapContainerRef.current).setView(center, zoom)
 
-      {places.map((place) => (
-        <Marker
-          key={place.id}
-          position={[place.coordinates.lat, place.coordinates.lng]}
-          eventHandlers={{
-            click: () => handleMarkerClick(place),
-          }}
-        >
-          <Popup>
+      // Add OpenStreetMap tile layer
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(mapRef.current)
+
+      // Add markers for each place
+      places.forEach((place) => {
+        L.marker([place.coordinates.lat, place.coordinates.lng])
+          .addTo(mapRef.current!)
+          .bindPopup(() => (
             <div className="p-1">
               <h3 className="font-bold text-base">{place.name}</h3>
               <p className="text-xs text-black/70">{place.type}</p>
@@ -103,11 +97,20 @@ const MapComponent = ({ places, height = "500px", onPlaceSelect }: MapComponentP
                 View details
               </Link>
             </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-  )
+          ))
+      })
+    }
+
+    // Cleanup function
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [places, center, zoom])
+
+  return <div ref={mapContainerRef} style={{ height }} className="border border-black/10 z-0" />
 }
 
 export default MapComponent
