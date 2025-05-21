@@ -4,37 +4,23 @@ import { useState, useEffect } from "react"
 
 export function useMiniApp() {
   const [isMiniApp, setIsMiniApp] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if we're running in a Farcaster Mini App environment
-    const checkIfMiniApp = () => {
-      // Various ways to detect if we're in a Farcaster Mini App
-      const isFarcasterApp =
-        window.location.href.includes("farcaster://") ||
-        window.navigator.userAgent.includes("Farcaster") ||
-        window.location.hostname.includes("warpcast.com") ||
-        window.location.search.includes("miniApp=true") ||
-        window.location.pathname.startsWith("/mini") ||
-        window.location.search.includes("fc-frame") ||
-        // Check for small viewport which is common in miniapps
-        (window.innerWidth < 500 && window.innerHeight < 900) ||
-        // Check if embedded in an iframe
-        window.self !== window.top
+    // Check if we're in a mini app environment
+    const checkMiniApp = () => {
+      // Check for URL patterns that indicate we're in a mini app
+      const url = new URL(window.location.href)
+      const isMini =
+        url.pathname.startsWith("/mini") ||
+        url.searchParams.get("miniApp") === "true" ||
+        // Check for Farcaster user agent or other indicators
+        /Farcaster/.test(navigator.userAgent)
 
-      setIsMiniApp(isFarcasterApp)
-      setIsLoading(false)
+      setIsMiniApp(isMini)
     }
 
-    // Run the check immediately if document is already loaded
-    if (document.readyState === "complete") {
-      checkIfMiniApp()
-    } else {
-      // Otherwise wait for the document to load
-      window.addEventListener("load", checkIfMiniApp)
-      return () => window.removeEventListener("load", checkIfMiniApp)
-    }
+    checkMiniApp()
   }, [])
 
-  return { isMiniApp, isLoading }
+  return { isMiniApp }
 }

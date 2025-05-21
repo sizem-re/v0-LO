@@ -10,6 +10,4 @@ export interface Place {
   description?: string
   image?: string
   website?: string
-  addedAt?: string
-  notes?: string
 }

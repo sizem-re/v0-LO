@@ -5,5 +5,5 @@ interface Window {
     on: (event: string, callback: (...args: any[]) => void) => void
     removeListener: (event: string, callback: (...args: any[]) => void) => void
   }
-  L?: any // Leaflet global object
+  L: any // Leaflet global object
 }
