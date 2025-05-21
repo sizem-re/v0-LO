@@ -1,48 +1,17 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import {
-  Search,
-  MapPin,
-  ListIcon,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Settings,
-  Filter,
-  X,
-  Home,
-  Menu,
-} from "lucide-react"
+import { Search, MapPin, ListIcon, Plus, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
-import { CreateListModal } from "./create-list-modal"
-import { AddPlaceModal } from "./add-place-modal"
-import { PlaceDetails } from "./place-details"
-import { ListDetails } from "./list-details"
-import { ProfileView } from "./profile-view"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
-import { useRouter } from "next/navigation"
-
-interface SidebarList {
-  id: string
-  title: string
-  description: string | null
-  visibility: string
-  created_at: string
-  owner_id: string
-  cover_image_url: string | null
-  places_count: number
-}
 
 export function Sidebar() {
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
-  const router = useRouter()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -54,26 +23,10 @@ export function Sidebar() {
   // Sidebar content state
   const [activeTab, setActiveTab] = useState("discover")
   const [searchQuery, setSearchQuery] = useState("")
-  const [showNewListModal, setShowNewListModal] = useState(false)
-  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [showPlaceDetails, setShowPlaceDetails] = useState(false)
-  const [showListDetails, setShowListDetails] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [selectedList, setSelectedList] = useState<string | null>(null)
-  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
-
-  // Lists and places state
-  const [userLists, setUserLists] = useState<SidebarList[]>([])
-  const [savedLists, setSavedLists] = useState<SidebarList[]>([])
-  const [popularLists, setPopularLists] = useState<SidebarList[]>([])
-  const [nearbyPlaces, setNearbyPlaces] = useState<any[]>([])
-  const [isLoadingLists, setIsLoadingLists] = useState(false)
-  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Auth context
-  const { isAuthenticated, dbUser } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
@@ -112,173 +65,17 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isMobile, isCollapsed])
 
-  // Fetch user lists when the user is authenticated and the active tab is "mylists"
-  useEffect(() => {
-    const fetchUserLists = async () => {
-      if (!dbUser?.id || activeTab !== "mylists") return
-
-      setIsLoadingLists(true)
-      setError(null)
-
-      try {
-        // Mock data for now
-        setTimeout(() => {
-          setUserLists([
-            {
-              id: "1",
-              title: "My Favorite Places",
-              description: "Places I love to visit",
-              visibility: "private",
-              created_at: new Date().toISOString(),
-              owner_id: dbUser.id,
-              cover_image_url: null,
-              places_count: 5,
-            },
-          ])
-          setIsLoadingLists(false)
-        }, 500)
-      } catch (err) {
-        console.error("Error fetching user lists:", err)
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-        setIsLoadingLists(false)
-      }
-    }
-
-    fetchUserLists()
-  }, [dbUser?.id, activeTab])
-
-  // Fetch popular lists when the active tab is "discover"
-  useEffect(() => {
-    const fetchPopularLists = async () => {
-      if (activeTab !== "discover") return
-
-      setIsLoadingLists(true)
-      setError(null)
-
-      try {
-        // Mock data for now
-        setTimeout(() => {
-          setPopularLists([
-            {
-              id: "2",
-              title: "Popular Restaurants",
-              description: "Best restaurants in town",
-              visibility: "public",
-              created_at: new Date().toISOString(),
-              owner_id: "user1",
-              cover_image_url: null,
-              places_count: 10,
-            },
-          ])
-          setIsLoadingLists(false)
-        }, 500)
-      } catch (err) {
-        console.error("Error fetching popular lists:", err)
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-        setIsLoadingLists(false)
-      }
-    }
-
-    fetchPopularLists()
-  }, [activeTab])
-
-  // Fetch nearby places when the active tab is "places"
-  useEffect(() => {
-    const fetchNearbyPlaces = async () => {
-      if (activeTab !== "places") return
-
-      setIsLoadingPlaces(true)
-      setError(null)
-
-      try {
-        // Mock data for now
-        setTimeout(() => {
-          setNearbyPlaces([
-            {
-              id: "p1",
-              name: "Coffee Shop",
-              address: "123 Main St",
-              type: "Cafe",
-              lists: ["My Favorites"],
-              lists_count: 1,
-            },
-          ])
-          setIsLoadingPlaces(false)
-        }, 500)
-      } catch (err) {
-        console.error("Error fetching places:", err)
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
-        setIsLoadingPlaces(false)
-      }
-    }
-
-    fetchNearbyPlaces()
-  }, [activeTab])
-
   const handleProfileClick = () => {
-    if (userIsAuthenticated) {
-      setShowProfile(true)
-      setShowPlaceDetails(false)
-      setShowListDetails(false)
-      setShowLogin(false)
-      setIsCollapsed(false) // Always expand sidebar when showing profile
-    } else {
-      setShowLogin(true)
-      setShowPlaceDetails(false)
-      setShowListDetails(false)
-      setShowProfile(false)
-      setIsCollapsed(false) // Always expand sidebar when showing login
-    }
-  }
-
-  const handlePlaceClick = (place: any) => {
-    setSelectedPlace(place)
-    setShowPlaceDetails(true)
-    setShowListDetails(false)
-    setShowProfile(false)
-    setShowLogin(false)
-    setIsCollapsed(false) // Always expand sidebar when showing place details
-  }
-
-  const handleListClick = (list: any) => {
-    setSelectedList(list.id)
-    setShowListDetails(true)
-    setShowPlaceDetails(false)
-    setShowProfile(false)
-    setShowLogin(false)
-    setIsCollapsed(false) // Always expand sidebar when showing list details
-  }
-
-  const handleBackClick = () => {
-    setShowPlaceDetails(false)
-    setShowListDetails(false)
-    setShowProfile(false)
-    setShowLogin(false)
-  }
-
-  const handleAddPlace = () => {
     if (!userIsAuthenticated) {
       setShowLogin(true)
       setIsCollapsed(false) // Always expand sidebar when showing login
-      return
     }
-
-    setShowAddPlaceModal(true)
   }
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab)
-    handleBackClick()
+    setShowLogin(false)
     setIsCollapsed(false) // Always expand sidebar when changing tabs
-  }
-
-  const handleCreateListSuccess = (newList: SidebarList) => {
-    setShowNewListModal(false)
-    setUserLists((prev) => [newList, ...prev])
-
-    // Navigate to the list details
-    setSelectedList(newList.id)
-    setShowListDetails(true)
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -389,18 +186,11 @@ export function Sidebar() {
       </div>
 
       {/* Content based on what's being viewed */}
-      {showPlaceDetails ? (
-        <PlaceDetails place={selectedPlace} onBack={handleBackClick} />
-      ) : showListDetails ? (
-        <ListDetails listId={selectedList} onBack={handleBackClick} onPlaceClick={handlePlaceClick} />
-      ) : showProfile ? (
-        <ProfileView user={user} onBack={handleBackClick} />
-      ) : showLogin ? (
+      {showLogin ? (
         <LoginView
-          onBack={handleBackClick}
+          onBack={() => setShowLogin(false)}
           onLoginSuccess={() => {
             setShowLogin(false)
-            setShowProfile(true)
           }}
         />
       ) : (
@@ -438,277 +228,55 @@ export function Sidebar() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
-              {searchQuery && (
-                <button
-                  className="absolute right-3 top-2.5 text-black/40"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Clear search"
-                >
-                  <X size={16} />
-                </button>
-              )}
             </div>
           </div>
 
           {/* Content based on active tab */}
           <div className="flex-grow overflow-y-auto p-4">
             {activeTab === "discover" && (
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="font-serif text-lg">Popular Lists</h2>
-                  <button className="text-sm hover:underline" onClick={() => setActiveTab("mylists")}>
-                    See All
-                  </button>
-                </div>
-                <div className="mb-6">
-                  {isLoadingLists ? (
-                    <div className="text-center py-4">
-                      <p className="text-black/60">Loading lists...</p>
-                    </div>
-                  ) : error ? (
-                    <div className="text-center py-4">
-                      <p className="text-red-500">{error}</p>
-                    </div>
-                  ) : popularLists.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-black/60">No popular lists found</p>
-                    </div>
-                  ) : (
-                    popularLists.map((list) => (
-                      <div
-                        key={list.id}
-                        className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer"
-                        onClick={() => handleListClick(list)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-medium">{list.title}</h3>
-                            <p className="text-xs text-black/60">{list.places_count} places</p>
-                          </div>
-                          <button className="text-black hover:bg-black/5 p-1 rounded">
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="font-serif text-lg">Places Near You</h2>
-                  <button className="flex items-center text-sm text-black/70 hover:bg-black/5 p-1 rounded">
-                    <Filter size={14} className="mr-1" /> Filter
-                  </button>
-                </div>
-                <div>
-                  {isLoadingPlaces ? (
-                    <div className="text-center py-4">
-                      <p className="text-black/60">Loading places...</p>
-                    </div>
-                  ) : error ? (
-                    <div className="text-center py-4">
-                      <p className="text-red-500">{error}</p>
-                    </div>
-                  ) : nearbyPlaces.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-black/60">No places found nearby</p>
-                    </div>
-                  ) : (
-                    nearbyPlaces.map((place) => (
-                      <div
-                        key={place.id}
-                        className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
-                        onClick={() => handlePlaceClick(place)}
-                      >
-                        <div
-                          className="h-12 w-12 bg-gray-200 rounded mr-3"
-                          style={{
-                            backgroundImage: place.photo_url ? `url(${place.photo_url})` : undefined,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        ></div>
-                        <div className="flex-grow">
-                          <h3 className="font-medium">{place.name}</h3>
-                          <p className="text-xs text-black/60">{place.address}</p>
-                          <div className="flex text-xs text-black/60 mt-1">
-                            <span className="mr-3">{place.lists_count || 0} lists</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+              <div className="text-center py-8">
+                <p>Discover places and lists from the community.</p>
+                {!userIsAuthenticated && (
+                  <Button className="mt-4 bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
+                    Connect to get started
+                  </Button>
+                )}
               </div>
             )}
 
             {activeTab === "mylists" && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-serif text-lg">My Lists</h2>
-                  <Button
-                    className="bg-black text-white hover:bg-black/80 px-3 py-1 text-sm flex items-center"
-                    onClick={() => setShowNewListModal(true)}
-                  >
-                    <Plus size={16} className="mr-1" /> New List
-                  </Button>
-                </div>
-
+              <div className="text-center py-8">
                 {!userIsAuthenticated ? (
-                  <div className="text-center py-8">
+                  <>
                     <p className="mb-4">Connect with Farcaster to create and manage lists</p>
                     <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
                       Connect
                     </Button>
-                  </div>
-                ) : isLoadingLists ? (
-                  <div className="text-center py-4">
-                    <p className="text-black/60">Loading your lists...</p>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-4">
-                    <p className="text-red-500">{error}</p>
-                  </div>
-                ) : userLists.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="mb-4">You haven't created any lists yet</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowNewListModal(true)}>
-                      Create Your First List
-                    </Button>
-                  </div>
+                  </>
                 ) : (
                   <>
-                    <div className="mb-6">
-                      <h3 className="text-sm font-medium text-black/60 mb-2">YOUR LISTS</h3>
-                      {userLists.map((list) => (
-                        <div
-                          key={list.id}
-                          className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
-                          onClick={() => handleListClick(list)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-medium">{list.title}</h3>
-                              <p className="text-sm text-black/60">{list.places_count || 0} places</p>
-                            </div>
-                            <button
-                              className="text-black/60 hover:text-black hover:bg-black/5 p-1 rounded"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(`/lists/${list.id}/edit`)
-                              }}
-                            >
-                              <Settings size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {savedLists.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-black/60 mb-2">SAVED LISTS</h3>
-                        {savedLists.map((list) => (
-                          <div
-                            key={list.id}
-                            className="mb-2 p-3 border rounded cursor-pointer border-black/20 hover:bg-gray-50"
-                            onClick={() => handleListClick(list)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-medium">{list.title}</h3>
-                                <p className="text-sm text-black/60">{list.places_count || 0} places</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <p className="mb-4">Your lists will appear here</p>
+                    <Button className="bg-black text-white hover:bg-black/80">
+                      <Plus size={16} className="mr-1" /> Create List
+                    </Button>
                   </>
                 )}
               </div>
             )}
 
             {activeTab === "places" && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-serif text-lg">All Places</h2>
-                  <Button
-                    className="bg-black text-white hover:bg-black/80 px-3 py-1 text-sm flex items-center"
-                    onClick={handleAddPlace}
-                  >
+              <div className="text-center py-8">
+                <p className="mb-4">Explore places on the map</p>
+                {userIsAuthenticated && (
+                  <Button className="bg-black text-white hover:bg-black/80">
                     <Plus size={16} className="mr-1" /> Add Place
                   </Button>
-                </div>
-
-                <div className="mb-4 flex items-center">
-                  <button className="flex items-center mr-3 text-sm text-black/60 hover:bg-black/5 p-1 rounded">
-                    <Filter size={14} className="mr-1" /> Filter
-                  </button>
-                  <button className="flex items-center text-sm text-black/60 hover:bg-black/5 p-1 rounded">
-                    Sort: <span className="font-medium ml-1">Recent</span>
-                  </button>
-                </div>
-
-                {isLoadingPlaces ? (
-                  <div className="text-center py-4">
-                    <p className="text-black/60">Loading places...</p>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-4">
-                    <p className="text-red-500">{error}</p>
-                  </div>
-                ) : nearbyPlaces.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="mb-4">No places found</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
-                      Add Your First Place
-                    </Button>
-                  </div>
-                ) : (
-                  nearbyPlaces.map((place) => (
-                    <div
-                      key={place.id}
-                      className="mb-2 p-2 hover:bg-gray-50 border border-black/10 cursor-pointer flex"
-                      onClick={() => handlePlaceClick(place)}
-                    >
-                      <div
-                        className="h-12 w-12 bg-gray-200 rounded mr-3"
-                        style={{
-                          backgroundImage: place.photo_url ? `url(${place.photo_url})` : undefined,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      ></div>
-                      <div className="flex-grow">
-                        <h3 className="font-medium">{place.name}</h3>
-                        <p className="text-xs text-black/60">{place.address}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {place.lists &&
-                            place.lists.slice(0, 2).map((listName: string, idx: number) => (
-                              <span key={idx} className="text-xs bg-gray-100 rounded-full px-2 py-0.5">
-                                {listName}
-                              </span>
-                            ))}
-                          {place.lists && place.lists.length > 2 && (
-                            <span className="text-xs text-black/60">+{place.lists.length - 2} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
                 )}
               </div>
             )}
           </div>
         </>
       )}
-
-      {/* Show modals if active */}
-      {showNewListModal && (
-        <CreateListModal onClose={() => setShowNewListModal(false)} onSuccess={handleCreateListSuccess} />
-      )}
-      {showAddPlaceModal && <AddPlaceModal onClose={() => setShowAddPlaceModal(false)} userLists={userLists} />}
     </div>
   )
 }

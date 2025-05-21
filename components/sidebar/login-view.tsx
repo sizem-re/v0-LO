@@ -1,7 +1,7 @@
 "use client"
 
 import { ChevronLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { NeynarAuthButton } from "@neynar/react"
 
 interface LoginViewProps {
   onBack: () => void
@@ -11,21 +11,25 @@ interface LoginViewProps {
 export function LoginView({ onBack, onLoginSuccess }: LoginViewProps) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center p-4 border-b border-black/10">
-        <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
-          <ChevronLeft size={16} className="mr-1" /> Back
+      <div className="flex items-center border-b border-black/10 px-4 py-3">
+        <button onClick={onBack} className="p-1 mr-2 hover:bg-gray-100 rounded-full" aria-label="Go back">
+          <ChevronLeft size={20} />
         </button>
+        <h2 className="font-serif text-lg">Connect</h2>
       </div>
-      <div className="flex-grow overflow-y-auto">
-        <div className="p-4 flex flex-col items-center justify-center h-full">
-          <h2 className="text-xl font-medium mb-6">Connect with Farcaster</h2>
-          <p className="text-center text-black/70 mb-8">
-            Sign in with your Farcaster account to create and save lists.
-          </p>
-          <Button onClick={onLoginSuccess} className="bg-black text-white hover:bg-black/80">
-            Connect with Farcaster
-          </Button>
+
+      <div className="flex-grow flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-8">
+          <h3 className="font-serif text-xl mb-2">Welcome to LO</h3>
+          <p className="text-black/70">Connect with Farcaster to get started</p>
         </div>
+
+        <NeynarAuthButton
+          className="bg-black text-white hover:bg-black/80 px-6 py-3 rounded-md"
+          onSuccess={onLoginSuccess}
+        >
+          Connect with Farcaster
+        </NeynarAuthButton>
       </div>
     </div>
   )

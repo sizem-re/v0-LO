@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useNeynarContext } from "@neynar/react"
-import { useRouter } from "next/navigation"
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -26,7 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null)
   const [dbUser, setDbUser] = useState<any | null>(null)
   const { isAuthenticated: neynarAuthenticated, user: neynarUser, signOut: neynarSignOut } = useNeynarContext()
-  const router = useRouter()
 
   useEffect(() => {
     // Check if the user is authenticated with Neynar
@@ -51,12 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }),
           })
 
-          if (!response.ok) {
-            const errorData = await response.json()
-            console.error("Error registering user:", errorData)
-
-            // Even if registration fails, we'll still consider the user authenticated with Neynar
-          } else {
+          if (response.ok) {
             const userData = await response.json()
             setDbUser(userData)
             console.log("User registered successfully:", userData)
@@ -79,41 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      console.log("Logout function called")
-
-      // Clear local state first
+      // Clear local state
       setIsAuthenticated(false)
       setUser(null)
       setDbUser(null)
 
-      // Clear local storage
-      localStorage.removeItem("user")
-
-      // Call server-side logout endpoint
-      try {
-        await fetch("/api/auth/logout", { method: "POST" })
-        console.log("Server-side logout successful")
-      } catch (serverError) {
-        console.error("Server-side logout error:", serverError)
-      }
-
       // Try to sign out from Neynar
       if (typeof neynarSignOut === "function") {
-        try {
-          await neynarSignOut()
-          console.log("Neynar signOut successful")
-        } catch (neynarError) {
-          console.error("Neynar signOut error:", neynarError)
-        }
-      } else {
-        console.log("Neynar signOut function not available")
+        await neynarSignOut()
       }
 
-      // Force reload the page to clear all state
+      // Reload the page to clear all state
       window.location.href = "/"
     } catch (error) {
       console.error("Error during logout:", error)
-      // Force reload even if there's an error
       window.location.href = "/"
     }
   }

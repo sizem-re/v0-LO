@@ -49,37 +49,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // If lat, lng, and radius are provided, filter by actual distance
-    if (lat && lng && radius && data) {
-      const latFloat = Number.parseFloat(lat)
-      const lngFloat = Number.parseFloat(lng)
-      const radiusFloat = Number.parseFloat(radius)
+    // Transform the data to match our Place type
+    const places = data.map((place) => ({
+      id: place.id,
+      name: place.name,
+      type: place.type,
+      address: place.address,
+      coordinates: {
+        lat: Number.parseFloat(place.lat),
+        lng: Number.parseFloat(place.lng),
+      },
+      description: place.description,
+      website: place.website_url,
+    }))
 
-      // Filter places by actual distance
-      const filteredData = data.filter((place) => {
-        const placeLat = Number.parseFloat(place.lat)
-        const placeLng = Number.parseFloat(place.lng)
-
-        // Haversine formula to calculate distance between two points on Earth
-        const R = 6371 // Earth's radius in kilometers
-        const dLat = ((placeLat - latFloat) * Math.PI) / 180
-        const dLng = ((placeLng - lngFloat) * Math.PI) / 180
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos((latFloat * Math.PI) / 180) *
-            Math.cos((placeLat * Math.PI) / 180) *
-            Math.sin(dLng / 2) *
-            Math.sin(dLng / 2)
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        const distance = R * c
-
-        return distance <= radiusFloat
-      })
-
-      return NextResponse.json(filteredData)
-    }
-
-    return NextResponse.json(data)
+    return NextResponse.json(places)
   } catch (error) {
     console.error("Error in GET /api/places:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

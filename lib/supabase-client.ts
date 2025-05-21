@@ -30,14 +30,3 @@ export const supabaseAdmin = createClient(
     },
   },
 )
-
-// Setup the database if needed
-export const setupDatabase = async () => {
-  try {
-    const response = await fetch("/api/setup-db")
-    return await response.json()
-  } catch (error) {
-    console.error("Error setting up database:", error)
-    return { error: "Failed to set up database" }
-  }
-}

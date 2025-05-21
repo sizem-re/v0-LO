@@ -1,90 +1,27 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-client"
+import { v4 as uuidv4 } from "uuid"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const userData = await request.json()
+    const body = await request.json()
+    const { farcaster_id, farcaster_username, farcaster_display_name, farcaster_pfp_url } = body
 
-    // Validate required fields
-    if (!userData.farcaster_id) {
-      return NextResponse.json({ error: "Missing required field: farcaster_id" }, { status: 400 })
-    }
-
-    // Use service role key to bypass RLS
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json(
-        {
-          error: "Missing Supabase credentials",
-          details: {
-            urlDefined: !!supabaseUrl,
-            serviceKeyDefined: !!supabaseServiceKey,
-          },
-        },
-        { status: 500 },
-      )
-    }
-
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-
-    // Check if users table exists
-    try {
-      const { error: tableCheckError } = await supabaseAdmin.from("users").select("count").limit(1)
-
-      if (
-        tableCheckError &&
-        tableCheckError.message.includes("relation") &&
-        tableCheckError.message.includes("does not exist")
-      ) {
-        // Create users table if it doesn't exist
-        const { error: createTableError } = await supabaseAdmin.rpc("execute_sql", {
-          sql: `
-            CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-            
-            CREATE TABLE IF NOT EXISTS users (
-              id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-              farcaster_id VARCHAR UNIQUE,
-              farcaster_username VARCHAR,
-              farcaster_display_name VARCHAR,
-              farcaster_pfp_url VARCHAR,
-              wallet_address VARCHAR,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            -- Disable RLS for admin operations
-            ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-          `,
-        })
-
-        if (createTableError) {
-          return NextResponse.json(
-            { error: "Failed to create users table", details: createTableError },
-            { status: 500 },
-          )
-        }
-      }
-    } catch (tableError) {
-      console.error("Error checking/creating users table:", tableError)
+    if (!farcaster_id) {
+      return NextResponse.json({ error: "Farcaster ID is required" }, { status: 400 })
     }
 
     // Check if user already exists
-    const { data: existingUser, error: fetchError } = await supabaseAdmin
+    const { data: existingUser, error: findError } = await supabaseAdmin
       .from("users")
       .select("*")
-      .eq("farcaster_id", userData.farcaster_id)
-      .maybeSingle()
+      .eq("farcaster_id", farcaster_id)
+      .single()
 
-    if (fetchError) {
-      return NextResponse.json({ error: "Error checking for existing user", details: fetchError }, { status: 500 })
+    if (findError && findError.code !== "PGRST116") {
+      // PGRST116 means no rows returned, which is expected if the user doesn't exist
+      console.error("Error checking for existing user:", findError)
+      return NextResponse.json({ error: "Failed to check for existing user" }, { status: 500 })
     }
 
     if (existingUser) {
@@ -92,16 +29,17 @@ export async function POST(request: Request) {
       const { data, error } = await supabaseAdmin
         .from("users")
         .update({
-          farcaster_username: userData.farcaster_username || "",
-          farcaster_display_name: userData.farcaster_display_name || "",
-          farcaster_pfp_url: userData.farcaster_pfp_url || "",
+          farcaster_username,
+          farcaster_display_name,
+          farcaster_pfp_url,
           updated_at: new Date().toISOString(),
         })
-        .eq("farcaster_id", userData.farcaster_id)
+        .eq("id", existingUser.id)
         .select()
 
       if (error) {
-        return NextResponse.json({ error: "Failed to update user", details: error }, { status: 500 })
+        console.error("Error updating user:", error)
+        return NextResponse.json({ error: "Failed to update user" }, { status: 500 })
       }
 
       return NextResponse.json(data[0])
@@ -110,28 +48,25 @@ export async function POST(request: Request) {
       const { data, error } = await supabaseAdmin
         .from("users")
         .insert({
-          farcaster_id: userData.farcaster_id,
-          farcaster_username: userData.farcaster_username || "",
-          farcaster_display_name: userData.farcaster_display_name || "",
-          farcaster_pfp_url: userData.farcaster_pfp_url || "",
+          id: uuidv4(),
+          farcaster_id,
+          farcaster_username,
+          farcaster_display_name,
+          farcaster_pfp_url,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .select()
 
       if (error) {
-        return NextResponse.json({ error: "Failed to create user", details: error }, { status: 500 })
+        console.error("Error creating user:", error)
+        return NextResponse.json({ error: "Failed to create user" }, { status: 500 })
       }
 
       return NextResponse.json(data[0])
     }
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: {
-          message: error.message,
-        },
-      },
-      { status: 500 },
-    )
+  } catch (error) {
+    console.error("Error in POST /api/auth/register:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
