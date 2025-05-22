@@ -4,7 +4,7 @@ import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
-import { Button } from "@/components/ui/button"
+import { UserListsDisplay } from "@/components/user-lists-display"
 
 interface UserProfileViewProps {
   onClose?: () => void
@@ -109,14 +109,10 @@ export function UserProfileView({ onClose, expanded = false, onCreateList }: Use
         </div>
       </div>
 
-      {/* Create List Button */}
-      <div className="text-center mt-2">
-        <Button
-          className="bg-black text-white hover:bg-black/80 px-4 py-2 flex items-center mx-auto"
-          onClick={onCreateList}
-        >
-          <Plus size={16} className="mr-2" /> Create New List
-        </Button>
+      {/* User's Lists */}
+      <div className="mt-4">
+        <h2 className="font-serif text-xl mb-3">My Lists</h2>
+        <UserListsDisplay onCreateList={onCreateList} />
       </div>
 
       {/* Sign Out */}

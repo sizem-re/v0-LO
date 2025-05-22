@@ -10,6 +10,7 @@ import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
 import { UserProfileView } from "./user-profile-view"
 import { CreateListModal } from "@/components/create-list-modal"
+import { UserListsDisplay } from "@/components/user-lists-display"
 
 export function Sidebar() {
   // Get miniapp context
@@ -27,6 +28,7 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showLogin, setShowLogin] = useState(false)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
+  const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
 
   // Auth context
   const { isAuthenticated } = useAuth()
@@ -91,6 +93,8 @@ export function Sidebar() {
 
   const handleListCreated = (list: { id: string; title: string }) => {
     console.log("List created:", list)
+    // Force refresh the lists
+    setListsKey((prev) => prev + 1)
     // You could add additional logic here, like showing a success message
     // or navigating to the new list
   }
@@ -262,6 +266,7 @@ export function Sidebar() {
                   onClose={() => setActiveTab("discover")}
                   expanded={true}
                   onCreateList={handleCreateList}
+                  key={listsKey}
                 />
               </div>
             ) : (
@@ -319,23 +324,7 @@ export function Sidebar() {
                   )}
 
                   {activeTab === "mylists" && (
-                    <div className="text-center py-8">
-                      {!userIsAuthenticated ? (
-                        <>
-                          <p className="mb-4">Connect with Farcaster to create and manage lists</p>
-                          <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                            Connect
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <p className="mb-4">Your lists will appear here</p>
-                          <Button className="bg-black text-white hover:bg-black/80" onClick={handleCreateList}>
-                            <Plus size={16} className="mr-1" /> Create List
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <UserListsDisplay compact={true} onCreateList={handleCreateList} key={listsKey} />
                   )}
 
                   {activeTab === "places" && (
