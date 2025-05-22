@@ -1,11 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Edit, Trash2, Plus, ExternalLink, Info } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +45,6 @@ export function ListDetailView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showListInfo, setShowListInfo] = useState(false)
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -120,7 +125,7 @@ export function ListDetailView({
 
   if (loading) {
     return (
-      <div className="p-4">
+      <div className="p-4 w-full h-full overflow-y-auto">
         <div className="flex items-center mb-4">
           <button
             className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
@@ -131,9 +136,16 @@ export function ListDetailView({
           </button>
           <Skeleton className="h-6 w-32" />
         </div>
-        <div className="space-y-4 mt-4">
+        <Skeleton className="h-4 w-24 mb-4" />
+        <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <div key={i} className="flex items-center">
+              <Skeleton className="h-12 w-12 rounded mr-3" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -142,7 +154,7 @@ export function ListDetailView({
 
   if (error) {
     return (
-      <div className="p-4">
+      <div className="p-4 w-full h-full overflow-y-auto">
         <div className="flex items-center mb-4">
           <button
             className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
@@ -165,7 +177,7 @@ export function ListDetailView({
 
   if (!list) {
     return (
-      <div className="p-4">
+      <div className="p-4 w-full h-full overflow-y-auto">
         <div className="flex items-center mb-4">
           <button
             className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
@@ -188,125 +200,101 @@ export function ListDetailView({
   const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
 
   return (
-    <div className="p-4">
-      {/* Header with minimal info */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <button
-            className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
-            onClick={onBack}
-            aria-label="Back"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <h2 className="font-serif text-xl truncate">{list.title}</h2>
-        </div>
-        <button
-          className="p-1 rounded-full hover:bg-black/5"
-          onClick={() => setShowListInfo(true)}
-          aria-label="List info"
-        >
-          <Info size={18} />
-        </button>
-      </div>
-
-      {/* Quick stats */}
-      <div className="flex items-center gap-4 mb-4 text-sm text-black/70">
-        <div className="flex items-center">
-          {getVisibilityIcon()}
-          <span className="ml-1">{list.visibility}</span>
-        </div>
-        <div className="flex items-center">
-          <MapPin size={14} className="mr-1" />
-          <span>{places.length} places</span>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-2 mb-6">
-        {isOwner && (
-          <>
-            <Button variant="outline" size="sm" className="flex-1" onClick={handleEditList}>
-              <Edit size={14} className="mr-1" /> Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={() => setShowDeleteConfirm(true)}
+    <div className="w-full h-full overflow-y-auto">
+      {/* Header */}
+      <div className="p-4 border-b border-black/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center">
+            <button
+              className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+              onClick={onBack}
+              aria-label="Back"
             >
-              <Trash2 size={14} className="mr-1" /> Delete
-            </Button>
-          </>
-        )}
-        {canAddPlaces && (
-          <Button className="flex-1 bg-black text-white hover:bg-black/80" size="sm" onClick={handleAddPlace}>
-            <Plus size={14} className="mr-1" /> Add Place
-          </Button>
-        )}
-      </div>
+              <ChevronLeft size={16} />
+            </button>
+            <h2 className="font-serif text-xl truncate">{list.title}</h2>
+          </div>
 
-      {/* Places */}
-      <h3 className="font-medium mb-3">Places</h3>
-      {places.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-black/20 rounded-md">
-          <p className="text-black/70 mb-4">No places in this list yet</p>
-          {canAddPlaces && (
-            <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
-              <Plus size={14} className="mr-1" /> Add First Place
-            </Button>
+          {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete List
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
-      ) : (
-        <div className="space-y-2">
-          {places.map((item: any) => {
-            const place = item.place || {}
-            return (
-              <div
-                key={item.id}
-                className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
-                onClick={() => onPlaceClick(place)}
-              >
-                <div className="flex items-start">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate">{place.name}</h4>
-                    {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
-                  </div>
-                  <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
-                </div>
-              </div>
-            )
-          })}
+
+        <div className="flex items-center text-sm text-black/70 mb-2">
+          <div className="flex items-center mr-4">
+            {getVisibilityIcon()}
+            <span className="ml-1">{list.visibility}</span>
+          </div>
+          <div className="flex items-center">
+            <MapPin size={14} className="mr-1" />
+            <span>{places.length} places</span>
+          </div>
+        </div>
+
+        {list.description && <p className="text-sm text-black/70 mb-2">{list.description}</p>}
+        <div className="text-xs text-black/60">Created by {ownerName}</div>
+      </div>
+
+      {/* Add Place Button */}
+      {canAddPlaces && (
+        <div className="p-4 border-b border-black/10">
+          <Button className="w-full bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
+            <Plus size={14} className="mr-1" /> Add Place
+          </Button>
         </div>
       )}
 
-      {/* List Info Dialog */}
-      <Dialog open={showListInfo} onOpenChange={setShowListInfo}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{list.title}</DialogTitle>
-            <DialogDescription>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center">
-                  {getVisibilityIcon()}
-                  <span className="ml-2">{getVisibilityText()}</span>
-                </div>
-                <div className="text-sm">Created by {ownerName}</div>
-                {list.description && (
-                  <div className="mt-4 text-sm">
-                    <p>{list.description}</p>
+      {/* Places */}
+      <div className="p-4">
+        <h3 className="font-medium mb-3">Places</h3>
+        {places.length === 0 ? (
+          <div className="text-center py-8 text-black/70">
+            <p className="mb-2">No places in this list yet</p>
+            {canAddPlaces && (
+              <Button className="bg-black text-white hover:bg-black/80 text-sm" onClick={handleAddPlace}>
+                <Plus size={14} className="mr-1" /> Add First Place
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {places.map((item: any) => {
+              const place = item.place || {}
+              return (
+                <div
+                  key={item.id}
+                  className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
+                  onClick={() => onPlaceClick(place)}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium truncate">{place.name}</h4>
+                      {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
+                    </div>
+                    <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
                   </div>
-                )}
-                <div className="mt-4 text-sm">
-                  <p>
-                    <strong>{places.length}</strong> places in this list
-                  </p>
                 </div>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

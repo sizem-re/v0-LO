@@ -105,14 +105,14 @@ export default function MapPage() {
   }, [places, router])
 
   return (
-    <div className="grid grid-cols-[auto_1fr] h-screen w-screen overflow-hidden">
-      {/* Sidebar */}
-      <div className="h-full" style={{ width: "280px" }}>
+    <div className="fixed inset-0 flex flex-row overflow-hidden">
+      {/* Sidebar - absolutely positioned to prevent layout issues */}
+      <div className="relative z-10" style={{ maxWidth: "320px" }}>
         <Sidebar />
       </div>
 
-      {/* Map container */}
-      <div className="h-full w-full">
+      {/* Map container - takes remaining space */}
+      <div className="flex-1 relative z-0">
         <MapComponent places={filteredPlaces} onPlaceSelect={handlePlaceSelect} />
       </div>
 
