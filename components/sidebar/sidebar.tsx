@@ -153,10 +153,7 @@ export function Sidebar() {
   // Collapsed sidebar view
   if (isCollapsed) {
     return (
-      <div
-        className="bg-white h-full border-r border-black/10 flex flex-col items-center py-4 transition-all duration-300 ease-in-out"
-        style={{ width: isMobile || isMiniApp ? "40px" : "48px" }}
-      >
+      <div className="bg-white h-full border-r border-black/10 flex flex-col items-center py-4 w-12">
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
           <h1 className="font-serif text-xl font-bold">LO</h1>
@@ -241,14 +238,7 @@ export function Sidebar() {
   // Expanded sidebar view
   return (
     <>
-      <div
-        ref={sidebarRef}
-        className="bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
-        style={{
-          width: isMobile || isMiniApp ? "85vw" : "320px",
-          maxWidth: "320px",
-        }}
-      >
+      <div ref={sidebarRef} className="bg-white h-full border-r border-black/10 flex flex-col w-full overflow-hidden">
         {/* Header with collapse button and profile button */}
         <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
           <h1 className="font-serif text-xl">LO</h1>
