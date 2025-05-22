@@ -16,7 +16,7 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ),
 })
 
-// Mock data for places in case API fails
+// Mock data for places
 const MOCK_PLACES: Place[] = [
   {
     id: "p1",
@@ -25,39 +25,36 @@ const MOCK_PLACES: Place[] = [
     address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
     coordinates: { lat: 47.2529, lng: -122.4443 },
     description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
+    image: "/placeholder.svg?height=200&width=300",
+  },
+  {
+    id: "p2",
+    name: "Vien Dong",
+    type: "Vietnamese Restaurant",
+    address: "3801 Yakima Ave, Tacoma, WA 98418",
+    coordinates: { lat: 47.2209, lng: -122.4634 },
+    description: "Casual Vietnamese spot serving pho, rice plates & other traditional dishes in a simple setting.",
+    image: "/placeholder.svg?height=200&width=300",
+  },
+  {
+    id: "p3",
+    name: "Burger Seoul",
+    type: "Korean Fusion",
+    address: "1750 S Prospect St, Tacoma, WA 98405",
+    coordinates: { lat: 47.241, lng: -122.4556 },
+    description: "Korean-inspired burgers and sides with unique flavors.",
+    image: "/placeholder.svg?height=200&width=300",
   },
 ]
 
-export default function HomePage() {
+export default function MapPage() {
   const [places, setPlaces] = useState<Place[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    // Fetch places from API
-    const fetchPlaces = async () => {
-      try {
-        const response = await fetch("/api/places")
-        if (response.ok) {
-          const data = await response.json()
-          setPlaces(data.length > 0 ? data : MOCK_PLACES)
-        } else {
-          console.error("Error fetching places:", response.statusText)
-          setPlaces(MOCK_PLACES)
-          setError("Failed to fetch places")
-        }
-      } catch (error) {
-        console.error("Error fetching places:", error)
-        setPlaces(MOCK_PLACES)
-        setError("Failed to fetch places")
-      } finally {
-        setIsLoading(false)
-        setIsMounted(true)
-      }
-    }
-
-    fetchPlaces()
+    // In a real app, you would fetch places from an API
+    setPlaces(MOCK_PLACES)
+    setIsMounted(true)
   }, [])
 
   // Don't render until client-side to avoid hydration issues
@@ -79,13 +76,6 @@ export default function HomePage() {
       <div className="absolute top-0 left-0 h-full z-50">
         <SidebarWrapper />
       </div>
-
-      {/* Error message if needed */}
-      {error && (
-        <div className="absolute top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
-          <p>{error}</p>
-        </div>
-      )}
     </div>
   )
 }
