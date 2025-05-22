@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@farcaster/frame-sdk':
         specifier: latest
-        version: 0.0.48(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
+        version: 0.0.49(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.9.1(react-hook-form@7.54.1(react@19.0.0))
@@ -358,8 +358,8 @@ packages:
   '@farcaster/frame-core@0.0.40':
     resolution: {integrity: sha512-FfuaZKwsIKAFi2IcPbMqTGz670uEkbrVuq3647XTBPkWqY7fFLJzx3jh66ufPO0arXThjzv+lrp7uSMUQ1gW3g==}
 
-  '@farcaster/frame-sdk@0.0.48':
-    resolution: {integrity: sha512-y7TWPf8PRdnIxQmBk0TGfC7WbGFAMdXo2vhPEMRb15YaQtLdGb2ZLEz0kPJA99JXbYm2H6mpEWepRgalmVPdDA==}
+  '@farcaster/frame-sdk@0.0.49':
+    resolution: {integrity: sha512-JbkVl86KCH65lUXcRXILIiFZfAixF54aoejKZOjKu6uykJGLlgEDtYnbvt4KLBoJqZiSyD8CBO9sKIXMZNpsbw==}
 
   '@farcaster/quick-auth@0.0.5':
     resolution: {integrity: sha512-Z8hWz/7c33zlmII2AJHja/Wz0C03mm2o+CEBtBylmiun1wC4FMgx1Fal699VQvBUG1lpcJ662WxuRNxKogktDw==}
@@ -3484,7 +3484,7 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@farcaster/frame-sdk@0.0.48(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
+  '@farcaster/frame-sdk@0.0.49(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)(zod@3.24.1)':
     dependencies:
       '@farcaster/frame-core': 0.0.40(bufferutil@4.0.9)(typescript@5.0.2)(utf-8-validate@5.0.10)
       '@farcaster/quick-auth': 0.0.5(typescript@5.0.2)
