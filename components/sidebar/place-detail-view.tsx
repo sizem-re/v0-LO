@@ -1,7 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, MapPin, Globe, User, Edit, ExternalLink, Plus, Loader2, ListIcon } from "lucide-react"
+import {
+  ChevronLeft,
+  MapPin,
+  Globe,
+  User,
+  Edit,
+  ExternalLink,
+  Plus,
+  Loader2,
+  ListIcon,
+  AlertCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -18,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface PlaceDetailViewProps {
   place: any
@@ -45,6 +57,7 @@ export function PlaceDetailView({
   const [showEditModal, setShowEditModal] = useState(false)
   const [connectedLists, setConnectedLists] = useState<any[]>([])
   const [isLoadingLists, setIsLoadingLists] = useState(false)
+  const [listsError, setListsError] = useState<string | null>(null)
   const [userLists, setUserLists] = useState<any[]>([])
   const [isLoadingUserLists, setIsLoadingUserLists] = useState(false)
   const [listSearchQuery, setListSearchQuery] = useState("")
@@ -53,6 +66,7 @@ export function PlaceDetailView({
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
   const [addedByUser, setAddedByUser] = useState<any>(null)
   const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
+  const [userError, setUserError] = useState<string | null>(null)
   const [currentList, setCurrentList] = useState<any>(null)
 
   // Center map on the place when component mounts
@@ -92,6 +106,7 @@ export function PlaceDetailView({
 
       try {
         setIsLoadingAddedBy(true)
+        setUserError(null)
         console.log("Fetching user with ID:", userId)
 
         const response = await fetch(`/api/users/${userId}`)
@@ -102,7 +117,9 @@ export function PlaceDetailView({
             setAddedByUser({ display_name: "Unknown user" })
             return
           }
-          throw new Error(`Failed to fetch user: ${response.status}`)
+
+          const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+          throw new Error(errorData.error || `Failed to fetch user: ${response.status}`)
         }
 
         const userData = await response.json()
@@ -112,6 +129,7 @@ export function PlaceDetailView({
         console.error("Error fetching user who added the place:", error)
         // Set a fallback user object
         setAddedByUser({ display_name: "Unknown user" })
+        setUserError(error instanceof Error ? error.message : "Failed to load user data")
       } finally {
         setIsLoadingAddedBy(false)
       }
@@ -127,14 +145,17 @@ export function PlaceDetailView({
 
       try {
         setIsLoadingLists(true)
+        setListsError(null)
 
         // First, get all lists that contain this place
         const response = await fetch(`/api/places/${place.id}/lists`)
-        let lists = []
 
-        if (response.ok) {
-          lists = await response.json()
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+          throw new Error(errorData.error || `Failed to fetch lists: ${response.status}`)
         }
+
+        const lists = await response.json()
 
         // Make sure the current list is included
         if (!lists.some((list: any) => list.id === listId)) {
@@ -149,6 +170,7 @@ export function PlaceDetailView({
         setConnectedLists(lists)
       } catch (error) {
         console.error("Error fetching connected lists:", error)
+        setListsError(error instanceof Error ? error.message : "Failed to load lists data")
         toast({
           title: "Error",
           description: "Failed to load lists containing this place",
@@ -349,6 +371,19 @@ export function PlaceDetailView({
     }
   }
 
+  const handleRetryLists = () => {
+    setListsError(null)
+    // This will trigger the useEffect to fetch lists again
+    const placeId = place?.id
+    if (placeId) {
+      // Create a new object to force the useEffect to run
+      const updatedPlace = { ...place, id: placeId }
+      if (onPlaceUpdated) {
+        onPlaceUpdated(updatedPlace)
+      }
+    }
+  }
+
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
@@ -455,6 +490,13 @@ export function PlaceDetailView({
           </div>
         )}
 
+        {userError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Error loading user data: {userError}</AlertDescription>
+          </Alert>
+        )}
+
         {place.notes && (
           <>
             <Separator className="my-4" />
@@ -474,6 +516,16 @@ export function PlaceDetailView({
             <div className="flex justify-center py-2">
               <Loader2 className="h-5 w-5 animate-spin text-black/50" />
             </div>
+          ) : listsError ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col">
+                <span>Error loading lists: {listsError}</span>
+                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryLists}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : connectedLists.length > 0 ? (
             <div className="space-y-2">
               {connectedLists.map((list) => (
