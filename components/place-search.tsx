@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import {
   Search,
-  Link,
+  LinkIcon,
   Loader2,
   MapPin,
   Building,
@@ -18,33 +18,53 @@ import {
   Landmark,
   Hotel,
   School,
+  AlertCircle,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { debounce } from "lodash"
+import debounce from "lodash/debounce"
+
+interface PlaceCoordinates {
+  lat: number
+  lng: number
+}
 
 interface Place {
   id: string
   name: string
   address: string
+  coordinates: PlaceCoordinates
   type: string
-  lat: number
-  lng: number
   url?: string
+  description?: string
+  image?: string
+  website?: string
+}
+
+interface AutocompleteResponse {
+  places: Place[]
+  error?: string
+}
+
+interface ExtractUrlResponse {
+  place?: Place
+  error?: string
 }
 
 interface PlaceSearchProps {
   onPlaceSelect: (place: Place) => void
   placeholder?: string
   className?: string
+  initialValue?: string
 }
 
 export function PlaceSearch({
   onPlaceSelect,
   placeholder = "Search for a place or paste a URL",
   className,
+  initialValue = "",
 }: PlaceSearchProps) {
-  const [inputValue, setInputValue] = useState("")
+  const [inputValue, setInputValue] = useState(initialValue)
   const [isLoading, setIsLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Place[]>([])
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -53,13 +73,14 @@ export function PlaceSearch({
 
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Detect if input is a URL
   const detectInputType = (value: string): "text" | "url" => {
-    return value.trim().match(/^https?:\/\//i) ? "url" : "text"
+    const urlRegex =
+      /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/i
+    return urlRegex.test(value.trim()) ? "url" : "text"
   }
 
-  // Get icon for place type
   const getPlaceTypeIcon = (type: string) => {
     const lowerType = type.toLowerCase()
 
@@ -86,7 +107,6 @@ export function PlaceSearch({
     }
   }
 
-  // Search for places using the autocomplete API
   const searchPlaces = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSuggestions([])
@@ -94,61 +114,106 @@ export function PlaceSearch({
       return
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    abortControllerRef.current = new AbortController()
+    const { signal } = abortControllerRef.current
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/places/autocomplete?query=${encodeURIComponent(query)}`)
+      const response = await fetch(`/api/places/autocomplete?query=${encodeURIComponent(query)}`, {
+        signal,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to search places")
+        throw new Error(errorData.error || "Failed to search places")
       }
 
-      const data = await response.json()
-      setSuggestions(data)
+      const data: AutocompleteResponse = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      setSuggestions(data.places || [])
     } catch (err) {
-      console.error("Error searching places:", err)
-      setError(err instanceof Error ? err.message : "Failed to search places")
-      setSuggestions([])
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Error searching places:", err)
+        setError(err.message || "Failed to search places")
+        setSuggestions([])
+      }
     } finally {
-      setIsLoading(false)
+      if (!signal.aborted) {
+        setIsLoading(false)
+      }
     }
   }, [])
 
-  // Extract place from URL
   const extractPlaceFromUrl = useCallback(async (url: string) => {
     if (!url.trim()) return
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    abortControllerRef.current = new AbortController()
+    const { signal } = abortControllerRef.current
 
     setIsLoading(true)
     setError(null)
 
     try {
+      if (!/^https?:\/\//i.test(url)) {
+        url = `https://${url}`
+      }
+
       const response = await fetch("/api/places/extract-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url }),
+        signal,
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to extract place from URL")
+        throw new Error(errorData.error || "Failed to extract place from URL")
       }
 
-      const data = await response.json()
-      setSuggestions(data.length ? [data[0]] : [])
+      const data: ExtractUrlResponse = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      if (data.place) {
+        setSuggestions([data.place])
+      } else {
+        setSuggestions([])
+        setError("No place information found in this URL")
+      }
     } catch (err) {
-      console.error("Error extracting place from URL:", err)
-      setError(err instanceof Error ? err.message : "Failed to extract place from URL")
-      setSuggestions([])
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Error extracting place from URL:", err)
+        setError(err.message || "Failed to extract place from URL")
+        setSuggestions([])
+      }
     } finally {
-      setIsLoading(false)
+      if (!signal.aborted) {
+        setIsLoading(false)
+      }
     }
   }, [])
 
-  // Debounced search function
   const debouncedSearch = useRef(
     debounce((query: string, type: "text" | "url") => {
       if (type === "text") {
@@ -156,10 +221,9 @@ export function PlaceSearch({
       } else {
         extractPlaceFromUrl(query)
       }
-    }, 500),
+    }, 300),
   ).current
 
-  // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setInputValue(value)
@@ -179,7 +243,6 @@ export function PlaceSearch({
     }
   }
 
-  // Handle place selection
   const handlePlaceSelect = (place: Place) => {
     onPlaceSelect(place)
     setInputValue("")
@@ -188,7 +251,6 @@ export function PlaceSearch({
     setError(null)
   }
 
-  // Handle clicks outside the dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -207,12 +269,20 @@ export function PlaceSearch({
     }
   }, [])
 
-  // Clean up debounce on unmount
   useEffect(() => {
     return () => {
       debouncedSearch.cancel()
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [debouncedSearch])
+
+  useEffect(() => {
+    if (initialValue) {
+      setInputType(detectInputType(initialValue))
+    }
+  }, [initialValue])
 
   return (
     <div className={cn("relative w-full", className)}>
@@ -224,18 +294,28 @@ export function PlaceSearch({
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => inputValue.trim() && setIsDropdownOpen(true)}
-          className="pr-10"
+          className={cn("pr-10", error ? "border-red-300 focus-visible:ring-red-200" : "")}
+          aria-invalid={error ? "true" : "false"}
+          aria-describedby={error ? "place-search-error" : undefined}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
           {isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          ) : error ? (
+            <AlertCircle className="h-5 w-5 text-red-500" />
           ) : inputType === "url" ? (
-            <Link className="h-5 w-5 text-gray-500" />
+            <LinkIcon className="h-5 w-5 text-gray-500" />
           ) : (
             <Search className="h-5 w-5 text-gray-500" />
           )}
         </div>
       </div>
+
+      {error && (
+        <div id="place-search-error" className="mt-1 text-xs text-red-500">
+          {error}
+        </div>
+      )}
 
       {isDropdownOpen && (
         <div
@@ -247,22 +327,18 @@ export function PlaceSearch({
               <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
               {inputType === "url" ? "Extracting place info..." : "Searching places..."}
             </div>
-          ) : error ? (
-            <div className="p-4 text-center text-red-500">
-              <p className="text-sm">{error}</p>
-              <p className="text-xs mt-1">Try a different search or URL</p>
-            </div>
           ) : suggestions.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               {inputType === "url" ? "Couldn't extract place from this URL" : "No places found"}
+              <p className="text-xs mt-1">Try a different {inputType === "url" ? "URL" : "search term"}</p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-gray-100" role="listbox">
               {suggestions.map((place) => (
-                <li key={place.id}>
+                <li key={place.id} role="option">
                   <button
                     type="button"
-                    className="w-full text-left p-3 hover:bg-gray-50 flex items-start"
+                    className="w-full text-left p-3 hover:bg-gray-50 flex items-start transition-colors"
                     onClick={() => handlePlaceSelect(place)}
                   >
                     <MapPin className="h-5 w-5 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
