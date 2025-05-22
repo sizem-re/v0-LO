@@ -1,7 +1,20 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronLeft, MapPin, Globe, Calendar, Edit, Trash2, ExternalLink, Share2, Heart } from "lucide-react"
+import { useState, useEffect } from "react"
+import {
+  ChevronLeft,
+  MapPin,
+  Globe,
+  Calendar,
+  Edit,
+  Trash2,
+  ExternalLink,
+  Share2,
+  Heart,
+  Plus,
+  Loader2,
+  ListIcon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,9 +29,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { EditPlaceModal } from "./edit-place-modal"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 
 interface PlaceDetailViewProps {
   place: any
@@ -41,13 +56,94 @@ export function PlaceDetailView({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [connectedLists, setConnectedLists] = useState<any[]>([])
+  const [isLoadingLists, setIsLoadingLists] = useState(false)
+  const [userLists, setUserLists] = useState<any[]>([])
+  const [isLoadingUserLists, setIsLoadingUserLists] = useState(false)
+  const [listSearchQuery, setListSearchQuery] = useState("")
+  const [filteredLists, setFilteredLists] = useState<any[]>([])
+  const [isAddingToList, setIsAddingToList] = useState(false)
 
   // Center map on the place when component mounts
-  useState(() => {
+  useEffect(() => {
     if (place?.coordinates && onCenterMap) {
       onCenterMap(place.coordinates)
     }
-  })
+  }, [place, onCenterMap])
+
+  // Fetch lists that contain this place
+  useEffect(() => {
+    const fetchConnectedLists = async () => {
+      if (!place?.id) return
+
+      try {
+        setIsLoadingLists(true)
+        const response = await fetch(`/api/places/${place.id}/lists`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch connected lists: ${response.status}`)
+        }
+
+        const data = await response.json()
+        setConnectedLists(data)
+      } catch (error) {
+        console.error("Error fetching connected lists:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load lists containing this place",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingLists(false)
+      }
+    }
+
+    fetchConnectedLists()
+  }, [place?.id])
+
+  // Fetch user's lists for adding the place to a new list
+  useEffect(() => {
+    const fetchUserLists = async () => {
+      if (!dbUser?.id) return
+
+      try {
+        setIsLoadingUserLists(true)
+        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user lists: ${response.status}`)
+        }
+
+        const data = await response.json()
+        // Filter out lists that already contain this place
+        const filteredData = data.filter(
+          (list: any) => !connectedLists.some((connectedList) => connectedList.id === list.id),
+        )
+        setUserLists(filteredData)
+        setFilteredLists(filteredData)
+      } catch (error) {
+        console.error("Error fetching user lists:", error)
+      } finally {
+        setIsLoadingUserLists(false)
+      }
+    }
+
+    if (connectedLists.length > 0) {
+      fetchUserLists()
+    }
+  }, [dbUser?.id, connectedLists])
+
+  // Filter lists based on search query
+  useEffect(() => {
+    if (!listSearchQuery.trim()) {
+      setFilteredLists(userLists)
+      return
+    }
+
+    const query = listSearchQuery.toLowerCase()
+    const filtered = userLists.filter((list) => list.title.toLowerCase().includes(query))
+    setFilteredLists(filtered)
+  }, [listSearchQuery, userLists])
 
   if (!place) {
     return (
@@ -82,7 +178,7 @@ export function PlaceDetailView({
       })
     : null
 
-  const isOwner = dbUser?.id === place.added_by_user_id
+  const isOwner = dbUser?.id === place.added_by
 
   const handleEditPlace = () => {
     setShowEditModal(true)
@@ -103,15 +199,8 @@ export function PlaceDetailView({
       setIsDeleting(true)
       console.log(`Deleting place with ID: ${place.id} from list: ${listId}`)
 
-      const response = await fetch(`/api/list-places`, {
+      const response = await fetch(`/api/list-places?id=${place.list_place_id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          listId,
-          placeId: place.id,
-        }),
       })
 
       if (!response.ok) {
@@ -165,6 +254,71 @@ export function PlaceDetailView({
     }
   }
 
+  const handleAddToList = async (listId: string) => {
+    if (!dbUser?.id) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add this place to a list.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsAddingToList(true)
+
+      const response = await fetch("/api/list-places", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          list_id: listId,
+          place_id: place.id,
+          added_by: dbUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+
+        // Handle duplicate error gracefully
+        if (response.status === 409) {
+          toast({
+            title: "Already in list",
+            description: errorData.error || "This place is already in the selected list.",
+          })
+          return
+        }
+
+        throw new Error(errorData.error || "Failed to add place to list")
+      }
+
+      const result = await response.json()
+
+      // Update the connected lists
+      setConnectedLists([...connectedLists, userLists.find((list) => list.id === listId)])
+
+      // Remove the list from available lists
+      setUserLists(userLists.filter((list) => list.id !== listId))
+      setFilteredLists(filteredLists.filter((list) => list.id !== listId))
+
+      toast({
+        title: "Added to list",
+        description: `"${place.name}" has been added to the list.`,
+      })
+    } catch (err) {
+      console.error("Error adding place to list:", err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to add place to list",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAddingToList(false)
+    }
+  }
+
   return (
     <div className="w-full h-full overflow-y-auto">
       {/* Header */}
@@ -210,6 +364,7 @@ export function PlaceDetailView({
           >
             <MapPin size={14} /> Map
           </Button>
+
           {isOwner && (
             <>
               <Button
@@ -232,7 +387,9 @@ export function PlaceDetailView({
               </Button>
             </>
           )}
+
           <div className="flex-grow"></div>
+
           <Button
             variant="outline"
             size="sm"
@@ -242,6 +399,7 @@ export function PlaceDetailView({
           >
             <Share2 size={14} /> Share
           </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -282,16 +440,99 @@ export function PlaceDetailView({
           </div>
         )}
 
-        <Separator className="my-4" />
+        {place.notes && (
+          <>
+            <Separator className="my-4" />
+            <div className="mb-4">
+              <h3 className="font-medium mb-2">Notes</h3>
+              <p className="text-sm text-black/80 whitespace-pre-wrap">{place.notes}</p>
+            </div>
+          </>
+        )}
 
-        {place.notes ? (
+        {/* Lists containing this place */}
+        <Separator className="my-4" />
+        <div className="mb-4">
+          <h3 className="font-medium mb-2">In Lists</h3>
+
+          {isLoadingLists ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-5 w-5 animate-spin text-black/50" />
+            </div>
+          ) : connectedLists.length > 0 ? (
+            <div className="space-y-2">
+              {connectedLists.map((list) => (
+                <Card key={list.id} className="overflow-hidden">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ListIcon size={16} className="mr-2 text-black/60" />
+                      <div>
+                        <p className="font-medium text-sm">{list.title}</p>
+                        <p className="text-xs text-black/60">
+                          {list.place_count} {list.place_count === 1 ? "place" : "places"}
+                        </p>
+                      </div>
+                    </div>
+                    {list.id === listId && (
+                      <Badge variant="outline" className="text-xs">
+                        Current
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-black/60 text-center py-2">This place is not in any lists yet.</p>
+          )}
+        </div>
+
+        {/* Add to another list */}
+        {dbUser && userLists.length > 0 && (
           <div className="mb-4">
-            <h3 className="font-medium mb-2">Notes</h3>
-            <p className="text-sm text-black/80 whitespace-pre-wrap">{place.notes}</p>
-          </div>
-        ) : (
-          <div className="text-center py-4 text-black/60">
-            <p className="text-sm">No notes for this place</p>
+            <h3 className="font-medium mb-2">Add to Another List</h3>
+
+            <div className="mb-3">
+              <Input
+                type="text"
+                placeholder="Search your lists..."
+                value={listSearchQuery}
+                onChange={(e) => setListSearchQuery(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            {isLoadingUserLists ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-black/50" />
+              </div>
+            ) : filteredLists.length > 0 ? (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {filteredLists.map((list) => (
+                  <Card key={list.id} className="overflow-hidden">
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <ListIcon size={16} className="mr-2 text-black/60" />
+                        <p className="font-medium text-sm">{list.title}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        onClick={() => handleAddToList(list.id)}
+                        disabled={isAddingToList}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-black/60 text-center py-2">
+                {listSearchQuery ? "No matching lists found" : "No other lists available"}
+              </p>
+            )}
           </div>
         )}
       </div>
