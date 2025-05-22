@@ -12,7 +12,8 @@ import {
   Plus,
   Loader2,
   ListIcon,
-  MoreHorizontal,
+  X,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -32,7 +33,6 @@ import { Separator } from "@/components/ui/separator"
 import { EditPlaceModal } from "./edit-place-modal"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -75,6 +75,7 @@ export function PlaceDetailView({
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
   const [addedByUser, setAddedByUser] = useState<any>(null)
   const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
 
   // Center map on the place when component mounts
   useEffect(() => {
@@ -367,40 +368,40 @@ export function PlaceDetailView({
     }
   }
 
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode)
+  }
+
   return (
-    <div className="w-full h-full overflow-y-auto">
+    <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-black/10">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center">
             <button
               className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
-              onClick={onBack}
-              aria-label="Back"
+              onClick={isEditMode ? toggleEditMode : onBack}
+              aria-label={isEditMode ? "Cancel" : "Back"}
             >
-              <ChevronLeft size={16} />
+              {isEditMode ? <X size={16} /> : <ChevronLeft size={16} />}
             </button>
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
 
-          {/* Actions dropdown menu - only show if user can edit */}
-          {canEdit && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="text-red-600 focus:text-red-600"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Remove from list
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {/* Edit mode toggle button */}
+          {canEdit && !isEditMode && (
+            <Button variant="ghost" size="sm" onClick={toggleEditMode} className="h-8 px-2">
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+
+          {/* Done button when in edit mode */}
+          {isEditMode && (
+            <Button variant="ghost" size="sm" onClick={toggleEditMode} className="h-8 px-2">
+              <Check className="h-4 w-4 mr-1" />
+              Done
+            </Button>
           )}
         </div>
       </div>
@@ -418,7 +419,7 @@ export function PlaceDetailView({
       </div>
 
       {/* Place Details */}
-      <div className="p-4">
+      <div className="p-4 flex-grow">
         <div className="flex flex-wrap gap-2 mb-4">
           <Button
             variant="outline"
@@ -430,15 +431,15 @@ export function PlaceDetailView({
             <MapPin size={14} /> Map
           </Button>
 
-          {canEdit && (
+          {canEdit && !isEditMode && (
             <Button
               variant="outline"
               size="sm"
               className="flex items-center gap-1"
               onClick={handleEditPlace}
-              title="Edit place"
+              title="Edit place details"
             >
-              <Edit size={14} /> Edit
+              <Edit size={14} /> Edit Details
             </Button>
           )}
 
@@ -536,6 +537,20 @@ export function PlaceDetailView({
           )}
         </div>
       </div>
+
+      {/* Remove button at the bottom - only visible in edit mode */}
+      {isEditMode && canEdit && (
+        <div className="p-4 border-t border-black/10 mt-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full flex items-center justify-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 size={14} /> Remove from list
+          </Button>
+        </div>
+      )}
 
       {/* Edit Place Modal */}
       {showEditModal && (
