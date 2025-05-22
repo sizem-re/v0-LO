@@ -1,8 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
+
+import type React from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Globe, Lock, ListIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,12 @@ function CreateListPage() {
     visibility: "private" as ListPrivacy,
   })
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!dbUser?.id) {
+      router.push("/")
+    }
+  }, [dbUser, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target

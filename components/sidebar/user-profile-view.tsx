@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 interface UserProfileViewProps {
   onClose?: () => void
   expanded?: boolean
+  onCreateList?: () => void
 }
 
-export function UserProfileView({ onClose, expanded = false }: UserProfileViewProps) {
+export function UserProfileView({ onClose, expanded = false, onCreateList }: UserProfileViewProps) {
   const router = useRouter()
   const { user } = useNeynarContext()
 
@@ -65,14 +66,13 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
             <span>My Lists</span>
           </Link>
 
-          <Link
-            href="/lists/create"
+          <button
             className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
-            onClick={onClose}
+            onClick={onCreateList}
           >
             <Plus size={16} />
             <span>Create List</span>
-          </Link>
+          </button>
 
           {/* Use NeynarAuthButton directly for sign out */}
           <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
@@ -113,9 +113,9 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
       <div className="text-center mt-2">
         <Button
           className="bg-black text-white hover:bg-black/80 px-4 py-2 flex items-center mx-auto"
-          onClick={() => router.push("/lists/create")}
+          onClick={onCreateList}
         >
-          <Plus size={16} className="mr-2" /> Create List
+          <Plus size={16} className="mr-2" /> Create New List
         </Button>
       </div>
 

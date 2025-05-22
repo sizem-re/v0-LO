@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
 import { UserProfileView } from "./user-profile-view"
-import { useRouter } from "next/navigation"
+import { CreateListModal } from "@/components/create-list-modal"
 
 export function Sidebar() {
-  const router = useRouter()
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
 
@@ -27,6 +26,7 @@ export function Sidebar() {
   const [activeTab, setActiveTab] = useState("discover")
   const [searchQuery, setSearchQuery] = useState("")
   const [showLogin, setShowLogin] = useState(false)
+  const [showCreateListModal, setShowCreateListModal] = useState(false)
 
   // Auth context
   const { isAuthenticated } = useAuth()
@@ -86,7 +86,13 @@ export function Sidebar() {
   }
 
   const handleCreateList = () => {
-    router.push("/lists/create")
+    setShowCreateListModal(true)
+  }
+
+  const handleListCreated = (list: { id: string; title: string }) => {
+    console.log("List created:", list)
+    // You could add additional logic here, like showing a success message
+    // or navigating to the new list
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -193,152 +199,168 @@ export function Sidebar() {
 
   // Expanded sidebar view
   return (
-    <div
-      ref={sidebarRef}
-      className={`bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out ${
-        isMobile || isMiniApp ? "w-[85vw] max-w-[320px] shadow-md" : "w-80"
-      }`}
-    >
-      {/* Header with collapse button and profile button */}
-      <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
-        <h1 className="font-serif text-xl">LO</h1>
-        <div className="flex items-center gap-2">
-          {/* Profile button in header */}
-          {userIsAuthenticated ? (
-            <button
-              className={`p-1 hover:bg-gray-100 rounded-full ${activeTab === "profile" ? "bg-gray-100" : ""}`}
-              onClick={handleProfileClick}
-              aria-label="Profile"
-            >
-              {user?.pfp_url ? (
-                <img
-                  src={user.pfp_url || "/placeholder.svg"}
-                  alt="Profile"
-                  className="w-6 h-6 rounded-full border border-black/10"
-                />
-              ) : (
+    <>
+      <div
+        ref={sidebarRef}
+        className={`bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out ${
+          isMobile || isMiniApp ? "w-[85vw] max-w-[320px] shadow-md" : "w-80"
+        }`}
+      >
+        {/* Header with collapse button and profile button */}
+        <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
+          <h1 className="font-serif text-xl">LO</h1>
+          <div className="flex items-center gap-2">
+            {/* Profile button in header */}
+            {userIsAuthenticated ? (
+              <button
+                className={`p-1 hover:bg-gray-100 rounded-full ${activeTab === "profile" ? "bg-gray-100" : ""}`}
+                onClick={handleProfileClick}
+                aria-label="Profile"
+              >
+                {user?.pfp_url ? (
+                  <img
+                    src={user.pfp_url || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-6 h-6 rounded-full border border-black/10"
+                  />
+                ) : (
+                  <User size={18} />
+                )}
+              </button>
+            ) : (
+              <button
+                className="p-1 hover:bg-gray-100 rounded-full"
+                onClick={() => setShowLogin(true)}
+                aria-label="Sign In"
+              >
                 <User size={18} />
-              )}
-            </button>
-          ) : (
+              </button>
+            )}
             <button
               className="p-1 hover:bg-gray-100 rounded-full"
-              onClick={() => setShowLogin(true)}
-              aria-label="Sign In"
+              onClick={() => setIsCollapsed(true)}
+              aria-label="Collapse sidebar"
             >
-              <User size={18} />
+              <ChevronLeft size={18} />
             </button>
-          )}
-          <button
-            className="p-1 hover:bg-gray-100 rounded-full"
-            onClick={() => setIsCollapsed(true)}
-            aria-label="Collapse sidebar"
-          >
-            <ChevronLeft size={18} />
-          </button>
+          </div>
         </div>
+
+        {/* Content based on what's being viewed */}
+        {showLogin ? (
+          <LoginView
+            onBack={() => setShowLogin(false)}
+            onLoginSuccess={() => {
+              setShowLogin(false)
+            }}
+          />
+        ) : (
+          <>
+            {activeTab === "profile" ? (
+              <div className="flex-grow overflow-y-auto">
+                <UserProfileView
+                  onClose={() => setActiveTab("discover")}
+                  expanded={true}
+                  onCreateList={handleCreateList}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Tabs */}
+                <div className="flex border-b border-black/10">
+                  <button
+                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                    onClick={() => handleTabClick("discover")}
+                  >
+                    Discover
+                  </button>
+                  <button
+                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                    onClick={() => handleTabClick("mylists")}
+                  >
+                    My Lists
+                  </button>
+                  <button
+                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                    onClick={() => handleTabClick("places")}
+                  >
+                    Places
+                  </button>
+                </div>
+
+                {/* Search bar */}
+                <div className="px-4 pt-3 pb-2">
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                      placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+                  </div>
+                </div>
+
+                {/* Content based on active tab */}
+                <div className="flex-grow overflow-y-auto p-4">
+                  {activeTab === "discover" && (
+                    <div className="text-center py-8">
+                      <p>Discover places and lists from the community.</p>
+                      {!userIsAuthenticated && (
+                        <Button
+                          className="mt-4 bg-black text-white hover:bg-black/80"
+                          onClick={() => setShowLogin(true)}
+                        >
+                          Connect to get started
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === "mylists" && (
+                    <div className="text-center py-8">
+                      {!userIsAuthenticated ? (
+                        <>
+                          <p className="mb-4">Connect with Farcaster to create and manage lists</p>
+                          <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
+                            Connect
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mb-4">Your lists will appear here</p>
+                          <Button className="bg-black text-white hover:bg-black/80" onClick={handleCreateList}>
+                            <Plus size={16} className="mr-1" /> Create List
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === "places" && (
+                    <div className="text-center py-8">
+                      <p className="mb-4">Explore places on the map</p>
+                      {userIsAuthenticated && (
+                        <Button className="bg-black text-white hover:bg-black/80">
+                          <Plus size={16} className="mr-1" /> Add Place
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Content based on what's being viewed */}
-      {showLogin ? (
-        <LoginView
-          onBack={() => setShowLogin(false)}
-          onLoginSuccess={() => {
-            setShowLogin(false)
-          }}
-        />
-      ) : (
-        <>
-          {activeTab === "profile" ? (
-            <div className="flex-grow overflow-y-auto">
-              <UserProfileView onClose={() => setActiveTab("discover")} expanded={true} />
-            </div>
-          ) : (
-            <>
-              {/* Tabs */}
-              <div className="flex border-b border-black/10">
-                <button
-                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                  onClick={() => handleTabClick("discover")}
-                >
-                  Discover
-                </button>
-                <button
-                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                  onClick={() => handleTabClick("mylists")}
-                >
-                  My Lists
-                </button>
-                <button
-                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                  onClick={() => handleTabClick("places")}
-                >
-                  Places
-                </button>
-              </div>
-
-              {/* Search bar */}
-              <div className="px-4 pt-3 pb-2">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-                    placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
-                </div>
-              </div>
-
-              {/* Content based on active tab */}
-              <div className="flex-grow overflow-y-auto p-4">
-                {activeTab === "discover" && (
-                  <div className="text-center py-8">
-                    <p>Discover places and lists from the community.</p>
-                    {!userIsAuthenticated && (
-                      <Button className="mt-4 bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                        Connect to get started
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === "mylists" && (
-                  <div className="text-center py-8">
-                    {!userIsAuthenticated ? (
-                      <>
-                        <p className="mb-4">Connect with Farcaster to create and manage lists</p>
-                        <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                          Connect
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="mb-4">Your lists will appear here</p>
-                        <Button className="bg-black text-white hover:bg-black/80" onClick={handleCreateList}>
-                          <Plus size={16} className="mr-1" /> Create List
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === "places" && (
-                  <div className="text-center py-8">
-                    <p className="mb-4">Explore places on the map</p>
-                    {userIsAuthenticated && (
-                      <Button className="bg-black text-white hover:bg-black/80">
-                        <Plus size={16} className="mr-1" /> Add Place
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </div>
+      {/* Create List Modal */}
+      <CreateListModal
+        isOpen={showCreateListModal}
+        onClose={() => setShowCreateListModal(false)}
+        onListCreated={handleListCreated}
+      />
+    </>
   )
 }
