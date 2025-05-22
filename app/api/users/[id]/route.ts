@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         .select(
           "id, username, display_name, avatar_url, fid, farcaster_username, farcaster_display_name, farcaster_pfp_url",
         )
-        .eq("farcaster_id", userId)
+        .eq("fid", userId)
         .single()
 
       if (!fidError && userByFid) {

@@ -13,6 +13,13 @@ export const supabase = (() => {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("Missing Supabase environment variables")
+    // Return a dummy client that will throw clear errors when used
+    return createClient("", "", {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    })
   }
 
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
@@ -33,6 +40,12 @@ export const supabaseAdmin = (() => {
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error("Missing Supabase service role environment variables")
+    // Return a dummy client that will throw clear errors when used
+    return createClient("", "", {
+      auth: {
+        persistSession: false,
+      },
+    })
   }
 
   supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
