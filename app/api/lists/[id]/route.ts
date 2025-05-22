@@ -119,3 +119,110 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const { title, description, visibility } = body
+
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    // Validate visibility
+    if (!["public", "private", "community"].includes(visibility)) {
+      return NextResponse.json({ error: "Invalid visibility value" }, { status: 400 })
+    }
+
+    // First, check if the list exists and get the owner
+    const { data: existingList, error: fetchError } = await supabaseAdmin
+      .from("lists")
+      .select("owner_id")
+      .eq("id", id)
+      .single()
+
+    if (fetchError) {
+      console.error("Error fetching list:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    if (!existingList) {
+      return NextResponse.json({ error: "List not found" }, { status: 404 })
+    }
+
+    // Update the list
+    const { data, error } = await supabaseAdmin
+      .from("lists")
+      .update({
+        title,
+        description,
+        visibility,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+
+    if (error) {
+      console.error("Error updating list:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(data[0])
+  } catch (error) {
+    console.error("Error in PUT /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    // First, check if the list exists
+    const { data: existingList, error: fetchError } = await supabaseAdmin
+      .from("lists")
+      .select("id")
+      .eq("id", id)
+      .single()
+
+    if (fetchError) {
+      console.error("Error fetching list:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    if (!existingList) {
+      return NextResponse.json({ error: "List not found" }, { status: 404 })
+    }
+
+    // First delete all list_places entries
+    const { error: listPlacesError } = await supabaseAdmin.from("list_places").delete().eq("list_id", id)
+
+    if (listPlacesError) {
+      console.error("Error deleting list places:", listPlacesError)
+      return NextResponse.json({ error: listPlacesError.message }, { status: 500 })
+    }
+
+    // Then delete the list itself
+    const { error: deleteError } = await supabaseAdmin.from("lists").delete().eq("id", id)
+
+    if (deleteError) {
+      console.error("Error deleting list:", deleteError)
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, message: "List deleted successfully" })
+  } catch (error) {
+    console.error("Error in DELETE /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
