@@ -14,6 +14,7 @@ import {
   Plus,
   Loader2,
   ListIcon,
+  MoreHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -32,8 +33,16 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { EditPlaceModal } from "./edit-place-modal"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface PlaceDetailViewProps {
   place: any
@@ -63,6 +72,7 @@ export function PlaceDetailView({
   const [listSearchQuery, setListSearchQuery] = useState("")
   const [filteredLists, setFilteredLists] = useState<any[]>([])
   const [isAddingToList, setIsAddingToList] = useState(false)
+  const [showAddToListDialog, setShowAddToListDialog] = useState(false)
 
   // Center map on the place when component mounts
   useEffect(() => {
@@ -128,9 +138,7 @@ export function PlaceDetailView({
       }
     }
 
-    if (connectedLists.length > 0) {
-      fetchUserLists()
-    }
+    fetchUserLists()
   }, [dbUser?.id, connectedLists])
 
   // Filter lists based on search query
@@ -178,7 +186,8 @@ export function PlaceDetailView({
       })
     : null
 
-  const isOwner = dbUser?.id === place.added_by
+  // Check if user is the owner of the place or the list
+  const isOwner = dbUser?.id === place.added_by || dbUser?.id === place.list_owner_id
 
   const handleEditPlace = () => {
     setShowEditModal(true)
@@ -297,7 +306,10 @@ export function PlaceDetailView({
       const result = await response.json()
 
       // Update the connected lists
-      setConnectedLists([...connectedLists, userLists.find((list) => list.id === listId)])
+      const addedList = userLists.find((list) => list.id === listId)
+      if (addedList) {
+        setConnectedLists([...connectedLists, addedList])
+      }
 
       // Remove the list from available lists
       setUserLists(userLists.filter((list) => list.id !== listId))
@@ -307,6 +319,9 @@ export function PlaceDetailView({
         title: "Added to list",
         description: `"${place.name}" has been added to the list.`,
       })
+
+      // Close the dialog after successful addition
+      setShowAddToListDialog(false)
     } catch (err) {
       console.error("Error adding place to list:", err)
       toast({
@@ -334,6 +349,40 @@ export function PlaceDetailView({
             </button>
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
+
+          {/* Actions dropdown menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isOwner && (
+                <>
+                  <DropdownMenuItem onClick={handleEditPlace}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit place
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove from list
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuItem onClick={handleSharePlace}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share place
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleFavoritePlace}>
+                <Heart className="mr-2 h-4 w-4" />
+                Save place
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -347,9 +396,7 @@ export function PlaceDetailView({
             backgroundPosition: "center",
           }}
         />
-        {place.type && (
-          <Badge className="absolute top-2 right-2 bg-black/70 hover:bg-black/80 text-white">{place.type}</Badge>
-        )}
+        {/* Removed place type badge as requested */}
       </div>
 
       {/* Place Details */}
@@ -365,27 +412,16 @@ export function PlaceDetailView({
             <MapPin size={14} /> Map
           </Button>
 
-          {isOwner && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                onClick={handleEditPlace}
-                title="Edit place"
-              >
-                <Edit size={14} /> Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => setShowDeleteConfirm(true)}
-                title="Remove place"
-              >
-                <Trash2 size={14} /> Remove
-              </Button>
-            </>
+          {dbUser && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => setShowAddToListDialog(true)}
+              title="Add to another list"
+            >
+              <Plus size={14} /> Add to list
+            </Button>
           )}
 
           <div className="flex-grow"></div>
@@ -398,16 +434,6 @@ export function PlaceDetailView({
             title="Share place"
           >
             <Share2 size={14} /> Share
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={handleFavoritePlace}
-            title="Favorite place"
-          >
-            <Heart size={14} /> Save
           </Button>
         </div>
 
@@ -473,11 +499,7 @@ export function PlaceDetailView({
                         </p>
                       </div>
                     </div>
-                    {list.id === listId && (
-                      <Badge variant="outline" className="text-xs">
-                        Current
-                      </Badge>
-                    )}
+                    {list.id === listId && <div className="text-xs bg-black/10 px-2 py-1 rounded">Current</div>}
                   </CardContent>
                 </Card>
               ))}
@@ -486,55 +508,6 @@ export function PlaceDetailView({
             <p className="text-sm text-black/60 text-center py-2">This place is not in any lists yet.</p>
           )}
         </div>
-
-        {/* Add to another list */}
-        {dbUser && userLists.length > 0 && (
-          <div className="mb-4">
-            <h3 className="font-medium mb-2">Add to Another List</h3>
-
-            <div className="mb-3">
-              <Input
-                type="text"
-                placeholder="Search your lists..."
-                value={listSearchQuery}
-                onChange={(e) => setListSearchQuery(e.target.value)}
-                className="w-full"
-              />
-            </div>
-
-            {isLoadingUserLists ? (
-              <div className="flex justify-center py-2">
-                <Loader2 className="h-5 w-5 animate-spin text-black/50" />
-              </div>
-            ) : filteredLists.length > 0 ? (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {filteredLists.map((list) => (
-                  <Card key={list.id} className="overflow-hidden">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <ListIcon size={16} className="mr-2 text-black/60" />
-                        <p className="font-medium text-sm">{list.title}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2"
-                        onClick={() => handleAddToList(list.id)}
-                        disabled={isAddingToList}
-                      >
-                        <Plus size={16} />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-black/60 text-center py-2">
-                {listSearchQuery ? "No matching lists found" : "No other lists available"}
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Edit Place Modal */}
@@ -569,6 +542,66 @@ export function PlaceDetailView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add to List Dialog */}
+      <Dialog open={showAddToListDialog} onOpenChange={setShowAddToListDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to List</DialogTitle>
+            <DialogDescription>Add "{place.name}" to another one of your lists.</DialogDescription>
+          </DialogHeader>
+
+          <div className="mb-3">
+            <Input
+              type="text"
+              placeholder="Search your lists..."
+              value={listSearchQuery}
+              onChange={(e) => setListSearchQuery(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto">
+            {isLoadingUserLists ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-black/50" />
+              </div>
+            ) : filteredLists.length > 0 ? (
+              <div className="space-y-2">
+                {filteredLists.map((list) => (
+                  <Card key={list.id} className="overflow-hidden">
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <ListIcon size={16} className="mr-2 text-black/60" />
+                        <p className="font-medium text-sm">{list.title}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        onClick={() => handleAddToList(list.id)}
+                        disabled={isAddingToList}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-black/60 text-center py-4">
+                {listSearchQuery ? "No matching lists found" : "No other lists available"}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddToListDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
