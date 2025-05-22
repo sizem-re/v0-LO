@@ -51,61 +51,74 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
   try {
     console.log("Processing Google Knowledge Graph URL:", url)
 
-    // For g.co/kgs/vXed47C - The Method Skateboards and Coffee
-    if (url.includes("vXed47C")) {
-      const searchQuery = "The Method Skateboards and Coffee Tacoma"
-      console.log("Using hardcoded search for:", searchQuery)
-      return await searchPlaceByName(searchQuery, url)
-    }
-
-    // For g.co/kgs/Lp9Jqz - Olympia Coffee Roasting
-    if (url.includes("Lp9Jqz")) {
-      const searchQuery = "Olympia Coffee Roasting Tacoma"
-      console.log("Using hardcoded search for:", searchQuery)
-      return await searchPlaceByName(searchQuery, url)
-    }
-
     // Extract the code from the URL to use as a unique identifier
     const kgCode = url.split("/").pop() || ""
     console.log("Knowledge Graph code:", kgCode)
 
-    // Try a direct approach - use the URL as a search term
-    // First, try to get the page title without following redirects
+    // For Knowledge Graph URLs, we need to use a proxy approach
+    // Instead of trying to fetch the URL directly (which can cause CORS issues),
+    // we'll use the Google Places API to search for places
+
+    // First, try to extract the entity name from the URL itself
+    // The format is typically g.co/kgs/{code}
+
+    // Use a server-side proxy approach to get the title
     try {
+      // Make a server-side request to the Google Knowledge Graph URL
+      // This avoids CORS issues since it's server-to-server
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+          Accept: "text/html",
+          "Accept-Language": "en-US,en;q=0.9",
         },
       })
 
       clearTimeout(timeoutId)
 
-      // If we got a response, try to extract the title
       if (response.ok) {
         const html = await response.text()
+
+        // Use regex to extract the title - more reliable than cheerio for this case
         const titleMatch = html.match(/<title>(.*?)<\/title>/)
         if (titleMatch && titleMatch[1]) {
           const title = titleMatch[1].split(" - ")[0].trim()
-          console.log("Extracted title:", title)
+          console.log("Extracted title from Knowledge Graph:", title)
 
           if (title && !title.includes("Google Search")) {
+            // Use the title to search for the place
             return await searchPlaceByName(title, url)
           }
         }
+
+        // Try using cheerio as a fallback
+        const $ = cheerio.load(html)
+        const cheerioTitle = $("title").text().split(" - ")[0].trim()
+
+        if (cheerioTitle && !cheerioTitle.includes("Google Search")) {
+          console.log("Extracted title using cheerio:", cheerioTitle)
+          return await searchPlaceByName(cheerioTitle, url)
+        }
       }
     } catch (error) {
-      console.log("Error fetching URL directly:", error)
+      console.log("Error fetching Knowledge Graph URL:", error)
       // Continue with fallback approaches
     }
 
-    // Fallback: Try a generic search based on the KG code
-    console.log("Trying fallback search with KG code")
-    return await searchPlaceByName(`place ${kgCode}`, url)
+    // If we couldn't extract a title, return a partial result with the URL
+    // This allows the user to manually complete the information
+    return NextResponse.json({
+      partialPlace: {
+        name: "Place from Google",
+        url: url,
+        coordinates: { lat: 47.6062, lng: -122.3321 }, // Default to Seattle coordinates
+      },
+      message: "Could not automatically extract place details. Please complete the information.",
+    })
   } catch (error) {
     console.error("Error extracting from Google Knowledge Graph URL:", error)
     return NextResponse.json(
@@ -119,7 +132,6 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
   }
 }
 
-// Add this helper function after the extractGoogleKnowledgeGraphUrl function
 async function searchPlaceByName(searchQuery: string, originalUrl: string): Promise<NextResponse> {
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
 
@@ -206,136 +218,6 @@ async function searchPlaceByName(searchQuery: string, originalUrl: string): Prom
         error: "Failed to search for place",
         details: (error as Error).message,
         fallbackOption: "manualEntry",
-      },
-      { status: 500 },
-    )
-  }
-}
-
-async function extractFromHtml(response: Response): Promise<NextResponse> {
-  try {
-    // Get the HTML content
-    const html = await response.text()
-    const $ = cheerio.load(html)
-
-    // Extract business name
-    const name = $("title").text().split(" - ")[0].trim()
-    console.log("Extracted name from HTML:", name)
-
-    if (!name || name.includes("Google Search")) {
-      console.log("Could not extract valid business name from HTML")
-      return NextResponse.json(
-        {
-          error: "Could not extract business name from URL",
-          details: "The URL doesn't contain a recognizable business name",
-        },
-        { status: 400 },
-      )
-    }
-
-    // Try to extract address
-    let address = ""
-    const addressElement = $('span:contains("Address:")').next()
-    if (addressElement.length) {
-      address = addressElement.text().trim()
-    } else {
-      // Look for address in the page content
-      $("div").each((_, element) => {
-        const text = $(element).text()
-        if (text.match(/\d+\s+[A-Za-z\s]+,\s+[A-Za-z\s]+,\s+[A-Z]{2}\s+\d{5}/)) {
-          address = text.trim()
-          return false // break the loop
-        }
-      })
-    }
-
-    console.log("Extracted address from HTML:", address)
-
-    // If we have a name, search for the place using Google Places API
-    const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
-
-    if (googleApiKey) {
-      // First try Find Place API for better results
-      const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
-
-      const findPlaceResponse = await fetch(findPlaceUrl)
-      if (findPlaceResponse.ok) {
-        const findPlaceData = await findPlaceResponse.json()
-
-        if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
-          const place = findPlaceData.candidates[0]
-          console.log("Found place using Find Place API:", place.name)
-
-          return NextResponse.json({
-            place: {
-              id: place.place_id || `kg-${Date.now()}`,
-              name: place.name,
-              address: place.formatted_address,
-              coordinates: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
-              },
-              type: getPlaceType(place.types || []),
-              url: response.url,
-            },
-          })
-        }
-      }
-
-      // If Find Place doesn't work, try Text Search API
-      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(name)}&key=${googleApiKey}`
-
-      const textSearchResponse = await fetch(textSearchUrl)
-      if (textSearchResponse.ok) {
-        const textSearchData = await textSearchResponse.json()
-
-        if (textSearchData.status === "OK" && textSearchData.results && textSearchData.results.length > 0) {
-          const place = textSearchData.results[0]
-          console.log("Found place using Text Search API:", place.name)
-
-          return NextResponse.json({
-            place: {
-              id: place.place_id || `kg-${Date.now()}`,
-              name: place.name,
-              address: place.formatted_address,
-              coordinates: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
-              },
-              type: getPlaceType(place.types || []),
-              url: response.url,
-            },
-          })
-        }
-      }
-    }
-
-    // If we have a name but couldn't find coordinates, return partial data
-    if (name) {
-      return NextResponse.json({
-        partialPlace: {
-          name: name,
-          address: address || undefined,
-          url: response.url,
-          coordinates: { lat: 47.6062, lng: -122.3321 }, // Default to Seattle coordinates
-        },
-        message: "Business name extracted but location not found. Please verify the address.",
-      })
-    }
-
-    return NextResponse.json(
-      {
-        error: "Could not extract place information from URL",
-        details: "The URL doesn't contain recognizable location data",
-      },
-      { status: 400 },
-    )
-  } catch (error) {
-    console.error("Error extracting from HTML:", error)
-    return NextResponse.json(
-      {
-        error: "Failed to extract place information from HTML",
-        details: (error as Error).message,
       },
       { status: 500 },
     )
