@@ -72,17 +72,12 @@ export default function MapPage() {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const router = useRouter()
 
   // Check if mobile on mount
   useEffect(() => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768)
-      // On mobile, start with sidebar closed
-      if (window.innerWidth < 768) {
-        setIsSidebarOpen(false)
-      }
     }
 
     checkIfMobile()
@@ -101,14 +96,6 @@ export default function MapPage() {
 
   const handlePlaceSelect = (place: Place) => {
     setSelectedPlace(place)
-    if (isMobile) {
-      setIsSidebarOpen(true)
-    }
-  }
-
-  const handleLocationSelect = (lat: number, lng: number) => {
-    // Handle location selection
-    console.log("Selected location:", lat, lng)
   }
 
   useEffect(() => {
@@ -118,15 +105,15 @@ export default function MapPage() {
   }, [places, router])
 
   return (
-    <div className="fixed inset-0 flex h-full">
-      {/* Sidebar */}
-      <div className="h-full flex-shrink-0">
+    <div className="fixed inset-0 flex flex-row overflow-hidden">
+      {/* Sidebar - absolutely positioned to prevent layout issues */}
+      <div className="relative z-10" style={{ maxWidth: "320px" }}>
         <Sidebar />
       </div>
 
-      {/* Map container */}
-      <div className="flex-1 relative h-full">
-        <MapComponent places={filteredPlaces} onPlaceSelect={handlePlaceSelect} onMapClick={handleLocationSelect} />
+      {/* Map container - takes remaining space */}
+      <div className="flex-1 relative z-0">
+        <MapComponent places={filteredPlaces} onPlaceSelect={handlePlaceSelect} />
       </div>
 
       {/* Search dialog */}

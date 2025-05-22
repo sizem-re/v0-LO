@@ -154,9 +154,8 @@ export function Sidebar() {
   if (isCollapsed) {
     return (
       <div
-        className={`bg-white h-full border-r border-black/10 flex flex-col items-center py-4 transition-all duration-300 ease-in-out ${
-          isMobile || isMiniApp ? "w-10 shadow-md" : "w-12"
-        }`}
+        className="bg-white h-full border-r border-black/10 flex flex-col items-center py-4 transition-all duration-300 ease-in-out"
+        style={{ width: isMobile || isMiniApp ? "40px" : "48px" }}
       >
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
@@ -244,9 +243,11 @@ export function Sidebar() {
     <>
       <div
         ref={sidebarRef}
-        className={`bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out ${
-          isMobile || isMiniApp ? "w-[85vw] max-w-[320px] shadow-md" : "w-80"
-        }`}
+        className="bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        style={{
+          width: isMobile || isMiniApp ? "85vw" : "320px",
+          maxWidth: "320px",
+        }}
       >
         {/* Header with collapse button and profile button */}
         <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
@@ -289,112 +290,118 @@ export function Sidebar() {
         </div>
 
         {/* Content based on what's being viewed */}
-        {showLogin ? (
-          <LoginView
-            onBack={() => setShowLogin(false)}
-            onLoginSuccess={() => {
-              setShowLogin(false)
-            }}
-          />
-        ) : (
-          <>
-            {activeTab === "profile" ? (
-              <div className="flex-grow overflow-y-auto">
-                <UserProfileView
-                  onClose={() => setActiveTab("discover")}
-                  expanded={true}
-                  onCreateList={handleCreateList}
-                  onSelectList={handleSelectList}
-                  key={listsKey}
-                />
-              </div>
-            ) : selectedListId ? (
-              <ListDetailView
-                listId={selectedListId}
-                onBack={handleBackFromList}
-                onPlaceClick={handlePlaceClick}
-                onEditList={handleEditList}
-                onDeleteList={handleDeleteList}
-                onAddPlace={handleAddPlace}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {showLogin ? (
+            <div className="flex-1 overflow-y-auto">
+              <LoginView
+                onBack={() => setShowLogin(false)}
+                onLoginSuccess={() => {
+                  setShowLogin(false)
+                }}
               />
-            ) : (
-              <>
-                {/* Tabs */}
-                <div className="flex border-b border-black/10">
-                  <button
-                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                    onClick={() => handleTabClick("discover")}
-                  >
-                    Discover
-                  </button>
-                  <button
-                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                    onClick={() => handleTabClick("mylists")}
-                  >
-                    My Lists
-                  </button>
-                  <button
-                    className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                    onClick={() => handleTabClick("places")}
-                  >
-                    Places
-                  </button>
+            </div>
+          ) : (
+            <>
+              {activeTab === "profile" ? (
+                <div className="flex-1 overflow-y-auto">
+                  <UserProfileView
+                    onClose={() => setActiveTab("discover")}
+                    expanded={true}
+                    onCreateList={handleCreateList}
+                    onSelectList={handleSelectList}
+                    key={listsKey}
+                  />
                 </div>
-
-                {/* Search bar */}
-                <div className="px-4 pt-3 pb-2">
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-                      placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+              ) : selectedListId ? (
+                <div className="flex-1 overflow-y-auto">
+                  <ListDetailView
+                    listId={selectedListId}
+                    onBack={handleBackFromList}
+                    onPlaceClick={handlePlaceClick}
+                    onEditList={handleEditList}
+                    onDeleteList={handleDeleteList}
+                    onAddPlace={handleAddPlace}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Tabs */}
+                  <div className="flex border-b border-black/10">
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("discover")}
+                    >
+                      Discover
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("mylists")}
+                    >
+                      My Lists
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("places")}
+                    >
+                      Places
+                    </button>
                   </div>
-                </div>
 
-                {/* Content based on active tab */}
-                <div className="flex-grow overflow-y-auto p-4">
-                  {activeTab === "discover" && (
-                    <div className="text-center py-8">
-                      <p>Discover places and lists from the community.</p>
-                      {!userIsAuthenticated && (
-                        <Button
-                          className="mt-4 bg-black text-white hover:bg-black/80"
-                          onClick={() => setShowLogin(true)}
-                        >
-                          Connect to get started
-                        </Button>
-                      )}
+                  {/* Search bar */}
+                  <div className="px-4 pt-3 pb-2">
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                        placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
                     </div>
-                  )}
+                  </div>
 
-                  {activeTab === "mylists" && (
-                    <UserListsDisplay
-                      compact={true}
-                      onCreateList={handleCreateList}
-                      onSelectList={handleSelectList}
-                      key={listsKey}
-                    />
-                  )}
+                  {/* Content based on active tab */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {activeTab === "discover" && (
+                      <div className="text-center py-8">
+                        <p>Discover places and lists from the community.</p>
+                        {!userIsAuthenticated && (
+                          <Button
+                            className="mt-4 bg-black text-white hover:bg-black/80"
+                            onClick={() => setShowLogin(true)}
+                          >
+                            Connect to get started
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
-                  {activeTab === "places" && (
-                    <div className="text-center py-8">
-                      <p className="mb-4">Explore places on the map</p>
-                      {userIsAuthenticated && (
-                        <Button className="bg-black text-white hover:bg-black/80">
-                          <Plus size={16} className="mr-1" /> Add Place
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </>
-        )}
+                    {activeTab === "mylists" && (
+                      <UserListsDisplay
+                        compact={true}
+                        onCreateList={handleCreateList}
+                        onSelectList={handleSelectList}
+                        key={listsKey}
+                      />
+                    )}
+
+                    {activeTab === "places" && (
+                      <div className="text-center py-8">
+                        <p className="mb-4">Explore places on the map</p>
+                        {userIsAuthenticated && (
+                          <Button className="bg-black text-white hover:bg-black/80">
+                            <Plus size={16} className="mr-1" /> Add Place
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Create List Modal */}
