@@ -3,11 +3,16 @@
 import type React from "react"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Globe, Lock } from "lucide-react"
-import { ProtectedRoute } from "@/components/protected-route"
+import { Globe, Lock, ListIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
+import { ProtectedRoute } from "@/components/protected-route"
+
+type ListPrivacy = "private" | "public" | "community"
 
 function CreateListPage() {
   const router = useRouter()
@@ -16,13 +21,17 @@ function CreateListPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    visibility: "private",
+    visibility: "private" as ListPrivacy,
   })
   const [error, setError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleVisibilityChange = (visibility: ListPrivacy) => {
+    setFormData((prev) => ({ ...prev, visibility }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,101 +83,118 @@ function CreateListPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Link href="/lists" className="flex items-center text-sm hover:underline mb-8">
-        <ArrowLeft size={16} className="mr-1" />
-        Back to lists
-      </Link>
-
-      <h1 className="text-3xl md:text-4xl font-serif mb-8">Create a New List</h1>
+    <div className="p-4 max-w-2xl mx-auto">
+      <h1 className="text-3xl font-serif mb-6">Create a New List</h1>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="max-w-2xl">
-        <div className="space-y-6">
-          <div>
-            <label htmlFor="title" className="block mb-2 font-medium">
-              List Title
-            </label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="lo-input border-black"
-              required
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <Label htmlFor="title" className="block mb-2 font-medium">
+            List Title
+          </Label>
+          <Input
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            className="border-black/20"
+            placeholder="e.g. My Favorite Coffee Shops"
+            required
+          />
+        </div>
 
-          <div>
-            <label htmlFor="description" className="block mb-2 font-medium">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={4}
-              className="lo-input border-black"
-            />
-          </div>
+        <div>
+          <Label htmlFor="description" className="block mb-2 font-medium">
+            Description (Optional)
+          </Label>
+          <Textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            rows={4}
+            className="border-black/20"
+            placeholder="What's this list about?"
+          />
+        </div>
 
-          <div>
-            <span className="block mb-2 font-medium">Visibility</span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="border border-black p-4 cursor-pointer">
-                <input
-                  type="radio"
-                  name="visibility"
-                  value="private"
-                  checked={formData.visibility === "private"}
-                  onChange={handleChange}
-                  className="sr-only"
-                />
-                <div
-                  className={`flex items-start ${formData.visibility === "private" ? "text-black" : "text-black/70"}`}
-                >
-                  <Lock className="h-5 w-5 mr-3 mt-1 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium mb-1">Private</div>
-                    <div className="text-sm">Only you can see this list</div>
-                  </div>
-                </div>
-              </label>
-              <label className="border border-black p-4 cursor-pointer">
-                <input
-                  type="radio"
-                  name="visibility"
-                  value="public"
-                  checked={formData.visibility === "public"}
-                  onChange={handleChange}
-                  className="sr-only"
-                />
-                <div
-                  className={`flex items-start ${formData.visibility === "public" ? "text-black" : "text-black/70"}`}
-                >
-                  <Globe className="h-5 w-5 mr-3 mt-1 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium mb-1">Public</div>
-                    <div className="text-sm">Anyone can see this list</div>
-                  </div>
-                </div>
-              </label>
-            </div>
+        <div>
+          <span className="block mb-2 font-medium">Visibility</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label
+              className={`border p-3 cursor-pointer ${
+                formData.visibility === "private" ? "border-black" : "border-black/20"
+              }`}
+            >
+              <input
+                type="radio"
+                name="visibility"
+                value="private"
+                checked={formData.visibility === "private"}
+                onChange={() => handleVisibilityChange("private")}
+                className="sr-only"
+              />
+              <div className="flex flex-col items-center text-center">
+                <Lock className="h-5 w-5 mb-1" />
+                <div className="font-medium">Private</div>
+                <div className="text-xs text-black/70">Sharable via link</div>
+              </div>
+            </label>
+
+            <label
+              className={`border p-3 cursor-pointer ${
+                formData.visibility === "public" ? "border-black" : "border-black/20"
+              }`}
+            >
+              <input
+                type="radio"
+                name="visibility"
+                value="public"
+                checked={formData.visibility === "public"}
+                onChange={() => handleVisibilityChange("public")}
+                className="sr-only"
+              />
+              <div className="flex flex-col items-center text-center">
+                <Globe className="h-5 w-5 mb-1" />
+                <div className="font-medium">Public</div>
+                <div className="text-xs text-black/70">Anyone can see</div>
+              </div>
+            </label>
+
+            <label
+              className={`border p-3 cursor-pointer ${
+                formData.visibility === "community" ? "border-black" : "border-black/20"
+              }`}
+            >
+              <input
+                type="radio"
+                name="visibility"
+                value="community"
+                checked={formData.visibility === "community"}
+                onChange={() => handleVisibilityChange("community")}
+                className="sr-only"
+              />
+              <div className="flex flex-col items-center text-center">
+                <ListIcon className="h-5 w-5 mb-1" />
+                <div className="font-medium">Community</div>
+                <div className="text-xs text-black/70">Others can add</div>
+              </div>
+            </label>
           </div>
         </div>
 
-        <div className="mt-8 space-x-4">
-          <button type="submit" className="lo-button" disabled={isSubmitting}>
-            {isSubmitting ? "CREATING..." : "CREATE LIST"}
-          </button>
-          <Link href="/lists">
-            <button type="button" className="lo-button bg-transparent">
-              CANCEL
-            </button>
-          </Link>
+        <div className="flex gap-3">
+          <Button type="submit" className="flex-1 bg-black text-white hover:bg-black/80" disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create List"}
+          </Button>
+          <Button
+            type="button"
+            className="bg-transparent text-black border border-black/20 hover:bg-black/5"
+            onClick={() => router.back()}
+          >
+            Cancel
+          </Button>
         </div>
       </form>
     </div>

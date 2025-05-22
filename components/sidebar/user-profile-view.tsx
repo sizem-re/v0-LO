@@ -65,6 +65,15 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
             <span>My Lists</span>
           </Link>
 
+          <Link
+            href="/lists/create"
+            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
+            onClick={onClose}
+          >
+            <Plus size={16} />
+            <span>Create List</span>
+          </Link>
+
           {/* Use NeynarAuthButton directly for sign out */}
           <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
             <LogOut size={16} />
@@ -106,7 +115,7 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
           className="bg-black text-white hover:bg-black/80 px-4 py-2 flex items-center mx-auto"
           onClick={() => router.push("/lists/create")}
         >
-          <Plus size={16} className="mr-2" /> Create New List
+          <Plus size={16} className="mr-2" /> Create List
         </Button>
       </div>
 

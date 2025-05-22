@@ -3,8 +3,9 @@
 import type React from "react"
 
 import { useState } from "react"
-import { X, Globe, Lock, ListIcon } from "lucide-react"
+import { X } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 type ListPrivacy = "private" | "open" | "closed"
 
@@ -24,6 +25,7 @@ interface CreateListDialogProps {
 }
 
 export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateListDialogProps) {
+  const router = useRouter()
   const { dbUser } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
@@ -114,6 +116,12 @@ export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateLi
     }
   }
 
+  // Redirect to the create list page
+  const handleRedirectToCreateList = () => {
+    handleClose()
+    router.push("/lists/create")
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[15vh]">
       <div className="bg-white w-full max-w-md border border-black shadow-lg">
@@ -124,116 +132,14 @@ export function CreateListDialog({ open, onOpenChange, onListCreated }: CreateLi
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">{error}</div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="title" className="block mb-1 font-medium">
-                List Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                className="lo-input border-black"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="description" className="block mb-1 font-medium">
-                Description (Optional)
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="lo-input border-black"
-              />
-            </div>
-
-            <div>
-              <span className="block mb-2 font-medium">Privacy</span>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <label
-                  className={`border p-3 cursor-pointer ${
-                    formData.privacy === "private" ? "border-black" : "border-black/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="private"
-                    checked={formData.privacy === "private"}
-                    onChange={() => handlePrivacyChange("private")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center text-center">
-                    <Lock className="h-5 w-5 mb-1" />
-                    <div className="font-medium">Private</div>
-                    <div className="text-xs text-black/70">Sharable via link</div>
-                  </div>
-                </label>
-
-                <label
-                  className={`border p-3 cursor-pointer ${
-                    formData.privacy === "open" ? "border-black" : "border-black/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="open"
-                    checked={formData.privacy === "open"}
-                    onChange={() => handlePrivacyChange("open")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center text-center">
-                    <Globe className="h-5 w-5 mb-1" />
-                    <div className="font-medium">Open</div>
-                    <div className="text-xs text-black/70">Anyone can add</div>
-                  </div>
-                </label>
-
-                <label
-                  className={`border p-3 cursor-pointer ${
-                    formData.privacy === "closed" ? "border-black" : "border-black/20"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="closed"
-                    checked={formData.privacy === "closed"}
-                    onChange={() => handlePrivacyChange("closed")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center text-center">
-                    <ListIcon className="h-5 w-5 mb-1" />
-                    <div className="font-medium">Closed</div>
-                    <div className="text-xs text-black/70">Only you can add</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button type="submit" className="lo-button flex-1" disabled={!formData.title.trim() || isCreating}>
-              {isCreating ? "CREATING..." : "CREATE LIST"}
-            </button>
-            <button type="button" className="lo-button bg-transparent" onClick={handleClose}>
-              CANCEL
-            </button>
-          </div>
-        </form>
+        <div className="p-4">
+          <button
+            onClick={handleRedirectToCreateList}
+            className="w-full bg-black text-white hover:bg-black/80 py-2 px-4 rounded"
+          >
+            Go to Create List Page
+          </button>
+        </div>
       </div>
     </div>
   )
