@@ -1,116 +1,130 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useRef } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet"
 import type { Place } from "@/types/place"
-import Link from "next/link"
+import { useMapSize } from "@/hooks/use-map-size"
+
+// Fix for Leaflet marker icons
+const fixLeafletIcons = () => {
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "/marker-icon-2x.png",
+    iconUrl: "/marker-icon.png",
+    shadowUrl: "/marker-shadow.png",
+  })
+}
 
 interface MapComponentProps {
   places: Place[]
-  height?: string | number
   onPlaceSelect?: (place: Place) => void
+  onMapClick?: (lat: number, lng: number) => void
+  center?: [number, number]
+  zoom?: number
 }
 
-const MapComponent = ({ places, height = "500px", onPlaceSelect }: MapComponentProps) => {
-  const mapRef = useRef<L.Map | null>(null)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
+function MapController({
+  places,
+  onPlaceSelect,
+}: {
+  places: Place[]
+  onPlaceSelect?: (place: Place) => void
+}) {
+  const map = useMap()
 
-  // Set up Leaflet icons
   useEffect(() => {
-    // Fix for Leaflet marker icons in Next.js
-    delete L.Icon.Default.prototype._getIconUrl
+    if (places.length > 0) {
+      // Create bounds from all places
+      const bounds = L.latLngBounds(
+        places.map((place) => [
+          place.coordinates?.lat || place.latitude || 0,
+          place.coordinates?.lng || place.longitude || 0,
+        ]),
+      )
 
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    })
+      // Fit map to bounds with padding
+      map.fitBounds(bounds, { padding: [50, 50] })
+    }
+  }, [map, places])
+
+  return null
+}
+
+export default function MapComponent({
+  places,
+  onPlaceSelect,
+  onMapClick,
+  center = [47.2529, -122.4443], // Default to Tacoma
+  zoom = 13,
+}: MapComponentProps) {
+  const { height, width } = useMapSize()
+  const mapRef = useRef<L.Map>(null)
+
+  useEffect(() => {
+    fixLeafletIcons()
   }, [])
 
-  // Calculate the center and zoom based on the places
-  const { center, zoom } = useMemo(() => {
-    if (places.length === 0) {
-      return { center: [40.7128, -74.006] as [number, number], zoom: 13 }
-    }
-
-    if (places.length === 1) {
-      return {
-        center: [places[0].coordinates.lat, places[0].coordinates.lng] as [number, number],
-        zoom: 15,
-      }
-    }
-
-    // Calculate bounds
-    const lats = places.map((place) => place.coordinates.lat)
-    const lngs = places.map((place) => place.coordinates.lng)
-
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs)
-    const maxLng = Math.max(...lngs)
-
-    const centerLat = (minLat + maxLat) / 2
-    const centerLng = (minLng + maxLng) / 2
-
-    // Calculate appropriate zoom level
-    const latDiff = maxLat - minLat
-    const lngDiff = maxLng - minLng
-    const maxDiff = Math.max(latDiff, lngDiff)
-
-    let zoom = 13
-    if (maxDiff > 0.2) zoom = 10
-    if (maxDiff > 1) zoom = 8
-    if (maxDiff > 5) zoom = 6
-
-    return { center: [centerLat, centerLng] as [number, number], zoom }
-  }, [places])
-
-  const handleMarkerClick = (place: Place) => {
-    if (onPlaceSelect) {
-      onPlaceSelect(place)
+  const handleMapClick = (e: L.LeafletMouseEvent) => {
+    if (onMapClick) {
+      onMapClick(e.latlng.lat, e.latlng.lng)
     }
   }
 
-  useEffect(() => {
-    // Initialize map only on client-side
-    if (typeof window !== "undefined" && !mapRef.current && mapContainerRef.current) {
-      // Create map instance
-      mapRef.current = L.map(mapContainerRef.current).setView(center, zoom)
+  return (
+    <MapContainer
+      center={center}
+      zoom={zoom}
+      style={{ height: "100%", width: "100%" }}
+      zoomControl={false}
+      ref={mapRef}
+      className="z-0"
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <ZoomControl position="bottomright" />
 
-      // Add OpenStreetMap tile layer
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(mapRef.current)
-
-      // Add markers for each place
-      places.forEach((place) => {
-        L.marker([place.coordinates.lat, place.coordinates.lng])
-          .addTo(mapRef.current!)
-          .bindPopup(() => (
-            <div className="p-1">
-              <h3 className="font-bold text-base">{place.name}</h3>
-              <p className="text-xs text-black/70">{place.type}</p>
-              {place.address && <p className="text-xs mt-1">{place.address}</p>}
-              <Link href={`/places/${place.id}`} className="text-xs underline block mt-2">
-                View details
-              </Link>
+      {places.map((place) => (
+        <Marker
+          key={place.id}
+          position={[place.coordinates?.lat || place.latitude || 0, place.coordinates?.lng || place.longitude || 0]}
+          eventHandlers={{
+            click: () => {
+              if (onPlaceSelect) {
+                onPlaceSelect(place)
+              }
+            },
+          }}
+        >
+          <Popup>
+            <div>
+              <h3 className="font-medium">{place.name}</h3>
+              {place.address && <p className="text-sm">{place.address}</p>}
+              {place.description && <p className="text-sm mt-1">{place.description}</p>}
             </div>
-          ))
-      })
-    }
+          </Popup>
+        </Marker>
+      ))}
 
-    // Cleanup function
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [places, center, zoom])
+      <MapController places={places} onPlaceSelect={onPlaceSelect} />
 
-  return <div ref={mapContainerRef} style={{ height }} className="border border-black/10 z-0" />
+      {onMapClick && (
+        <div
+          onClick={handleMapClick}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 400,
+            pointerEvents: "auto",
+          }}
+        />
+      )}
+    </MapContainer>
+  )
 }
-
-export default MapComponent

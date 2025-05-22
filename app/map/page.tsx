@@ -118,12 +118,14 @@ export default function MapPage() {
   }, [places, router])
 
   return (
-    <div className="fixed inset-0 flex">
+    <div className="fixed inset-0 flex h-full">
       {/* Sidebar */}
-      <Sidebar />
+      <div className="h-full flex-shrink-0">
+        <Sidebar />
+      </div>
 
       {/* Map container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative h-full">
         <MapComponent places={filteredPlaces} onPlaceSelect={handlePlaceSelect} onMapClick={handleLocationSelect} />
       </div>
 
