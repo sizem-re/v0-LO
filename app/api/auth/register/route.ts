@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingUser) {
+      // Check if user data needs to be updated
+      const needsUpdate =
+        existingUser.farcaster_username !== farcaster_username ||
+        existingUser.farcaster_display_name !== farcaster_display_name ||
+        existingUser.farcaster_pfp_url !== farcaster_pfp_url
+
+      if (!needsUpdate) {
+        // No update needed, return existing user
+        return NextResponse.json(existingUser)
+      }
+
       // Update existing user
       const { data, error } = await supabaseAdmin
         .from("users")
