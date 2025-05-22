@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from "react"
 import { Search, MapPin, ListIcon, Plus, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext } from "@neynar/react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
+// Add the import for UserProfileView at the top
+import { UserProfileView } from "./user-profile-view"
 
 export function Sidebar() {
   // Get miniapp context
@@ -69,6 +71,10 @@ export function Sidebar() {
     if (!userIsAuthenticated) {
       setShowLogin(true)
       setIsCollapsed(false) // Always expand sidebar when showing login
+    } else {
+      // If user is authenticated, toggle profile view or navigate to profile
+      setActiveTab("profile")
+      setIsCollapsed(false)
     }
   }
 
@@ -135,21 +141,36 @@ export function Sidebar() {
           <MapPin size={20} />
         </button>
         <div className="flex-grow"></div>
-        <button
-          className="p-2 rounded-full text-black hover:bg-gray-100"
-          onClick={handleProfileClick}
-          aria-label="Profile"
-        >
-          {userIsAuthenticated && user?.pfp_url ? (
-            <img
-              src={user.pfp_url || "/placeholder.svg"}
-              alt="Profile"
-              className="w-6 h-6 rounded-full border border-black/10"
-            />
-          ) : (
+        {userIsAuthenticated ? (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              className="p-2 rounded-full text-black hover:bg-gray-100"
+              onClick={handleProfileClick}
+              aria-label="Profile"
+            >
+              {user?.pfp_url ? (
+                <img
+                  src={user.pfp_url || "/placeholder.svg"}
+                  alt="Profile"
+                  className="w-6 h-6 rounded-full border border-black/10"
+                />
+              ) : (
+                <User size={20} />
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            className="p-2 rounded-full text-black hover:bg-gray-100"
+            onClick={() => {
+              setShowLogin(true)
+              setIsCollapsed(false)
+            }}
+            aria-label="Sign In"
+          >
             <User size={20} />
-          )}
-        </button>
+          </button>
+        )}
 
         {/* Hide button for very small screens */}
         {(isMobile || isMiniApp) && (
@@ -274,6 +295,21 @@ export function Sidebar() {
                 )}
               </div>
             )}
+            {/* Replace the profile tab content with our new component */}
+            {activeTab === "profile" &&
+              (userIsAuthenticated ? (
+                <UserProfileView onClose={() => setActiveTab("discover")} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="mb-4">Sign in to create lists and save places</p>
+                  <NeynarAuthButton
+                    className="bg-black text-white hover:bg-black/80 px-6 py-3 rounded-md"
+                    onSuccess={() => setActiveTab("discover")}
+                  >
+                    Connect with Farcaster
+                  </NeynarAuthButton>
+                </div>
+              ))}
           </div>
         </>
       )}

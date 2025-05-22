@@ -2,12 +2,8 @@
 
 import Link from "next/link"
 import { SearchBar } from "./search-bar"
-import { useAuth } from "@/lib/auth-context"
-import { UserMenu } from "./user-menu"
 
 export function Header() {
-  const { isAuthenticated, isLoading } = useAuth()
-
   return (
     <header className="py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div className="flex items-center justify-between">
@@ -27,12 +23,6 @@ export function Header() {
           <Link href="/map" className="nav-link">
             MAP
           </Link>
-          {!isLoading && !isAuthenticated && (
-            <Link href="/login" className="nav-link">
-              LOGIN
-            </Link>
-          )}
-          {!isLoading && isAuthenticated && <UserMenu />}
         </nav>
 
         <SearchBar />

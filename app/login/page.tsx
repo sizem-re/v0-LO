@@ -4,34 +4,24 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { NeynarAuthButton } from "@neynar/react"
+import { FarcasterAuth } from "@/components/farcaster-auth"
+import { useNeynarContext } from "@neynar/react"
+// Import the PageLayout at the top
 import { PageLayout } from "@/components/page-layout"
-import { Loader2 } from "lucide-react"
 
+// Wrap the entire component with PageLayout
 export default function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const { isAuthenticated: neynarAuthenticated } = useNeynarContext()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isAuthenticated || neynarAuthenticated) {
       router.push("/profile")
     }
-  }, [isAuthenticated, isLoading, router])
-
-  if (isLoading) {
-    return (
-      <PageLayout>
-        <div className="container mx-auto px-4 py-16 flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 animate-spin mb-4" />
-            <p>Checking authentication status...</p>
-          </div>
-        </div>
-      </PageLayout>
-    )
-  }
+  }, [isAuthenticated, neynarAuthenticated, router])
 
   return (
     <PageLayout>
@@ -47,10 +37,7 @@ export default function LoginPage() {
             {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
 
             <div className="flex justify-center">
-              <NeynarAuthButton
-                className="bg-black text-white hover:bg-black/80 px-6 py-3 rounded-none"
-                onError={(err) => setError(err.message || "Authentication failed")}
-              />
+              <FarcasterAuth />
             </div>
 
             <p className="mt-6 text-sm text-black/70 text-center">

@@ -21,7 +21,7 @@ export function LoginView({ onBack, onLoginSuccess }: LoginViewProps) {
       <div className="flex-grow flex flex-col items-center justify-center p-4">
         <div className="text-center mb-8">
           <h3 className="font-serif text-xl mb-2">Welcome to LO</h3>
-          <p className="text-black/70">Connect with Farcaster to get started</p>
+          <p className="text-black/70">Connect with Farcaster to create lists and save places</p>
         </div>
 
         <NeynarAuthButton
