@@ -5,6 +5,7 @@ import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLi
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EditListModal } from "./edit-list-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,7 @@ export function ListDetailView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -76,8 +78,19 @@ export function ListDetailView({
   }, [listId])
 
   const handleEditList = () => {
-    if (onEditList && list) {
-      onEditList(list)
+    setShowEditModal(true)
+  }
+
+  const handleListUpdated = (updatedList: any) => {
+    // Update the local list state with the updated data
+    setList((prevList: any) => ({
+      ...prevList,
+      ...updatedList,
+    }))
+
+    // Call the parent callback if provided
+    if (onEditList) {
+      onEditList(updatedList)
     }
   }
 
@@ -113,11 +126,11 @@ export function ListDetailView({
   const getVisibilityText = () => {
     switch (list?.visibility) {
       case "public":
-        return "Public - Anyone can view"
+        return "Public"
       case "community":
-        return "Community - Anyone can add places"
+        return "Community"
       case "private":
-        return "Private - Only you can view"
+        return "Private"
       default:
         return "Public"
     }
@@ -239,7 +252,7 @@ export function ListDetailView({
         <div className="flex items-center text-sm text-black/70 mb-2">
           <div className="flex items-center mr-4">
             {getVisibilityIcon()}
-            <span className="ml-1">{list.visibility}</span>
+            <span className="ml-1">{getVisibilityText()}</span>
           </div>
           <div className="flex items-center">
             <MapPin size={14} className="mr-1" />
@@ -295,6 +308,16 @@ export function ListDetailView({
           </div>
         )}
       </div>
+
+      {/* Edit List Modal */}
+      {showEditModal && list && (
+        <EditListModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          list={list}
+          onListUpdated={handleListUpdated}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

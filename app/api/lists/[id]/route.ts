@@ -119,3 +119,86 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const { title, description, visibility } = body
+
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
+
+    // Validate visibility
+    if (visibility && !["private", "public", "community"].includes(visibility)) {
+      return NextResponse.json({ error: "Invalid visibility value" }, { status: 400 })
+    }
+
+    console.log(`Updating list with ID: ${id}`)
+    console.log("Update data:", { title, description, visibility })
+
+    // Update the list
+    const { data: updatedList, error: updateError } = await supabaseAdmin
+      .from("lists")
+      .update({
+        title,
+        description,
+        visibility,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error("Error updating list:", updateError)
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    console.log("List updated successfully:", updatedList)
+    return NextResponse.json(updatedList)
+  } catch (error) {
+    console.error("Error in PUT /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json({ error: "List ID is required" }, { status: 400 })
+    }
+
+    console.log(`Deleting list with ID: ${id}`)
+
+    // First, delete all list_places entries for this list
+    const { error: listPlacesDeleteError } = await supabaseAdmin.from("list_places").delete().eq("list_id", id)
+
+    if (listPlacesDeleteError) {
+      console.error("Error deleting list places:", listPlacesDeleteError)
+      return NextResponse.json({ error: listPlacesDeleteError.message }, { status: 500 })
+    }
+
+    // Then delete the list itself
+    const { error: listDeleteError } = await supabaseAdmin.from("lists").delete().eq("id", id)
+
+    if (listDeleteError) {
+      console.error("Error deleting list:", listDeleteError)
+      return NextResponse.json({ error: listDeleteError.message }, { status: 500 })
+    }
+
+    console.log("List deleted successfully")
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error in DELETE /api/lists/[id]:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
