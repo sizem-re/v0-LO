@@ -5,11 +5,10 @@ import {
   ChevronLeft,
   MapPin,
   Globe,
-  Calendar,
+  User,
   Edit,
   Trash2,
   ExternalLink,
-  Heart,
   Plus,
   Loader2,
   ListIcon,
@@ -74,6 +73,8 @@ export function PlaceDetailView({
   const [filteredLists, setFilteredLists] = useState<any[]>([])
   const [isAddingToList, setIsAddingToList] = useState(false)
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
+  const [addedByUser, setAddedByUser] = useState<any>(null)
+  const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
 
   // Center map on the place when component mounts
   useEffect(() => {
@@ -81,6 +82,32 @@ export function PlaceDetailView({
       onCenterMap(place.coordinates)
     }
   }, [place, onCenterMap])
+
+  // Fetch user who added this place
+  useEffect(() => {
+    const fetchAddedByUser = async () => {
+      if (!place?.added_by && !place?.added_by_user_id) return
+
+      try {
+        setIsLoadingAddedBy(true)
+        const userId = place.added_by || place.added_by_user_id
+        const response = await fetch(`/api/users/${userId}`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user: ${response.status}`)
+        }
+
+        const userData = await response.json()
+        setAddedByUser(userData)
+      } catch (error) {
+        console.error("Error fetching user who added the place:", error)
+      } finally {
+        setIsLoadingAddedBy(false)
+      }
+    }
+
+    fetchAddedByUser()
+  }, [place?.added_by, place?.added_by_user_id])
 
   // Fetch lists that contain this place
   useEffect(() => {
@@ -193,14 +220,6 @@ export function PlaceDetailView({
     )
   }
 
-  const formattedDate = place.addedAt
-    ? new Date(place.addedAt).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null
-
   // Check if user can edit/delete this place
   // User can edit if they added the place OR if they own the current list
   const canEdit =
@@ -269,14 +288,6 @@ export function PlaceDetailView({
     } finally {
       setIsDeleting(false)
     }
-  }
-
-  const handleFavoritePlace = () => {
-    // Implement favorite functionality
-    toast({
-      title: "Favorite feature",
-      description: "Favorite functionality will be implemented soon.",
-    })
   }
 
   const handleCenterMap = () => {
@@ -372,8 +383,8 @@ export function PlaceDetailView({
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
 
-          {/* Actions dropdown menu - only show if user can edit or there are other actions */}
-          {(canEdit || dbUser) && (
+          {/* Actions dropdown menu - only show if user can edit */}
+          {canEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -381,27 +392,13 @@ export function PlaceDetailView({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canEdit && (
-                  <>
-                    <DropdownMenuItem onClick={handleEditPlace}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit place
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove from list
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {dbUser && (
-                  <DropdownMenuItem onClick={handleFavoritePlace}>
-                    <Heart className="mr-2 h-4 w-4" />
-                    Save place
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remove from list
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -432,6 +429,18 @@ export function PlaceDetailView({
           >
             <MapPin size={14} /> Map
           </Button>
+
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={handleEditPlace}
+              title="Edit place"
+            >
+              <Edit size={14} /> Edit
+            </Button>
+          )}
 
           {dbUser && (
             <Button
@@ -468,10 +477,19 @@ export function PlaceDetailView({
           </div>
         )}
 
-        {formattedDate && (
+        {/* Added By field instead of Date Added */}
+        {(place.added_by || place.added_by_user_id) && (
           <div className="flex items-start mb-3">
-            <Calendar size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-            <p className="text-sm text-black/70">Added {formattedDate}</p>
+            <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
+            {isLoadingAddedBy ? (
+              <Skeleton className="h-4 w-24" />
+            ) : addedByUser ? (
+              <p className="text-sm text-black/70">
+                Added by {addedByUser.display_name || addedByUser.username || "Unknown user"}
+              </p>
+            ) : (
+              <p className="text-sm text-black/70">Added by a user</p>
+            )}
           </div>
         )}
 
