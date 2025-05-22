@@ -169,11 +169,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+// Ensure the DELETE method is properly implemented
+
+// Check if there are any console.log statements in the DELETE function to help with debugging
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
 
     if (!id) {
+      console.log("List ID is missing in DELETE request")
       return NextResponse.json({ error: "List ID is required" }, { status: 400 })
     }
 
@@ -187,6 +191,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: listPlacesDeleteError.message }, { status: 500 })
     }
 
+    console.log(`Successfully deleted list_places for list ID: ${id}`)
+
     // Then delete the list itself
     const { error: listDeleteError } = await supabaseAdmin.from("lists").delete().eq("id", id)
 
@@ -195,7 +201,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: listDeleteError.message }, { status: 500 })
     }
 
-    console.log("List deleted successfully")
+    console.log(`Successfully deleted list with ID: ${id}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error in DELETE /api/lists/[id]:", error)

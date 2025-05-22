@@ -123,10 +123,9 @@ export function Sidebar() {
     // Here you would show an edit list modal or navigate to edit page
   }
 
-  const handleDeleteList = (list: any) => {
+  const handleDeleteList = async (list: any) => {
     console.log("Delete list:", list)
-    // Here you would confirm and then delete the list
-    // After deletion, go back to the lists view
+    // After successful deletion, go back to the lists view
     setSelectedListId(null)
     // Force refresh the lists
     setListsKey((prev) => prev + 1)

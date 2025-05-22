@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "@/components/ui/use-toast"
 
 interface ListDetailViewProps {
   listId: string
@@ -47,6 +48,7 @@ export function ListDetailView({
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchListDetails = async () => {
@@ -94,10 +96,46 @@ export function ListDetailView({
     }
   }
 
-  const handleDeleteList = () => {
-    if (onDeleteList && list) {
-      onDeleteList(list)
+  const handleDeleteList = async () => {
+    if (!list) return
+
+    try {
+      setIsDeleting(true)
+      console.log(`Deleting list with ID: ${list.id}`)
+
+      const response = await fetch(`/api/lists/${list.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete list")
+      }
+
+      console.log("List deleted successfully")
+      toast({
+        title: "List deleted",
+        description: `"${list.title}" has been deleted successfully.`,
+      })
+
+      // Call the parent callback if provided
+      if (onDeleteList) {
+        onDeleteList(list)
+      }
+
       setShowDeleteConfirm(false)
+    } catch (err) {
+      console.error("Error deleting list:", err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to delete list",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -329,9 +367,9 @@ export function ListDetailView({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeleteList}>
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeleteList} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
