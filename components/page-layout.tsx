@@ -1,25 +1,18 @@
 "use client"
 
-import type React from "react"
+import type { ReactNode } from "react"
+import { Footer } from "./footer"
 
-import { MainNav } from "@/components/main-nav"
-import { Footer } from "@/components/footer"
-import { usePathname } from "next/navigation"
+interface PageLayoutProps {
+  children: ReactNode
+  className?: string
+  fullWidth?: boolean
+}
 
-export function PageLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-
-  // Check if the current path is a map page
-  const isMapPage = pathname?.startsWith("/map")
-
-  if (isMapPage) {
-    return <>{children}</>
-  }
-
+export function PageLayout({ children, className = "", fullWidth = false }: PageLayoutProps) {
   return (
     <div className="flex flex-col min-h-screen">
-      <MainNav />
-      <main className="flex-1">{children}</main>
+      <main className={`flex-1 ${fullWidth ? "w-full" : "container"} mx-auto px-4 ${className}`}>{children}</main>
       <Footer />
     </div>
   )

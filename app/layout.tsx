@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   title: "LO - Discover Places",
   description: "Discover and share curated lists of locations",
   manifest: "/manifest.json",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
