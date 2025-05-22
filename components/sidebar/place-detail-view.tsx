@@ -61,6 +61,9 @@ export function PlaceDetailView({
   onPlaceDeleted,
   onCenterMap,
 }: PlaceDetailViewProps) {
+  // Add this right after the component starts, before the first useEffect
+  console.log("PlaceDetailView received place:", place)
+  console.log("Available place fields:", Object.keys(place || {}))
   const { dbUser } = useAuth()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -107,28 +110,41 @@ export function PlaceDetailView({
   // Fetch user who added this place
   useEffect(() => {
     const fetchAddedByUser = async () => {
-      if (!place?.addedBy && !place?.added_by) return
+      const userId = place?.addedBy || place?.added_by
+      if (!userId) {
+        console.log("No user ID found for place:", place)
+        return
+      }
 
       try {
         setIsLoadingAddedBy(true)
-        const userId = place.addedBy || place.added_by
+        console.log("Fetching user with ID:", userId)
+
         const response = await fetch(`/api/users/${userId}`)
 
         if (!response.ok) {
+          if (response.status === 404) {
+            console.log("User not found:", userId)
+            setAddedByUser({ display_name: "Unknown user" })
+            return
+          }
           throw new Error(`Failed to fetch user: ${response.status}`)
         }
 
         const userData = await response.json()
+        console.log("Fetched user data:", userData)
         setAddedByUser(userData)
       } catch (error) {
         console.error("Error fetching user who added the place:", error)
+        // Set a fallback user object
+        setAddedByUser({ display_name: "Unknown user" })
       } finally {
         setIsLoadingAddedBy(false)
       }
     }
 
     fetchAddedByUser()
-  }, [place?.addedBy, place?.added_by])
+  }, [place])
 
   // Fetch lists that contain this place
   useEffect(() => {
