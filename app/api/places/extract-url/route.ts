@@ -5,8 +5,10 @@ interface PlaceResult {
   id: string
   name: string
   address: string
-  lat: number
-  lng: number
+  coordinates: {
+    lat: number
+    lng: number
+  }
   type: string
   url: string
 }
@@ -19,8 +21,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
     }
 
+    console.log("Extracting place from URL:", url)
+
     // Check if it's a Google Maps URL
-    if (url.includes("google.com/maps") || url.includes("goo.gl/maps")) {
+    if (url.includes("google.com/maps") || url.includes("goo.gl/maps") || url.includes("maps.app.goo.gl")) {
       return await extractGoogleMapsUrl(url)
     }
 
@@ -28,16 +32,25 @@ export async function POST(request: NextRequest) {
     return await extractGenericUrl(url)
   } catch (error) {
     console.error("Error extracting place from URL:", error)
-    return NextResponse.json({ error: "Failed to extract place information from URL" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to extract place information from URL", details: (error as Error).message },
+      { status: 500 },
+    )
   }
 }
 
 async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
   try {
     // Handle short URLs
-    if (url.includes("goo.gl/maps")) {
-      const response = await fetch(url, { redirect: "follow" })
-      url = response.url
+    if (url.includes("goo.gl/maps") || url.includes("maps.app.goo.gl")) {
+      try {
+        const response = await fetch(url, { redirect: "follow" })
+        url = response.url
+        console.log("Expanded short URL to:", url)
+      } catch (error) {
+        console.error("Error expanding short URL:", error)
+        // Continue with the original URL if expansion fails
+      }
     }
 
     // Extract coordinates from URL
@@ -45,50 +58,106 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
     let lng: number | null = null
     let name: string | null = null
 
-    // Try to extract coordinates from URL patterns
-    const coordsRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/
-    const match = url.match(coordsRegex)
+    // Try multiple regex patterns for different Google Maps URL formats
+    const patterns = [/@(-?\d+\.\d+),(-?\d+\.\d+)/, /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /ll=(-?\d+\.\d+),(-?\d+\.\d+)/]
 
-    if (match) {
-      lat = Number.parseFloat(match[1])
-      lng = Number.parseFloat(match[2])
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) {
+        if (pattern.toString().includes("!3d")) {
+          // Format: !3d{lat}!4d{lng}
+          lat = Number.parseFloat(match[1])
+          lng = Number.parseFloat(match[2])
+        } else {
+          // Format: @{lat},{lng} or ll={lat},{lng}
+          lat = Number.parseFloat(match[1])
+          lng = Number.parseFloat(match[2])
+        }
+        break
+      }
     }
 
-    // Try to extract place name from URL
-    const placeNameRegex = /place\/([^/]+)/
-    const nameMatch = url.match(placeNameRegex)
+    console.log("Extracted coordinates:", { lat, lng })
 
-    if (nameMatch) {
-      name = decodeURIComponent(nameMatch[1].replace(/\+/g, " "))
+    // Try to extract place name from URL
+    const placeNamePatterns = [/place\/([^/]+)/, /query=([^&]+)/, /q=([^&]+)/, /search\/([^/]+)/]
+
+    for (const pattern of placeNamePatterns) {
+      const match = url.match(pattern)
+      if (match) {
+        name = decodeURIComponent(match[1].replace(/\+/g, " "))
+        break
+      }
     }
 
     // If we couldn't extract coordinates or name, fetch the page and try to extract from meta tags
     if (!lat || !lng || !name) {
-      const response = await fetch(url)
-      const html = await response.text()
-      const $ = cheerio.load(html)
+      try {
+        console.log("Fetching page content to extract data")
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          },
+        })
+        const html = await response.text()
+        const $ = cheerio.load(html)
 
-      // Try to extract from meta tags
-      const metaDescription = $('meta[name="description"]').attr("content")
+        // Try to extract from meta tags
+        const metaDescription = $('meta[name="description"]').attr("content")
 
-      if (metaDescription) {
-        // Try to extract coordinates from meta description
-        const metaMatch = metaDescription.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
-        if (metaMatch && !lat && !lng) {
-          lat = Number.parseFloat(metaMatch[1])
-          lng = Number.parseFloat(metaMatch[2])
+        if (metaDescription) {
+          // Try to extract coordinates from meta description
+          const metaMatch = metaDescription.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+          if (metaMatch && !lat && !lng) {
+            lat = Number.parseFloat(metaMatch[1])
+            lng = Number.parseFloat(metaMatch[2])
+          }
+
+          // Try to extract name from title or meta description
+          if (!name) {
+            name = $("title").text().split(" - ")[0] || metaDescription.split(",")[0]
+          }
         }
 
-        // Try to extract name from title or meta description
-        if (!name) {
-          name = $("title").text().split(" - ")[0] || metaDescription.split(",")[0]
-        }
+        // Try to extract from JSON-LD
+        const jsonLdScripts = $('script[type="application/ld+json"]')
+        jsonLdScripts.each((_, element) => {
+          try {
+            const jsonContent = $(element).html()
+            if (jsonContent) {
+              const data = JSON.parse(jsonContent)
+              if (data.geo && !lat && !lng) {
+                lat = Number.parseFloat(data.geo.latitude || data.geo.lat)
+                lng = Number.parseFloat(data.geo.longitude || data.geo.lng)
+              } else if (data.location && data.location.geo && !lat && !lng) {
+                lat = Number.parseFloat(data.location.geo.latitude || data.location.geo.lat)
+                lng = Number.parseFloat(data.location.geo.longitude || data.location.geo.lng)
+              }
+
+              if (!name && data.name) {
+                name = data.name
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing JSON-LD:", e)
+          }
+        })
+      } catch (error) {
+        console.error("Error fetching page content:", error)
       }
     }
 
-    // If we still don't have coordinates or name, return an error
-    if (!lat || !lng) {
-      return NextResponse.json({ error: "Could not extract location coordinates from URL" }, { status: 400 })
+    // If we still don't have coordinates, return an error
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      console.error("Could not extract coordinates from URL:", url)
+      return NextResponse.json(
+        {
+          error: "Could not extract location coordinates from URL",
+          details: "The URL doesn't contain recognizable location data",
+        },
+        { status: 400 },
+      )
     }
 
     if (!name) {
@@ -102,8 +171,7 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
       id: `gm-${Date.now()}`,
       name,
       address: address || "Unknown Address",
-      lat,
-      lng,
+      coordinates: { lat, lng },
       type: "place",
       url,
     }
@@ -111,13 +179,25 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
     return NextResponse.json({ place })
   } catch (error) {
     console.error("Error extracting from Google Maps URL:", error)
-    return NextResponse.json({ error: "Failed to extract place information from Google Maps URL" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to extract place information from Google Maps URL",
+        details: (error as Error).message,
+      },
+      { status: 500 },
+    )
   }
 }
 
 async function extractGenericUrl(url: string): Promise<NextResponse> {
   try {
-    const response = await fetch(url)
+    console.log("Extracting from generic URL:", url)
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    })
     const html = await response.text()
     const $ = cheerio.load(html)
 
@@ -131,49 +211,85 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
     lat = Number.parseFloat($('meta[property="place:location:latitude"]').attr("content") || "")
     lng = Number.parseFloat($('meta[property="place:location:longitude"]').attr("content") || "")
 
+    // Check for other meta tags
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      lat = Number.parseFloat($('meta[name="geo.position"][content*=";"]').attr("content")?.split(";")[0] || "")
+      lng = Number.parseFloat($('meta[name="geo.position"][content*=";"]').attr("content")?.split(";")[1] || "")
+    }
+
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      lat = Number.parseFloat($('meta[name="ICBM"]').attr("content")?.split(",")[0] || "")
+      lng = Number.parseFloat($('meta[name="ICBM"]').attr("content")?.split(",")[1] || "")
+    }
+
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      lat = Number.parseFloat($('meta[property="og:latitude"]').attr("content") || "")
+      lng = Number.parseFloat($('meta[property="og:longitude"]').attr("content") || "")
+    }
+
     // Check for Schema.org location data
-    if (!lat || !lng) {
-      const schemaData = $('script[type="application/ld+json"]').html()
-      if (schemaData) {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      const jsonLdScripts = $('script[type="application/ld+json"]')
+      let foundInJsonLd = false
+
+      jsonLdScripts.each((_, element) => {
+        if (foundInJsonLd) return
         try {
-          const schema = JSON.parse(schemaData)
-          if (schema.geo) {
-            lat = schema.geo.latitude || schema.geo.lat
-            lng = schema.geo.longitude || schema.geo.lng
-          } else if (schema.location && schema.location.geo) {
-            lat = schema.location.geo.latitude || schema.location.geo.lat
-            lng = schema.location.geo.longitude || schema.location.geo.lng
-          }
+          const jsonContent = $(element).html()
+          if (jsonContent) {
+            const data = JSON.parse(jsonContent)
 
-          if (schema.name) {
-            name = schema.name
-          }
+            // Handle array of objects
+            const items = Array.isArray(data) ? data : [data]
 
-          if (schema.address) {
-            if (typeof schema.address === "string") {
-              address = schema.address
-            } else if (schema.address.streetAddress) {
-              address = [
-                schema.address.streetAddress,
-                schema.address.addressLocality,
-                schema.address.addressRegion,
-                schema.address.postalCode,
-                schema.address.addressCountry,
-              ]
-                .filter(Boolean)
-                .join(", ")
+            for (const item of items) {
+              // Check for geo property
+              if (item.geo && !foundInJsonLd) {
+                lat = Number.parseFloat(item.geo.latitude || item.geo.lat)
+                lng = Number.parseFloat(item.geo.longitude || item.geo.lng)
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  foundInJsonLd = true
+                  break
+                }
+              }
+
+              // Check for location property
+              if (item.location && item.location.geo && !foundInJsonLd) {
+                lat = Number.parseFloat(item.location.geo.latitude || item.location.geo.lat)
+                lng = Number.parseFloat(item.location.geo.longitude || item.location.geo.lng)
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  foundInJsonLd = true
+                  break
+                }
+              }
+
+              // Check for address
+              if (item.address && !address) {
+                if (typeof item.address === "string") {
+                  address = item.address
+                } else if (item.address.streetAddress) {
+                  address = [
+                    item.address.streetAddress,
+                    item.address.addressLocality,
+                    item.address.addressRegion,
+                    item.address.postalCode,
+                    item.address.addressCountry,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")
+                }
+              }
+
+              // Check for name
+              if (item.name && !name) {
+                name = item.name
+              }
             }
           }
         } catch (e) {
           console.error("Error parsing JSON-LD:", e)
         }
-      }
-    }
-
-    // If we still don't have coordinates, check for generic meta tags
-    if (!lat || !lng) {
-      lat = Number.parseFloat($('meta[name="geo.position"][content*=";"]').attr("content")?.split(";")[0] || "")
-      lng = Number.parseFloat($('meta[name="geo.position"][content*=";"]').attr("content")?.split(";")[1] || "")
+      })
     }
 
     // Get name from title if not found
@@ -181,9 +297,27 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
       name = $("title").text().trim() || $('meta[property="og:title"]').attr("content") || "Unknown Place"
     }
 
+    // Try to extract coordinates from any text on the page as a last resort
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      const bodyText = $("body").text()
+      const coordMatches = bodyText.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+      if (coordMatches) {
+        lat = Number.parseFloat(coordMatches[1])
+        lng = Number.parseFloat(coordMatches[2])
+      }
+    }
+
     // If we couldn't extract coordinates, return an error
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-      return NextResponse.json({ error: "Could not extract location coordinates from URL" }, { status: 400 })
+      console.error("Could not extract coordinates from generic URL:", url)
+      return NextResponse.json(
+        {
+          error: "Could not extract location coordinates from URL",
+          details: "The website doesn't contain recognizable location data",
+          fallbackOption: "manualEntry",
+        },
+        { status: 400 },
+      )
     }
 
     // Use reverse geocoding to get address if not found
@@ -195,8 +329,7 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
       id: `url-${Date.now()}`,
       name,
       address: address || "Unknown Address",
-      lat,
-      lng,
+      coordinates: { lat, lng },
       type: "place",
       url,
     }
@@ -204,7 +337,14 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
     return NextResponse.json({ place })
   } catch (error) {
     console.error("Error extracting from generic URL:", error)
-    return NextResponse.json({ error: "Failed to extract place information from URL" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to extract place information from URL",
+        details: (error as Error).message,
+        fallbackOption: "manualEntry",
+      },
+      { status: 500 },
+    )
   }
 }
 
