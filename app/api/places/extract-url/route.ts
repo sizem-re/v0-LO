@@ -57,20 +57,16 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
 
     // For Knowledge Graph URLs, we need to use a proxy approach
     // Instead of trying to fetch the URL directly (which can cause CORS issues),
-    // we'll use the Google Places API to search for places
+    // we'll use a server-side proxy to get the actual Google search page
 
-    // First, try to extract the entity name from the URL itself
-    // The format is typically g.co/kgs/{code}
-
-    // Use a server-side proxy approach to get the title
     try {
-      // Make a server-side request to the Google Knowledge Graph URL
-      // This avoids CORS issues since it's server-to-server
+      // Make a server-side request to follow the redirect
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
       const response = await fetch(url, {
         signal: controller.signal,
+        redirect: "follow",
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
           Accept: "text/html",
@@ -80,28 +76,87 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
 
       clearTimeout(timeoutId)
 
+      // Get the final URL after redirects
+      const finalUrl = response.url
+      console.log("Redirected to:", finalUrl)
+
       if (response.ok) {
         const html = await response.text()
+        const $ = cheerio.load(html)
 
-        // Use regex to extract the title - more reliable than cheerio for this case
-        const titleMatch = html.match(/<title>(.*?)<\/title>/)
-        if (titleMatch && titleMatch[1]) {
-          const title = titleMatch[1].split(" - ")[0].trim()
-          console.log("Extracted title from Knowledge Graph:", title)
+        // Try multiple approaches to extract the business name
 
-          if (title && !title.includes("Google Search")) {
-            // Use the title to search for the place
-            return await searchPlaceByName(title, url)
+        // 1. Look for the main heading (usually the business name)
+        let businessName = ""
+
+        // Try to get the title from the page
+        const title = $("title").text().trim()
+        console.log("Page title:", title)
+
+        // Extract business name from title (remove " - Google Search" if present)
+        if (title) {
+          businessName = title.split(" - ")[0].trim()
+          console.log("Extracted business name from title:", businessName)
+        }
+
+        // 2. Try to find the business name in the Knowledge Panel
+        if (!businessName || businessName.includes("Google Search")) {
+          // Look for the main heading in the Knowledge Panel
+          const kgHeading = $("h2").first().text().trim()
+          if (kgHeading) {
+            businessName = kgHeading
+            console.log("Extracted business name from heading:", businessName)
           }
         }
 
-        // Try using cheerio as a fallback
-        const $ = cheerio.load(html)
-        const cheerioTitle = $("title").text().split(" - ")[0].trim()
+        // 3. Try to find address information
+        let address = ""
 
-        if (cheerioTitle && !cheerioTitle.includes("Google Search")) {
-          console.log("Extracted title using cheerio:", cheerioTitle)
-          return await searchPlaceByName(cheerioTitle, url)
+        // Look for address in the page
+        $("span:contains('Address:')").each((_, element) => {
+          const addressElement = $(element).next()
+          if (addressElement.length) {
+            address = addressElement.text().trim()
+            console.log("Found address:", address)
+          }
+        })
+
+        // If we couldn't find the address with the label, try to find it by pattern
+        if (!address) {
+          $("div").each((_, element) => {
+            const text = $(element).text()
+            // Look for US address pattern
+            if (text.match(/\d+\s+[A-Za-z\s]+,\s+[A-Za-z\s]+,\s+[A-Z]{2}\s+\d{5}/)) {
+              address = text.trim()
+              console.log("Found address by pattern:", address)
+              return false // break the loop
+            }
+          })
+        }
+
+        // If we have a business name, use it to search for the place
+        if (businessName && !businessName.includes("Google Search")) {
+          console.log("Searching for place using business name:", businessName)
+
+          // If we have an address, include it in the search query for better results
+          let searchQuery = businessName
+          if (address) {
+            // Extract city and state from address if possible
+            const cityStateMatch = address.match(/([^,]+),\s*([A-Z]{2})/)
+            if (cityStateMatch) {
+              const city = cityStateMatch[1].trim()
+              searchQuery = `${businessName} ${city}`
+              console.log("Enhanced search query with city:", searchQuery)
+            }
+          }
+
+          return await searchPlaceByName(searchQuery, url)
+        }
+
+        // If we couldn't extract a business name but have an address, try geocoding
+        if (address && !businessName) {
+          console.log("Geocoding address:", address)
+          return await geocodeAddress(address, url)
         }
       }
     } catch (error) {
@@ -124,6 +179,79 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
     return NextResponse.json(
       {
         error: "Failed to extract place information from Google Knowledge Graph URL",
+        details: (error as Error).message,
+        fallbackOption: "manualEntry",
+      },
+      { status: 500 },
+    )
+  }
+}
+
+async function geocodeAddress(address: string, originalUrl: string): Promise<NextResponse> {
+  const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
+
+  if (!googleApiKey) {
+    console.error("Google Places API key not found")
+    return NextResponse.json(
+      { error: "Google Places API key not found", details: "API key is required for geocoding" },
+      { status: 500 },
+    )
+  }
+
+  try {
+    console.log("Geocoding address:", address)
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`
+
+    const geocodeResponse = await fetch(geocodeUrl)
+    if (geocodeResponse.ok) {
+      const geocodeData = await geocodeResponse.json()
+
+      if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
+        const result = geocodeData.results[0]
+        console.log("Successfully geocoded address")
+
+        // Extract the place name from the address components
+        let name = address.split(",")[0].trim()
+
+        // Try to find a more specific name in the address components
+        for (const component of result.address_components) {
+          if (component.types.includes("point_of_interest") || component.types.includes("establishment")) {
+            name = component.long_name
+            break
+          }
+        }
+
+        return NextResponse.json({
+          place: {
+            id: `geo-${Date.now()}`,
+            name: name,
+            address: result.formatted_address,
+            coordinates: {
+              lat: result.geometry.location.lat,
+              lng: result.geometry.location.lng,
+            },
+            type: "place",
+            url: originalUrl,
+          },
+        })
+      }
+    }
+
+    // If geocoding fails, return partial data
+    return NextResponse.json({
+      partialPlace: {
+        name: address.split(",")[0].trim(),
+        address: address,
+        url: originalUrl,
+        coordinates: { lat: 47.6062, lng: -122.3321 }, // Default to Seattle coordinates
+      },
+      message: "Address extracted but could not be geocoded. Please verify the location.",
+    })
+  } catch (error) {
+    console.error("Error geocoding address:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to geocode address",
         details: (error as Error).message,
         fallbackOption: "manualEntry",
       },
