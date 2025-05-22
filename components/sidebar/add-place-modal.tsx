@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw } from "lucide-react"
+import { X, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { PlaceSearch } from "@/components/place-search"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,7 @@ interface Place {
   address: string
   lat: number
   lng: number
+  type?: string
 }
 
 interface List {
@@ -193,72 +195,23 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     }
   }, [])
 
-  // Handle search for places
-  const searchPlaces = async () => {
-    if (!searchQuery.trim()) return
-
-    try {
-      setIsSearching(true)
-      setSearchError(null)
-      setSearchResults([])
-
-      console.log(`Searching for places with query: ${searchQuery}`)
-
-      // Use Nominatim API for geocoding with address details
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery,
-        )}&limit=5&addressdetails=1`,
-        {
-          headers: {
-            "Accept-Language": "en-US,en",
-            "User-Agent": "LO Place App (https://llllllo.com)",
-          },
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error(`Search failed with status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log("Search results:", data)
-
-      if (data.length === 0) {
-        setSearchError("No places found. Try a different search term or add details manually.")
-        return
-      }
-
-      setSearchResults(data)
-    } catch (err) {
-      console.error("Error searching for places:", err)
-      setSearchError(err instanceof Error ? err.message : "Failed to search for places")
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  // Handle place selection from search results
-  const handleSelectPlace = (place: AddressAutocompleteResult) => {
-    // Extract the first part of the display name as the place name
-    const nameComponents = place.display_name.split(",")
-    const suggestedName = nameComponents[0].trim()
-
-    setPlaceName(suggestedName)
+  // Handle place selection from PlaceSearch
+  const handlePlaceSelect = (place: Place) => {
+    setPlaceName(place.name)
     setCoordinates({
-      lat: Number.parseFloat(place.lat),
-      lng: Number.parseFloat(place.lon),
+      lat: place.lat,
+      lng: place.lng,
     })
 
-    // Extract address components from the result
-    const addr = place.address || {}
+    // Parse address into components (simplified)
+    const addressParts = place.address.split(",").map((part) => part.trim())
 
     setAddressComponents({
-      street: [addr.house_number, addr.road].filter(Boolean).join(" ") || "",
-      city: addr.city || addr.town || addr.village || "",
-      state: addr.state || "",
-      postalCode: addr.postcode || "",
-      country: addr.country || "",
+      street: addressParts[0] || "",
+      city: addressParts[1] || "",
+      state: addressParts[2] || "",
+      postalCode: addressParts[3] || "",
+      country: addressParts[4] || "",
     })
 
     // Move to the details step
@@ -574,60 +527,20 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (currentStep === "search") {
-      searchPlaces()
-    } else {
+    if (currentStep === "details") {
       handleAddPlace()
     }
   }
 
-  // Render the search step
+  // Render the search step with our new PlaceSearch component
   const renderSearchStep = () => (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="search">Search for a place</Label>
-        <div className="relative mt-1">
-          <Input
-            id="search"
-            type="text"
-            placeholder="Enter a place name or address"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10"
-          />
-          <button
-            type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            disabled={isSearching || !searchQuery.trim()}
-          >
-            {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-          </button>
+        <Label htmlFor="search">Search for a place or paste a URL</Label>
+        <div className="mt-1">
+          <PlaceSearch onPlaceSelect={handlePlaceSelect} placeholder="Enter a place name, address, or URL" />
         </div>
       </div>
-
-      {searchError && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">{searchError}</div>}
-
-      {searchResults.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium mb-2">Search Results</h3>
-          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y">
-            {searchResults.map((place, index) => (
-              <button
-                key={index}
-                type="button"
-                className="w-full text-left p-3 hover:bg-gray-50 flex items-start"
-                onClick={() => handleSelectPlace(place)}
-              >
-                <MapPin className="h-5 w-5 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
-                <div>
-                  <div className="font-medium">{place.display_name.split(",")[0]}</div>
-                  <div className="text-sm text-gray-500 truncate">{place.display_name}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="text-center pt-2">
         <button type="button" className="text-sm text-blue-600 hover:text-blue-800" onClick={handleManualEntry}>
@@ -957,25 +870,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
                   Cancel
                 </Button>
 
-                {currentStep === "search" ? (
-                  <Button
-                    type="submit"
-                    className="bg-black text-white hover:bg-black/80"
-                    disabled={isSearching || !searchQuery.trim()}
-                  >
-                    {isSearching ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="mr-2 h-4 w-4" />
-                        Search
-                      </>
-                    )}
-                  </Button>
-                ) : (
+                {currentStep === "details" && (
                   <Button
                     type="submit"
                     className="bg-black text-white hover:bg-black/80"
