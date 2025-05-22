@@ -91,20 +91,48 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
     console.log("Extracted address:", address)
 
     // If we have a name but no address, search for the place using Google Places API
-    if (name && !address) {
+    if (name) {
       console.log("Searching for place using name:", name)
       const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
 
       if (googleApiKey) {
-        const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+        // First try Find Place API for better results
+        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
 
-        const searchResponse = await fetch(searchUrl)
-        if (searchResponse.ok) {
-          const searchData = await searchResponse.json()
+        const findPlaceResponse = await fetch(findPlaceUrl)
+        if (findPlaceResponse.ok) {
+          const findPlaceData = await findPlaceResponse.json()
 
-          if (searchData.status === "OK" && searchData.candidates && searchData.candidates.length > 0) {
-            const place = searchData.candidates[0]
-            console.log("Found place using name search:", place.name)
+          if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
+            const place = findPlaceData.candidates[0]
+            console.log("Found place using Find Place API:", place.name)
+
+            return NextResponse.json({
+              place: {
+                id: place.place_id || `kg-${Date.now()}`,
+                name: place.name,
+                address: place.formatted_address,
+                coordinates: {
+                  lat: place.geometry.location.lat,
+                  lng: place.geometry.location.lng,
+                },
+                type: getPlaceType(place.types || []),
+                url: finalUrl,
+              },
+            })
+          }
+        }
+
+        // If Find Place doesn't work, try Text Search API
+        const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(name)}&key=${googleApiKey}`
+
+        const textSearchResponse = await fetch(textSearchUrl)
+        if (textSearchResponse.ok) {
+          const textSearchData = await textSearchResponse.json()
+
+          if (textSearchData.status === "OK" && textSearchData.results && textSearchData.results.length > 0) {
+            const place = textSearchData.results[0]
+            console.log("Found place using Text Search API:", place.name)
 
             return NextResponse.json({
               place: {
@@ -156,6 +184,18 @@ async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse
           }
         }
       }
+    }
+
+    // If we have a name but couldn't find coordinates, return partial data
+    if (name) {
+      return NextResponse.json({
+        partialPlace: {
+          name: name,
+          address: address || undefined,
+          url: finalUrl,
+        },
+        message: "Business name extracted but location not found. Please verify the address.",
+      })
     }
 
     // If we couldn't extract or geocode the address, try to search for the place directly

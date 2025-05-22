@@ -226,7 +226,7 @@ export function PlaceSearch({
           id: `partial-${Date.now()}`,
           name: partialPlace.name,
           address: partialPlace.address || "Address not available",
-          coordinates: partialPlace.coordinates || { lat: 0, lng: 0 },
+          coordinates: partialPlace.coordinates || { lat: 47.6062, lng: -122.3321 }, // Default to Seattle coordinates
           type: "place",
           url: partialPlace.url,
         }
