@@ -1,20 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  ChevronLeft,
-  MapPin,
-  Globe,
-  User,
-  Edit,
-  Trash2,
-  ExternalLink,
-  Plus,
-  Loader2,
-  ListIcon,
-  X,
-  Check,
-} from "lucide-react"
+import { ChevronLeft, MapPin, Globe, User, Edit, Trash2, ExternalLink, Plus, Loader2, ListIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -78,7 +65,6 @@ export function PlaceDetailView({
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
   const [addedByUser, setAddedByUser] = useState<any>(null)
   const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
-  const [isEditMode, setIsEditMode] = useState(false)
   const [currentList, setCurrentList] = useState<any>(null)
 
   // Center map on the place when component mounts
@@ -375,10 +361,6 @@ export function PlaceDetailView({
     }
   }
 
-  const toggleEditMode = () => {
-    setIsEditMode(!isEditMode)
-  }
-
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
@@ -387,29 +369,13 @@ export function PlaceDetailView({
           <div className="flex items-center">
             <button
               className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
-              onClick={isEditMode ? toggleEditMode : onBack}
-              aria-label={isEditMode ? "Cancel" : "Back"}
+              onClick={onBack}
+              aria-label="Back"
             >
-              {isEditMode ? <X size={16} /> : <ChevronLeft size={16} />}
+              <ChevronLeft size={16} />
             </button>
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
-
-          {/* Edit mode toggle button */}
-          {canEdit && !isEditMode && (
-            <Button variant="ghost" size="sm" onClick={toggleEditMode} className="h-8 px-2">
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-          )}
-
-          {/* Done button when in edit mode */}
-          {isEditMode && (
-            <Button variant="ghost" size="sm" onClick={toggleEditMode} className="h-8 px-2">
-              <Check className="h-4 w-4 mr-1" />
-              Done
-            </Button>
-          )}
         </div>
       </div>
 
@@ -438,7 +404,7 @@ export function PlaceDetailView({
             <MapPin size={14} /> Map
           </Button>
 
-          {canEdit && !isEditMode && (
+          {canEdit && (
             <Button
               variant="outline"
               size="sm"
@@ -545,8 +511,8 @@ export function PlaceDetailView({
         </div>
       </div>
 
-      {/* Remove button at the bottom - only visible in edit mode */}
-      {isEditMode && canEdit && (
+      {/* Remove button at the bottom */}
+      {canEdit && (
         <div className="p-4 border-t border-black/10 mt-auto">
           <Button
             variant="outline"

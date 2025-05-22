@@ -272,7 +272,7 @@ export function EditPlaceModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
           </DialogHeader>
@@ -313,7 +313,7 @@ export function EditPlaceModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add your notes about this place..."
-                rows={4}
+                rows={3}
               />
             </div>
 
@@ -321,7 +321,7 @@ export function EditPlaceModal({
               <Label>Photo (coming soon)</Label>
               <div
                 className={cn(
-                  "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
+                  "mt-1 border-2 border-dashed rounded-md p-2 text-center cursor-pointer hover:bg-gray-50 transition-colors",
                   photoPreview ? "border-gray-300" : "border-gray-200",
                 )}
                 onClick={handlePhotoButtonClick}
@@ -357,8 +357,14 @@ export function EditPlaceModal({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="mb-2 sm:mb-0"
+              >
                 Cancel
               </Button>
               <Button
@@ -366,11 +372,12 @@ export function EditPlaceModal({
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isSubmitting}
+                className="mb-2 sm:mb-0"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Remove from List
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="mb-2 sm:mb-0">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
