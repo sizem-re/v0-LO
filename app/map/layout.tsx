@@ -5,5 +5,5 @@ export default function MapLayout({
 }: {
   children: ReactNode
 }) {
-  return <div className="h-screen w-screen overflow-hidden">{children}</div>
+  return <>{children}</>
 }

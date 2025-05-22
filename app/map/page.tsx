@@ -4,6 +4,7 @@ import dynamic from "next/dynamic"
 import type { Place } from "@/types/place"
 import { Sidebar } from "@/components/sidebar/sidebar"
 import { SearchDialog } from "@/components/search-dialog"
+import { useRouter } from "next/navigation"
 
 // Dynamically import the map component with no SSR
 const MapComponent = dynamic(() => import("@/components/map/map-component"), {
@@ -72,6 +73,7 @@ export default function MapPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const router = useRouter()
 
   // Check if mobile on mount
   useEffect(() => {
@@ -108,6 +110,12 @@ export default function MapPage() {
     // Handle location selection
     console.log("Selected location:", lat, lng)
   }
+
+  useEffect(() => {
+    if (places.length === 0) {
+      router.replace("/")
+    }
+  }, [places, router])
 
   return (
     <div className="fixed inset-0 flex">

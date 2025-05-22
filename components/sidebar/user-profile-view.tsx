@@ -60,7 +60,7 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
             className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
             onClick={() => {
               if (onClose) onClose()
-              router.push("/profile")
+              router.push("/")
             }}
           >
             <User size={16} />
@@ -75,7 +75,7 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
             <span>My Lists</span>
           </Link>
           <Link
-            href="/map"
+            href="/places"
             className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
             onClick={onClose}
           >
