@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef } from "react"
 import { Search, MapPin, ListIcon, Plus, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useNeynarContext } from "@neynar/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
 import { useMiniApp } from "@/hooks/use-mini-app"
-// Add the import for UserProfileView at the top
 import { UserProfileView } from "./user-profile-view"
 
 export function Sidebar() {
@@ -144,7 +143,7 @@ export function Sidebar() {
         {userIsAuthenticated ? (
           <div className="flex flex-col items-center gap-2">
             <button
-              className="p-2 rounded-full text-black hover:bg-gray-100"
+              className={`p-2 rounded-full ${activeTab === "profile" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
               onClick={handleProfileClick}
               aria-label="Profile"
             >
@@ -194,16 +193,44 @@ export function Sidebar() {
         isMobile || isMiniApp ? "w-[85vw] max-w-[320px] shadow-md" : "w-80"
       }`}
     >
-      {/* Header with collapse button */}
+      {/* Header with collapse button and profile button */}
       <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
         <h1 className="font-serif text-xl">LO</h1>
-        <button
-          className="p-1 hover:bg-gray-100 rounded-full"
-          onClick={() => setIsCollapsed(true)}
-          aria-label="Collapse sidebar"
-        >
-          <ChevronLeft size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Profile button in header */}
+          {userIsAuthenticated ? (
+            <button
+              className={`p-1 hover:bg-gray-100 rounded-full ${activeTab === "profile" ? "bg-gray-100" : ""}`}
+              onClick={handleProfileClick}
+              aria-label="Profile"
+            >
+              {user?.pfp_url ? (
+                <img
+                  src={user.pfp_url || "/placeholder.svg"}
+                  alt="Profile"
+                  className="w-6 h-6 rounded-full border border-black/10"
+                />
+              ) : (
+                <User size={18} />
+              )}
+            </button>
+          ) : (
+            <button
+              className="p-1 hover:bg-gray-100 rounded-full"
+              onClick={() => setShowLogin(true)}
+              aria-label="Sign In"
+            >
+              <User size={18} />
+            </button>
+          )}
+          <button
+            className="p-1 hover:bg-gray-100 rounded-full"
+            onClick={() => setIsCollapsed(true)}
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Content based on what's being viewed */}
@@ -216,101 +243,94 @@ export function Sidebar() {
         />
       ) : (
         <>
-          {/* Tabs */}
-          <div className="flex border-b border-black/10">
-            <button
-              className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-              onClick={() => setActiveTab("discover")}
-            >
-              Discover
-            </button>
-            <button
-              className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-              onClick={() => setActiveTab("mylists")}
-            >
-              My Lists
-            </button>
-            <button
-              className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-              onClick={() => setActiveTab("places")}
-            >
-              Places
-            </button>
-          </div>
-
-          {/* Search bar */}
-          <div className="px-4 pt-3 pb-2">
-            <div className="relative">
-              <Input
-                type="text"
-                className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-                placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+          {activeTab === "profile" ? (
+            <div className="flex-grow overflow-y-auto">
+              <UserProfileView onClose={() => setActiveTab("discover")} />
             </div>
-          </div>
-
-          {/* Content based on active tab */}
-          <div className="flex-grow overflow-y-auto p-4">
-            {activeTab === "discover" && (
-              <div className="text-center py-8">
-                <p>Discover places and lists from the community.</p>
-                {!userIsAuthenticated && (
-                  <Button className="mt-4 bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                    Connect to get started
-                  </Button>
-                )}
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="flex border-b border-black/10">
+                <button
+                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                  onClick={() => setActiveTab("discover")}
+                >
+                  Discover
+                </button>
+                <button
+                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                  onClick={() => setActiveTab("mylists")}
+                >
+                  My Lists
+                </button>
+                <button
+                  className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                  onClick={() => setActiveTab("places")}
+                >
+                  Places
+                </button>
               </div>
-            )}
 
-            {activeTab === "mylists" && (
-              <div className="text-center py-8">
-                {!userIsAuthenticated ? (
-                  <>
-                    <p className="mb-4">Connect with Farcaster to create and manage lists</p>
-                    <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
-                      Connect
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p className="mb-4">Your lists will appear here</p>
-                    <Button className="bg-black text-white hover:bg-black/80">
-                      <Plus size={16} className="mr-1" /> Create List
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-
-            {activeTab === "places" && (
-              <div className="text-center py-8">
-                <p className="mb-4">Explore places on the map</p>
-                {userIsAuthenticated && (
-                  <Button className="bg-black text-white hover:bg-black/80">
-                    <Plus size={16} className="mr-1" /> Add Place
-                  </Button>
-                )}
-              </div>
-            )}
-            {/* Replace the profile tab content with our new component */}
-            {activeTab === "profile" &&
-              (userIsAuthenticated ? (
-                <UserProfileView onClose={() => setActiveTab("discover")} />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="mb-4">Sign in to create lists and save places</p>
-                  <NeynarAuthButton
-                    className="bg-black text-white hover:bg-black/80 px-6 py-3 rounded-md"
-                    onSuccess={() => setActiveTab("discover")}
-                  >
-                    Connect with Farcaster
-                  </NeynarAuthButton>
+              {/* Search bar */}
+              <div className="px-4 pt-3 pb-2">
+                <div className="relative">
+                  <Input
+                    type="text"
+                    className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                    placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
                 </div>
-              ))}
-          </div>
+              </div>
+
+              {/* Content based on active tab */}
+              <div className="flex-grow overflow-y-auto p-4">
+                {activeTab === "discover" && (
+                  <div className="text-center py-8">
+                    <p>Discover places and lists from the community.</p>
+                    {!userIsAuthenticated && (
+                      <Button className="mt-4 bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
+                        Connect to get started
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "mylists" && (
+                  <div className="text-center py-8">
+                    {!userIsAuthenticated ? (
+                      <>
+                        <p className="mb-4">Connect with Farcaster to create and manage lists</p>
+                        <Button className="bg-black text-white hover:bg-black/80" onClick={() => setShowLogin(true)}>
+                          Connect
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mb-4">Your lists will appear here</p>
+                        <Button className="bg-black text-white hover:bg-black/80">
+                          <Plus size={16} className="mr-1" /> Create List
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "places" && (
+                  <div className="text-center py-8">
+                    <p className="mb-4">Explore places on the map</p>
+                    {userIsAuthenticated && (
+                      <Button className="bg-black text-white hover:bg-black/80">
+                        <Plus size={16} className="mr-1" /> Add Place
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
