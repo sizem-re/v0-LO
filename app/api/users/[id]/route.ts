@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase-client"
+import { supabase } from "@/lib/supabase-client"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -8,8 +8,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
-
-    const supabase = createClient()
 
     // First try to get user by UUID (our internal ID)
     let { data: user, error } = await supabase
