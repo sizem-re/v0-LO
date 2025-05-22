@@ -98,3 +98,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext)
 }
+
+// Add the missing getAuthenticatedUser function
+export async function getAuthenticatedUser() {
+  try {
+    // This is a server-side function to get the authenticated user
+    const response = await fetch("/api/user", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (response.ok) {
+      const userData = await response.json()
+      return userData
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error in getAuthenticatedUser:", error)
+    return null
+  }
+}

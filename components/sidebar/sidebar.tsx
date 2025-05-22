@@ -12,6 +12,7 @@ import { UserProfileView } from "./user-profile-view"
 import { CreateListModal } from "@/components/create-list-modal"
 import { UserListsDisplay } from "@/components/user-lists-display"
 import { ListDetailView } from "./list-detail-view"
+import { PlaceDetailView } from "./place-detail-view"
 
 export function Sidebar() {
   // Get miniapp context
@@ -31,6 +32,7 @@ export function Sidebar() {
   const [showCreateListModal, setShowCreateListModal] = useState(false)
   const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
   // Auth context
   const { isAuthenticated } = useAuth()
@@ -80,6 +82,7 @@ export function Sidebar() {
       // If user is authenticated, toggle profile view or navigate to profile
       setActiveTab("profile")
       setSelectedListId(null) // Clear any selected list
+      setSelectedPlace(null) // Clear any selected place
       setIsCollapsed(false)
     }
   }
@@ -88,6 +91,7 @@ export function Sidebar() {
     setActiveTab(tab)
     setShowLogin(false)
     setSelectedListId(null) // Clear any selected list
+    setSelectedPlace(null) // Clear any selected place
     setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
@@ -105,17 +109,22 @@ export function Sidebar() {
 
   const handleSelectList = (listId: string) => {
     setSelectedListId(listId)
+    setSelectedPlace(null) // Clear any selected place
   }
 
   const handleBackFromList = () => {
     setSelectedListId(null)
+    setSelectedPlace(null) // Clear any selected place
   }
 
   const handlePlaceClick = (place: any) => {
     console.log("Place clicked:", place)
-    // Here you would typically center the map on this place
-    // or show a place detail view
-    setIsCollapsed(true) // Collapse sidebar to show the map better
+    setSelectedPlace(place)
+    // Don't collapse sidebar here to show the place details
+  }
+
+  const handleBackFromPlace = () => {
+    setSelectedPlace(null)
   }
 
   const handleEditList = (list: any) => {
@@ -127,6 +136,7 @@ export function Sidebar() {
     console.log("Delete list:", list)
     // After successful deletion, go back to the lists view
     setSelectedListId(null)
+    setSelectedPlace(null) // Clear any selected place
     // Force refresh the lists
     setListsKey((prev) => prev + 1)
   }
@@ -134,6 +144,27 @@ export function Sidebar() {
   const handleAddPlace = (listId: string) => {
     console.log("Add place to list:", listId)
     // Here you would show an add place modal or navigate to add place page
+  }
+
+  const handlePlaceUpdated = (updatedPlace: any) => {
+    console.log("Place updated:", updatedPlace)
+    // Update the selected place with the new data
+    setSelectedPlace(updatedPlace)
+  }
+
+  const handlePlaceDeleted = (placeId: string) => {
+    console.log("Place deleted:", placeId)
+    // Go back to the list view
+    setSelectedPlace(null)
+  }
+
+  const handleCenterMap = (coordinates: { lat: number; lng: number }) => {
+    // This function will be passed to the map component to center on a place
+    console.log("Center map on:", coordinates)
+    // You would typically call a function on the map component to center the map
+    // For now, we'll just dispatch a custom event that the map can listen for
+    const event = new CustomEvent("centerMap", { detail: coordinates })
+    window.dispatchEvent(event)
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -309,6 +340,17 @@ export function Sidebar() {
                     onCreateList={handleCreateList}
                     onSelectList={handleSelectList}
                     key={listsKey}
+                  />
+                </div>
+              ) : selectedPlace ? (
+                <div className="flex-1 overflow-y-auto">
+                  <PlaceDetailView
+                    place={selectedPlace}
+                    listId={selectedListId || ""}
+                    onBack={handleBackFromPlace}
+                    onPlaceUpdated={handlePlaceUpdated}
+                    onPlaceDeleted={handlePlaceDeleted}
+                    onCenterMap={handleCenterMap}
                   />
                 </div>
               ) : selectedListId ? (

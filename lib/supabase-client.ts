@@ -30,3 +30,6 @@ export const supabaseAdmin = createClient(
     },
   },
 )
+
+// Re-export createClient for use in other files
+export { createClient }
