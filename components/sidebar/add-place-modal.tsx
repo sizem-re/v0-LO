@@ -3,12 +3,14 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Search, MapPin, Plus, Loader2, PlusCircle } from "lucide-react"
+import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 
 interface Place {
   id?: string
@@ -19,11 +21,29 @@ interface Place {
   type?: string
 }
 
+interface AddressComponents {
+  street: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+}
+
 interface AddressAutocompleteResult {
   place_id: number
   display_name: string
   lat: string
   lon: string
+  address?: {
+    road?: string
+    house_number?: string
+    city?: string
+    town?: string
+    village?: string
+    state?: string
+    postcode?: string
+    country?: string
+  }
 }
 
 interface AddPlaceModalProps {
@@ -34,33 +54,41 @@ interface AddPlaceModalProps {
 
 export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalProps) {
   const { dbUser } = useAuth()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Place[]>([])
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
-  const [note, setNote] = useState("")
-  const [isSearching, setIsSearching] = useState(false)
-  const [isAdding, setIsAdding] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
-  const [isManualEntry, setIsManualEntry] = useState(false)
 
-  // Manual entry form state
-  const [manualName, setManualName] = useState("")
-  const [manualAddress, setManualAddress] = useState("")
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressAutocompleteResult[]>([])
-  const [isAddressFocused, setIsAddressFocused] = useState(false)
-  const [isLoadingAddressSuggestions, setIsLoadingAddressSuggestions] = useState(false)
-  const [manualLat, setManualLat] = useState<number | null>(null)
-  const [manualLng, setManualLng] = useState<number | null>(null)
-  const [manualType, setManualType] = useState("Place")
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<AddressAutocompleteResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  // Place details state
+  const [placeName, setPlaceName] = useState("")
+  const [placeType, setPlaceType] = useState("Place")
+  const [note, setNote] = useState("")
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const [isEditingAddress, setIsEditingAddress] = useState(false)
+  const [isAddingPlace, setIsAddingPlace] = useState(false)
+
+  // Address components state
+  const [addressComponents, setAddressComponents] = useState<AddressComponents>({
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+  })
+
+  // Photo placeholder state
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+
+  // Current step state
+  const [currentStep, setCurrentStep] = useState<"search" | "details">("search")
 
   // Refs
-  const addressInputRef = useRef<HTMLInputElement>(null)
-  const addressSuggestionsRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Debounce timer for address autocomplete
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Search for places using Nominatim API
+  // Handle search for places
   const searchPlaces = async () => {
     if (!searchQuery.trim()) return
 
@@ -71,9 +99,11 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
 
       console.log(`Searching for places with query: ${searchQuery}`)
 
-      // Use Nominatim API for geocoding
+      // Use Nominatim API for geocoding with address details
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchQuery,
+        )}&limit=5&addressdetails=1`,
         {
           headers: {
             "Accept-Language": "en-US,en",
@@ -90,20 +120,11 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
       console.log("Search results:", data)
 
       if (data.length === 0) {
-        setSearchError("No places found. Try a different search term or add manually.")
+        setSearchError("No places found. Try a different search term or add details manually.")
         return
       }
 
-      // Format the results
-      const formattedResults = data.map((item: any) => ({
-        name: item.display_name.split(",")[0],
-        address: item.display_name,
-        lat: Number.parseFloat(item.lat),
-        lng: Number.parseFloat(item.lon),
-        type: item.type,
-      }))
-
-      setSearchResults(formattedResults)
+      setSearchResults(data)
     } catch (err) {
       console.error("Error searching for places:", err)
       setSearchError(err instanceof Error ? err.message : "Failed to search for places")
@@ -112,135 +133,143 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
     }
   }
 
-  // Handle place selection
-  const handleSelectPlace = (place: Place) => {
-    setSelectedPlace(place)
-    setSearchResults([])
+  // Handle place selection from search results
+  const handleSelectPlace = (place: AddressAutocompleteResult) => {
+    // Extract the first part of the display name as the place name
+    const nameComponents = place.display_name.split(",")
+    const suggestedName = nameComponents[0].trim()
+
+    setPlaceName(suggestedName)
+    setCoordinates({
+      lat: Number.parseFloat(place.lat),
+      lng: Number.parseFloat(place.lon),
+    })
+
+    // Extract address components from the result
+    const addr = place.address || {}
+
+    setAddressComponents({
+      street: [addr.house_number, addr.road].filter(Boolean).join(" ") || "",
+      city: addr.city || addr.town || addr.village || "",
+      state: addr.state || "",
+      postalCode: addr.postcode || "",
+      country: addr.country || "",
+    })
+
+    // Move to the details step
+    setCurrentStep("details")
   }
 
-  // Switch to manual entry mode
-  const handleSwitchToManualEntry = () => {
-    setIsManualEntry(true)
-    setSearchResults([])
-    setSearchError(null)
+  // Handle manual entry without search
+  const handleManualEntry = () => {
+    setPlaceName("")
+    setCoordinates(null)
+    setAddressComponents({
+      street: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+    })
+    setCurrentStep("details")
+  }
 
-    // If there was a search query, use it as the initial name
-    if (searchQuery.trim()) {
-      setManualName(searchQuery)
+  // Format address components into a single string
+  const formatFullAddress = (): string => {
+    const components = []
+
+    if (addressComponents.street) components.push(addressComponents.street)
+    if (addressComponents.city) components.push(addressComponents.city)
+    if (addressComponents.state) components.push(addressComponents.state)
+    if (addressComponents.postalCode) components.push(addressComponents.postalCode)
+    if (addressComponents.country) components.push(addressComponents.country)
+
+    return components.join(", ")
+  }
+
+  // Geocode the address when components change
+  useEffect(() => {
+    const geocodeAddress = async () => {
+      if (!isEditingAddress) return
+
+      const addressString = formatFullAddress()
+      if (!addressString) return
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressString)}&limit=1`,
+          {
+            headers: {
+              "Accept-Language": "en-US,en",
+              "User-Agent": "LO Place App (https://llllllo.com)",
+            },
+          },
+        )
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (data.length > 0) {
+          setCoordinates({
+            lat: Number.parseFloat(data[0].lat),
+            lng: Number.parseFloat(data[0].lon),
+          })
+        }
+      } catch (err) {
+        console.error("Error geocoding address:", err)
+      }
+    }
+
+    // Debounce the geocoding
+    const timer = setTimeout(geocodeAddress, 1000)
+    return () => clearTimeout(timer)
+  }, [addressComponents, isEditingAddress])
+
+  // Handle photo selection
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPhotoFile(file)
+
+      // Create a preview URL
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  // Get address suggestions for autocomplete
-  const getAddressSuggestions = async (query: string) => {
-    if (!query.trim() || query.length < 3) {
-      setAddressSuggestions([])
+  // Trigger file input click
+  const handlePhotoButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  // Add the place to the list
+  const handleAddPlace = async () => {
+    if (!placeName.trim() || !coordinates || !listId || !dbUser) {
+      toast({
+        title: "Missing information",
+        description: "Please provide a name and valid address for the place.",
+        variant: "destructive",
+      })
       return
     }
 
     try {
-      setIsLoadingAddressSuggestions(true)
+      setIsAddingPlace(true)
 
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-        {
-          headers: {
-            "Accept-Language": "en-US,en",
-            "User-Agent": "LO Place App (https://llllllo.com)",
-          },
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error(`Address search failed with status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setAddressSuggestions(data)
-    } catch (err) {
-      console.error("Error getting address suggestions:", err)
-      setAddressSuggestions([])
-    } finally {
-      setIsLoadingAddressSuggestions(false)
-    }
-  }
-
-  // Handle address input change with debounce
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setManualAddress(value)
-
-    // Clear coordinates when address changes
-    setManualLat(null)
-    setManualLng(null)
-
-    // Debounce the API call
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      getAddressSuggestions(value)
-    }, 300)
-  }
-
-  // Handle address suggestion selection
-  const handleSelectAddressSuggestion = (suggestion: AddressAutocompleteResult) => {
-    setManualAddress(suggestion.display_name)
-    setManualLat(Number.parseFloat(suggestion.lat))
-    setManualLng(Number.parseFloat(suggestion.lon))
-    setAddressSuggestions([])
-  }
-
-  // Handle click outside address suggestions
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        addressSuggestionsRef.current &&
-        !addressSuggestionsRef.current.contains(event.target as Node) &&
-        addressInputRef.current &&
-        !addressInputRef.current.contains(event.target as Node)
-      ) {
-        setAddressSuggestions([])
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
-
-  // Create a place from manual entry
-  const createManualPlace = (): Place => {
-    if (!manualName.trim() || !manualAddress.trim() || manualLat === null || manualLng === null) {
-      throw new Error("Please fill in all required fields and select a valid address")
-    }
-
-    return {
-      name: manualName.trim(),
-      address: manualAddress.trim(),
-      lat: manualLat,
-      lng: manualLng,
-      type: manualType,
-    }
-  }
-
-  // Add the selected place to the list
-  const handleAddPlace = async () => {
-    try {
-      setIsAdding(true)
-
-      // Get the place data either from selection or manual entry
-      const placeData = isManualEntry ? createManualPlace() : selectedPlace
-
-      if (!placeData || !listId || !dbUser) {
-        throw new Error("Missing required data")
-      }
-
-      console.log(`Adding place to list ${listId}:`, placeData)
+      const fullAddress = formatFullAddress()
+      console.log(`Adding place to list ${listId}:`, {
+        name: placeName,
+        address: fullAddress,
+        coordinates,
+      })
 
       // First, check if the place already exists in the database
-      const checkResponse = await fetch(`/api/places?lat=${placeData.lat}&lng=${placeData.lng}`)
+      const checkResponse = await fetch(`/api/places?lat=${coordinates.lat}&lng=${coordinates.lng}`)
 
       let placeId: string
 
@@ -259,11 +288,12 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              name: placeData.name,
-              address: placeData.address,
-              lat: placeData.lat,
-              lng: placeData.lng,
-              type: placeData.type || "Place",
+              name: placeName,
+              address: fullAddress,
+              lat: coordinates.lat,
+              lng: coordinates.lng,
+              type: placeType || "Place",
+              created_by: dbUser.id,
             }),
           })
 
@@ -299,15 +329,23 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
         const listPlaceData = await addToListResponse.json()
         console.log("Place added to list successfully:", listPlaceData)
 
+        // TODO: Handle photo upload when backend is ready
+        if (photoFile) {
+          console.log("Photo will be uploaded in a future update:", photoFile.name)
+        }
+
         toast({
           title: "Place added",
-          description: `${placeData.name} has been added to your list.`,
+          description: `${placeName} has been added to your list.`,
         })
 
         // Call the callback with the added place
         onPlaceAdded({
-          ...placeData,
           id: placeId,
+          name: placeName,
+          address: fullAddress,
+          coordinates,
+          type: placeType,
           listPlaceId: listPlaceData.id,
         })
 
@@ -324,7 +362,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
         variant: "destructive",
       })
     } finally {
-      setIsAdding(false)
+      setIsAddingPlace(false)
     }
   }
 
@@ -332,303 +370,318 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (isManualEntry) {
-      handleAddPlace()
-    } else if (searchQuery && !selectedPlace) {
+    if (currentStep === "search") {
       searchPlaces()
-    } else if (selectedPlace) {
+    } else {
       handleAddPlace()
     }
   }
+
+  // Render the search step
+  const renderSearchStep = () => (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="search">Search for a place</Label>
+        <div className="relative mt-1">
+          <Input
+            id="search"
+            type="text"
+            placeholder="Enter a place name or address"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
+          />
+          <button
+            type="submit"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            disabled={isSearching || !searchQuery.trim()}
+          >
+            {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {searchError && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">{searchError}</div>}
+
+      {searchResults.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium mb-2">Search Results</h3>
+          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y">
+            {searchResults.map((place, index) => (
+              <button
+                key={index}
+                type="button"
+                className="w-full text-left p-3 hover:bg-gray-50 flex items-start"
+                onClick={() => handleSelectPlace(place)}
+              >
+                <MapPin className="h-5 w-5 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
+                <div>
+                  <div className="font-medium">{place.display_name.split(",")[0]}</div>
+                  <div className="text-sm text-gray-500 truncate">{place.display_name}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="text-center pt-2">
+        <button type="button" className="text-sm text-blue-600 hover:text-blue-800" onClick={handleManualEntry}>
+          Or add place details manually
+        </button>
+      </div>
+    </div>
+  )
+
+  // Render the details step
+  const renderDetailsStep = () => (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="placeName">
+          Place Name <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="placeName"
+          type="text"
+          placeholder="e.g., Cozy Corner Cafe"
+          value={placeName}
+          onChange={(e) => setPlaceName(e.target.value)}
+          className="mt-1"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="placeType">Place Type</Label>
+        <Input
+          id="placeType"
+          type="text"
+          placeholder="e.g., Restaurant, Park, Shop"
+          value={placeType}
+          onChange={(e) => setPlaceType(e.target.value)}
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between">
+          <Label>
+            Address <span className="text-red-500">*</span>
+          </Label>
+          <button
+            type="button"
+            className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+            onClick={() => setIsEditingAddress(!isEditingAddress)}
+          >
+            {isEditingAddress ? (
+              <>
+                <Check className="h-3 w-3 mr-1" />
+                Done
+              </>
+            ) : (
+              <>
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
+              </>
+            )}
+          </button>
+        </div>
+
+        {isEditingAddress ? (
+          <div className="grid grid-cols-1 gap-3 mt-1">
+            <div>
+              <Label htmlFor="street" className="text-xs">
+                Street
+              </Label>
+              <Input
+                id="street"
+                type="text"
+                placeholder="Street address"
+                value={addressComponents.street}
+                onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="city" className="text-xs">
+                  City
+                </Label>
+                <Input
+                  id="city"
+                  type="text"
+                  placeholder="City"
+                  value={addressComponents.city}
+                  onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="state" className="text-xs">
+                  State/Province
+                </Label>
+                <Input
+                  id="state"
+                  type="text"
+                  placeholder="State/Province"
+                  value={addressComponents.state}
+                  onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="postalCode" className="text-xs">
+                  Postal Code
+                </Label>
+                <Input
+                  id="postalCode"
+                  type="text"
+                  placeholder="Postal/ZIP code"
+                  value={addressComponents.postalCode}
+                  onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="country" className="text-xs">
+                  Country
+                </Label>
+                <Input
+                  id="country"
+                  type="text"
+                  placeholder="Country"
+                  value={addressComponents.country}
+                  onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-md mt-1">
+            {formatFullAddress() || "No address provided"}
+            {coordinates && (
+              <div className="text-xs text-gray-500 mt-1">
+                Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="note">Note (optional)</Label>
+        <Textarea
+          id="note"
+          placeholder="Add any notes about this place..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <Label>Photo (coming soon)</Label>
+        <div
+          className={cn(
+            "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
+            photoPreview ? "border-gray-300" : "border-gray-200",
+          )}
+          onClick={handlePhotoButtonClick}
+        >
+          <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
+
+          {photoPreview ? (
+            <div className="relative">
+              <img
+                src={photoPreview || "/placeholder.svg"}
+                alt="Place preview"
+                className="mx-auto max-h-40 rounded-md"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
+                <Camera className="h-8 w-8 text-white" />
+              </div>
+            </div>
+          ) : (
+            <div className="py-4">
+              <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">
+                Click to add a photo
+                <span className="block text-xs mt-1">(Photo uploads will be available soon)</span>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
       <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
         <div className="p-4 border-b border-black/10 flex items-center justify-between">
-          <h2 className="text-lg font-medium">{isManualEntry ? "Add Place Manually" : "Add Place"}</h2>
+          <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
           <button onClick={onClose} className="p-1" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4">
-          {!isManualEntry && !selectedPlace ? (
-            <>
-              <div className="mb-4">
-                <label htmlFor="search" className="block text-sm font-medium mb-1">
-                  Search for a place
-                </label>
-                <div className="relative">
-                  <Input
-                    id="search"
-                    type="text"
-                    placeholder="Enter a place name or address"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="submit"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    disabled={isSearching || !searchQuery.trim()}
-                  >
-                    {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
+          {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
 
-              {searchError && (
-                <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">
-                  {searchError}
-                  <button
-                    type="button"
-                    className="block mt-2 text-blue-600 hover:text-blue-800 font-medium"
-                    onClick={handleSwitchToManualEntry}
-                  >
-                    <PlusCircle className="h-4 w-4 inline-block mr-1" />
-                    Add place manually
-                  </button>
-                </div>
-              )}
-
-              {searchResults.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium mb-2">Search Results</h3>
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y">
-                    {searchResults.map((place, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        className="w-full text-left p-3 hover:bg-gray-50 flex items-start"
-                        onClick={() => handleSelectPlace(place)}
-                      >
-                        <MapPin className="h-5 w-5 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
-                        <div>
-                          <div className="font-medium">{place.name}</div>
-                          <div className="text-sm text-gray-500 truncate">{place.address}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                    onClick={handleSwitchToManualEntry}
-                  >
-                    Can't find what you're looking for? Add manually
-                  </button>
-                </div>
-              )}
-
-              {!searchResults.length && !searchError && (
-                <button
-                  type="button"
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                  onClick={handleSwitchToManualEntry}
-                >
-                  Can't find what you're looking for? Add manually
-                </button>
-              )}
-            </>
-          ) : isManualEntry ? (
-            <>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium mb-1">
-                    Place Name <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="e.g., Cozy Corner Cafe"
-                    value={manualName}
-                    onChange={(e) => setManualName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium mb-1">
-                    Address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Start typing an address..."
-                      value={manualAddress}
-                      onChange={handleAddressChange}
-                      onFocus={() => setIsAddressFocused(true)}
-                      ref={addressInputRef}
-                      required
-                    />
-                    {isLoadingAddressSuggestions && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                      </div>
-                    )}
-
-                    {isAddressFocused && addressSuggestions.length > 0 && (
-                      <div
-                        ref={addressSuggestionsRef}
-                        className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
-                      >
-                        {addressSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.place_id}
-                            type="button"
-                            className="w-full text-left p-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                            onClick={() => handleSelectAddressSuggestion(suggestion)}
-                          >
-                            {suggestion.display_name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {manualAddress && !manualLat && !manualLng && (
-                    <p className="text-amber-600 text-xs mt-1">Please select an address from the suggestions</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="type" className="block text-sm font-medium mb-1">
-                    Place Type
-                  </label>
-                  <Input
-                    id="type"
-                    type="text"
-                    placeholder="e.g., Restaurant, Park, Shop"
-                    value={manualType}
-                    onChange={(e) => setManualType(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="note" className="block text-sm font-medium mb-1">
-                    Note (optional)
-                  </label>
-                  <Textarea
-                    id="note"
-                    placeholder="Add any notes about this place..."
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                {manualLat !== null && manualLng !== null && (
-                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-500">
-                    Coordinates: {manualLat.toFixed(6)}, {manualLng.toFixed(6)}
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                className="mt-4 text-sm text-blue-600 hover:text-blue-800"
-                onClick={() => {
-                  setIsManualEntry(false)
-                  setManualName("")
-                  setManualAddress("")
-                  setManualLat(null)
-                  setManualLng(null)
-                }}
-              >
-                Back to search
-              </button>
-            </>
-          ) : selectedPlace ? (
-            <>
-              <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                <div className="flex items-start">
-                  <MapPin className="h-5 w-5 text-gray-500 mt-0.5 mr-2 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">{selectedPlace.name}</div>
-                    <div className="text-sm text-gray-500">{selectedPlace.address}</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                  onClick={() => setSelectedPlace(null)}
-                >
-                  Change place
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <label htmlFor="note" className="block text-sm font-medium mb-1">
-                  Add a note (optional)
-                </label>
-                <Textarea
-                  id="note"
-                  placeholder="Add any notes about this place..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </>
-          ) : null}
-
-          <div className="flex justify-end gap-2 mt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-
-            {isManualEntry ? (
-              <Button
-                type="submit"
-                className="bg-black text-white hover:bg-black/80"
-                disabled={isAdding || !manualName || !manualAddress || manualLat === null || manualLng === null}
-              >
-                {isAdding ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add to List
-                  </>
-                )}
-              </Button>
-            ) : selectedPlace ? (
-              <Button type="submit" className="bg-black text-white hover:bg-black/80" disabled={isAdding}>
-                {isAdding ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add to List
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                className="bg-black text-white hover:bg-black/80"
-                disabled={isSearching || !searchQuery.trim()}
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" />
-                    Search
-                  </>
-                )}
+          <div className="flex justify-between gap-2 mt-6">
+            {currentStep === "details" && (
+              <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
+                Back
               </Button>
             )}
+
+            <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+
+              {currentStep === "search" ? (
+                <Button
+                  type="submit"
+                  className="bg-black text-white hover:bg-black/80"
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="mr-2 h-4 w-4" />
+                      Search
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  className="bg-black text-white hover:bg-black/80"
+                  disabled={isAddingPlace || !placeName.trim() || !coordinates}
+                >
+                  {isAddingPlace ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add to List
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </div>
