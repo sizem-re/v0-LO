@@ -1,6 +1,6 @@
 "use client"
 
-import { User, LogOut, List, MapPin, ChevronLeft, Plus } from "lucide-react"
+import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
@@ -56,16 +56,6 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
         </div>
 
         <div className="space-y-2">
-          <button
-            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
-            onClick={() => {
-              if (onClose) onClose()
-              router.push("/")
-            }}
-          >
-            <User size={16} />
-            <span>View Full Profile</span>
-          </button>
           <Link
             href="/lists"
             className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
@@ -73,14 +63,6 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
           >
             <List size={16} />
             <span>My Lists</span>
-          </Link>
-          <Link
-            href="/places"
-            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md"
-            onClick={onClose}
-          >
-            <MapPin size={16} />
-            <span>Saved Places</span>
           </Link>
 
           {/* Use NeynarAuthButton directly for sign out */}
@@ -93,7 +75,7 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
     )
   }
 
-  // Expanded profile view (similar to the header profile page)
+  // Expanded profile view
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
       {/* Back button */}
@@ -115,86 +97,6 @@ export function UserProfileView({ onClose, expanded = false }: UserProfileViewPr
           <p className="text-black/70">@{displayUser.username}</p>
           {displayUser.bio && <p className="text-gray-600 mt-2">{displayUser.bio}</p>}
           <p className="text-sm text-black/60 mt-1">Farcaster ID: {displayUser.fid}</p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <Link
-          href="/lists"
-          className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors"
-        >
-          <div className="text-3xl font-medium">12</div>
-          <div className="text-sm text-black/70">Lists</div>
-        </Link>
-        <Link
-          href="/places"
-          className="border border-black/10 p-4 rounded text-center hover:bg-black/5 transition-colors"
-        >
-          <div className="text-3xl font-medium">48</div>
-          <div className="text-sm text-black/70">Places</div>
-        </Link>
-      </div>
-
-      {/* Recent Lists */}
-      <div className="mb-6">
-        <h2 className="font-serif text-xl mb-3 flex items-center">
-          <List size={18} className="mr-2" /> Recent Lists
-        </h2>
-        <div className="space-y-2">
-          <Link href="/lists/hidden-food-tacoma" className="block">
-            <div className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors">
-              <h3 className="font-medium">BEST (HIDDEN) FOOD IN TACOMA</h3>
-              <p className="text-xs text-black/60">12 places</p>
-            </div>
-          </Link>
-          <Link href="/lists/weekend-getaways" className="block">
-            <div className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors">
-              <h3 className="font-medium">Weekend Getaways</h3>
-              <p className="text-xs text-black/60">8 places</p>
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Places */}
-      <div className="mb-6">
-        <h2 className="font-serif text-xl mb-3 flex items-center">
-          <MapPin size={18} className="mr-2" /> Recent Places
-        </h2>
-        <div className="space-y-2">
-          <Link href="/places/fish-house-cafe" className="block">
-            <div className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors flex items-center">
-              <div
-                className="h-12 w-12 bg-gray-200 rounded mr-3 flex-shrink-0"
-                style={{
-                  backgroundImage: `url(/placeholder.svg?height=200&width=300)`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
-              <div>
-                <h3 className="font-medium">The Fish House Cafe</h3>
-                <p className="text-xs text-black/60">Tacoma, WA</p>
-              </div>
-            </div>
-          </Link>
-          <Link href="/places/lighthouse-coffee" className="block">
-            <div className="p-3 border border-black/10 rounded hover:bg-black/5 transition-colors flex items-center">
-              <div
-                className="h-12 w-12 bg-gray-200 rounded mr-3 flex-shrink-0"
-                style={{
-                  backgroundImage: `url(/placeholder.svg?height=200&width=300)`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
-              <div>
-                <h3 className="font-medium">Lighthouse Coffee</h3>
-                <p className="text-xs text-black/60">Beach Rd</p>
-              </div>
-            </div>
-          </Link>
         </div>
       </div>
 

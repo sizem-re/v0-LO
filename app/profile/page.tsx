@@ -7,6 +7,7 @@ import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import { Button } from "@/components/ui/button"
 import { LogOut, List, MapPin, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
+import { Loader2 } from "lucide-react"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -17,21 +18,20 @@ export default function ProfilePage() {
   const user = neynarUser || authUser
 
   useEffect(() => {
-    // If the user is authenticated, redirect to home page
-    // If not authenticated, redirect to login
-    if (!isLoading) {
-      if (userIsAuthenticated) {
-        // We're transitioning away from this page, so redirect to home
-        router.push("/")
-      } else {
-        router.push("/login")
-      }
-    }
-  }, [isLoading, userIsAuthenticated, router])
+    // Redirect to home page - we're no longer using a separate profile page
+    router.replace("/")
+  }, [router])
 
   // Show loading state while redirecting
   if (isLoading) {
-    return <div className="p-8 text-center">Loading...</div>
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p>Redirecting to home page...</p>
+        </div>
+      </div>
+    )
   }
 
   // Format user data
