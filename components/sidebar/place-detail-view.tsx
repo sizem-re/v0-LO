@@ -76,6 +76,7 @@ export function PlaceDetailView({
   const [addedByUser, setAddedByUser] = useState<any>(null)
   const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [currentList, setCurrentList] = useState<any>(null)
 
   // Center map on the place when component mounts
   useEffect(() => {
@@ -84,14 +85,33 @@ export function PlaceDetailView({
     }
   }, [place, onCenterMap])
 
+  // Fetch current list details to get owner information
+  useEffect(() => {
+    const fetchCurrentList = async () => {
+      if (!listId) return
+
+      try {
+        const response = await fetch(`/api/lists/${listId}`)
+        if (response.ok) {
+          const listData = await response.json()
+          setCurrentList(listData)
+        }
+      } catch (error) {
+        console.error("Error fetching current list:", error)
+      }
+    }
+
+    fetchCurrentList()
+  }, [listId])
+
   // Fetch user who added this place
   useEffect(() => {
     const fetchAddedByUser = async () => {
-      if (!place?.added_by && !place?.added_by_user_id) return
+      if (!place?.addedBy && !place?.added_by) return
 
       try {
         setIsLoadingAddedBy(true)
-        const userId = place.added_by || place.added_by_user_id
+        const userId = place.addedBy || place.added_by
         const response = await fetch(`/api/users/${userId}`)
 
         if (!response.ok) {
@@ -108,7 +128,7 @@ export function PlaceDetailView({
     }
 
     fetchAddedByUser()
-  }, [place?.added_by, place?.added_by_user_id])
+  }, [place?.addedBy, place?.added_by])
 
   // Fetch lists that contain this place
   useEffect(() => {
@@ -225,18 +245,20 @@ export function PlaceDetailView({
   // User can edit if they added the place OR if they own the current list
   const canEdit =
     dbUser &&
-    (dbUser.id === place.added_by ||
-      dbUser.id === place.added_by_user_id ||
-      dbUser.id === listOwnerId ||
-      dbUser.id === place.list_owner_id)
+    (dbUser.id === place.addedBy ||
+      dbUser.id === place.added_by ||
+      dbUser.id === currentList?.owner_id ||
+      dbUser.id === listOwnerId)
 
   console.log("Place ownership check:", {
     dbUserId: dbUser?.id,
-    placeAddedBy: place.added_by,
-    placeAddedByUserId: place.added_by_user_id,
-    listOwnerId: listOwnerId,
-    placeListOwnerId: place.list_owner_id,
+    placeAddedBy: place.addedBy,
+    placeAddedByAlt: place.added_by,
+    currentListOwnerId: currentList?.owner_id,
+    listOwnerIdProp: listOwnerId,
     canEdit,
+    place: place,
+    currentList: currentList,
   })
 
   const handleEditPlace = () => {
@@ -258,7 +280,7 @@ export function PlaceDetailView({
       setIsDeleting(true)
       console.log(`Deleting place with ID: ${place.id} from list: ${listId}`)
 
-      const response = await fetch(`/api/list-places?id=${place.list_place_id}`, {
+      const response = await fetch(`/api/list-places?id=${place.listPlaceId}`, {
         method: "DELETE",
       })
 
@@ -479,7 +501,7 @@ export function PlaceDetailView({
         )}
 
         {/* Added By field instead of Date Added */}
-        {(place.added_by || place.added_by_user_id) && (
+        {(place.addedBy || place.added_by) && (
           <div className="flex items-start mb-3">
             <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
             {isLoadingAddedBy ? (
