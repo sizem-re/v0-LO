@@ -34,12 +34,43 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      // For business names, use the Find Place API first
+      if (query.length > 3 && !query.match(/^\d+/)) {
+        console.log("Trying Find Place API for business name:", query)
+        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
+          query,
+        )}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+
+        const findPlaceResponse = await fetch(findPlaceUrl)
+        if (findPlaceResponse.ok) {
+          const findPlaceData = await findPlaceResponse.json()
+
+          if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
+            console.log("Found places using Find Place API:", findPlaceData.candidates.length)
+
+            const places = findPlaceData.candidates.map((place: any) => ({
+              id: place.place_id,
+              name: place.name,
+              address: place.formatted_address,
+              coordinates: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng,
+              },
+              type: getPlaceType(place.types || []),
+              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+            }))
+
+            return NextResponse.json({ places })
+          }
+        }
+      }
+
       // Step 1: Use Google Places Autocomplete API to get place predictions
       const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
         query,
       )}&key=${googleApiKey}&types=establishment|geocode`
 
-      console.log("Calling Google Places Autocomplete API:", autocompleteUrl)
+      console.log("Calling Google Places Autocomplete API")
 
       const autocompleteResponse = await fetch(autocompleteUrl)
 

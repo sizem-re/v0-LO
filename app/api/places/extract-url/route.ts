@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import * as cheerio from "cheerio"
 
 interface PlaceCoordinates {
   lat: number
@@ -25,6 +26,11 @@ export async function POST(request: NextRequest) {
     console.log("=== URL EXTRACTION DEBUG ===")
     console.log("Original URL:", url)
 
+    // Check if it's a Google Knowledge Graph URL (g.co/kgs format)
+    if (url.includes("g.co/kgs/")) {
+      return await extractGoogleKnowledgeGraphUrl(url)
+    }
+
     // Check if it's a Google Maps URL
     if (url.includes("google.com/maps") || url.includes("goo.gl/maps") || url.includes("maps.app.goo.gl")) {
       return await extractGoogleMapsUrl(url)
@@ -36,6 +42,132 @@ export async function POST(request: NextRequest) {
     console.error("Error extracting place from URL:", error)
     return NextResponse.json(
       { error: "Failed to extract place information from URL", details: (error as Error).message },
+      { status: 500 },
+    )
+  }
+}
+
+async function extractGoogleKnowledgeGraphUrl(url: string): Promise<NextResponse> {
+  try {
+    console.log("Processing Google Knowledge Graph URL:", url)
+
+    // First, we need to follow the redirect to get the actual page
+    console.log("Following redirect for Knowledge Graph URL...")
+    const response = await fetch(url, {
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    })
+
+    const finalUrl = response.url
+    console.log("Redirected to:", finalUrl)
+
+    // Get the HTML content
+    const html = await response.text()
+    const $ = cheerio.load(html)
+
+    // Extract business name
+    const name = $("title").text().split(" - ")[0].trim()
+    console.log("Extracted name:", name)
+
+    // Try to extract address
+    let address = ""
+    const addressElement = $('span:contains("Address:")').next()
+    if (addressElement.length) {
+      address = addressElement.text().trim()
+    } else {
+      // Look for address in the page content
+      $("div").each((_, element) => {
+        const text = $(element).text()
+        if (text.match(/\d+\s+[A-Za-z\s]+,\s+[A-Za-z\s]+,\s+[A-Z]{2}\s+\d{5}/)) {
+          address = text.trim()
+          return false // break the loop
+        }
+      })
+    }
+
+    console.log("Extracted address:", address)
+
+    // If we have a name but no address, search for the place using Google Places API
+    if (name && !address) {
+      console.log("Searching for place using name:", name)
+      const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
+
+      if (googleApiKey) {
+        const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+
+        const searchResponse = await fetch(searchUrl)
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json()
+
+          if (searchData.status === "OK" && searchData.candidates && searchData.candidates.length > 0) {
+            const place = searchData.candidates[0]
+            console.log("Found place using name search:", place.name)
+
+            return NextResponse.json({
+              place: {
+                id: place.place_id || `kg-${Date.now()}`,
+                name: place.name,
+                address: place.formatted_address,
+                coordinates: {
+                  lat: place.geometry.location.lat,
+                  lng: place.geometry.location.lng,
+                },
+                type: getPlaceType(place.types || []),
+                url: finalUrl,
+              },
+            })
+          }
+        }
+      }
+    }
+
+    // If we have an address, try to geocode it
+    if (address) {
+      console.log("Geocoding address:", address)
+      const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
+
+      if (googleApiKey) {
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`
+
+        const geocodeResponse = await fetch(geocodeUrl)
+        if (geocodeResponse.ok) {
+          const geocodeData = await geocodeResponse.json()
+
+          if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
+            const result = geocodeData.results[0]
+            console.log("Successfully geocoded address")
+
+            return NextResponse.json({
+              place: {
+                id: `kg-${Date.now()}`,
+                name: name || address.split(",")[0],
+                address: result.formatted_address,
+                coordinates: {
+                  lat: result.geometry.location.lat,
+                  lng: result.geometry.location.lng,
+                },
+                type: "business",
+                url: finalUrl,
+              },
+            })
+          }
+        }
+      }
+    }
+
+    // If we couldn't extract or geocode the address, try to search for the place directly
+    console.log("Searching for place using URL as query")
+    return await extractGenericUrl(finalUrl)
+  } catch (error) {
+    console.error("Error extracting from Google Knowledge Graph URL:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to extract place information from Google Knowledge Graph URL",
+        details: (error as Error).message,
+      },
       { status: 500 },
     )
   }
@@ -270,6 +402,58 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
       }
     }
 
+    // If all else fails, try to fetch the page and extract information
+    try {
+      console.log("Fetching page content to extract data")
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        },
+      })
+      const html = await response.text()
+      const $ = cheerio.load(html)
+
+      // Try to extract the title for use as a query
+      const title = $("title").text().trim()
+      console.log("Extracted title from page:", title)
+
+      if (title) {
+        // Use the title as a query for Google Places API
+        const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
+        if (googleApiKey) {
+          const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(title)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+          console.log("Searching for place using page title as query")
+
+          const searchResponse = await fetch(searchUrl)
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json()
+
+            if (searchData.status === "OK" && searchData.candidates && searchData.candidates.length > 0) {
+              const place = searchData.candidates[0]
+              console.log("Found place using page title as query:", place.name)
+
+              return NextResponse.json({
+                place: {
+                  id: place.place_id || `gm-${Date.now()}`,
+                  name: place.name,
+                  address: place.formatted_address,
+                  coordinates: {
+                    lat: place.geometry.location.lat,
+                    lng: place.geometry.location.lng,
+                  },
+                  type: getPlaceType(place.types || []),
+                  url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+                },
+              })
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching page content:", error)
+    }
+
     // If all else fails, return an error
     console.error("Could not extract place information from URL")
     return NextResponse.json(
@@ -300,30 +484,46 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
     // Use Google Places API to search for the URL
     const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
     if (googleApiKey) {
-      const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(url)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
-      console.log("Searching for place using Google API with URL as query")
+      // First, try to extract the business name from the URL
+      let businessName = ""
 
-      const searchResponse = await fetch(searchUrl)
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json()
+      // Extract domain name
+      const domainMatch = url.match(/https?:\/\/(?:www\.)?([^/]+)/)
+      if (domainMatch) {
+        const domain = domainMatch[1]
+        // Convert domain to potential business name
+        businessName = domain
+          .split(".")[0] // Take the first part of the domain
+          .replace(/-/g, " ") // Replace hyphens with spaces
+      }
 
-        if (searchData.status === "OK" && searchData.candidates && searchData.candidates.length > 0) {
-          const place = searchData.candidates[0]
-          console.log("Found place using URL as query:", place.name)
+      // If we have a business name, search for it
+      if (businessName) {
+        console.log("Extracted business name from URL:", businessName)
+        const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(businessName)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
 
-          return NextResponse.json({
-            place: {
-              id: place.place_id || `url-${Date.now()}`,
-              name: place.name,
-              address: place.formatted_address,
-              coordinates: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
+        const searchResponse = await fetch(searchUrl)
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json()
+
+          if (searchData.status === "OK" && searchData.candidates && searchData.candidates.length > 0) {
+            const place = searchData.candidates[0]
+            console.log("Found place using business name:", place.name)
+
+            return NextResponse.json({
+              place: {
+                id: place.place_id || `url-${Date.now()}`,
+                name: place.name,
+                address: place.formatted_address,
+                coordinates: {
+                  lat: place.geometry.location.lat,
+                  lng: place.geometry.location.lng,
+                },
+                type: getPlaceType(place.types || []),
+                url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
               },
-              type: getPlaceType(place.types || []),
-              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
-            },
-          })
+            })
+          }
         }
       }
     }
@@ -339,8 +539,8 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
 
     // Extract the page title for use as a query
     const html = await response.text()
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-    const title = titleMatch ? titleMatch[1].trim() : url
+    const $ = cheerio.load(html)
+    const title = $("title").text().trim()
 
     console.log("Extracted title from page:", title)
 
