@@ -14,7 +14,6 @@ interface Place {
   url?: string
 }
 
-// Modify the GET function to include more detailed logging
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -35,172 +34,186 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // First, try the Text Search API for direct results
+      // APPROACH 1: First try the Text Search API (New) for direct results
       // This is better for general queries like "coffee shops in portland"
-      console.log("Trying Google Places Text Search API for:", query)
-      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-        query,
-      )}&key=${googleApiKey}`
+      console.log("Trying Google Places Text Search API (New) for:", query)
+      const textSearchUrl = `https://places.googleapis.com/v1/places:searchText`
 
-      const textSearchResponse = await fetch(textSearchUrl)
-      const textSearchData = await textSearchResponse.json()
-
-      console.log("Text Search API response status:", textSearchData.status)
+      const textSearchResponse = await fetch(textSearchUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id,places.location,places.types",
+        },
+        body: JSON.stringify({
+          textQuery: query,
+          languageCode: "en",
+        }),
+      })
 
       if (textSearchResponse.ok) {
-        if (textSearchData.status === "OK" && textSearchData.results && textSearchData.results.length > 0) {
-          console.log("Found places using Text Search API:", textSearchData.results.length)
+        const textSearchData = await textSearchResponse.json()
+        console.log("Text Search API (New) response:", textSearchData)
 
-          const places = textSearchData.results.slice(0, 5).map((place: any) => ({
-            id: place.place_id,
-            name: place.name,
-            address: place.formatted_address,
+        if (textSearchData.places && textSearchData.places.length > 0) {
+          console.log("Found places using Text Search API (New):", textSearchData.places.length)
+
+          const places = textSearchData.places.slice(0, 5).map((place: any) => ({
+            id: place.id,
+            name: place.displayName?.text || "Unknown Place",
+            address: place.formattedAddress || "",
             coordinates: {
-              lat: place.geometry.location.lat,
-              lng: place.geometry.location.lng,
+              lat: place.location?.latitude || 0,
+              lng: place.location?.longitude || 0,
             },
-            type: getPlaceType(place.types || []),
-            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+            type: getPlaceTypeFromNewApi(place.types || []),
+            url: `https://www.google.com/maps/place/?q=place_id:${place.id}`,
           }))
 
-          return NextResponse.json({ places })
+          return NextResponse.json({ places, source: "google-places-new" })
         } else {
-          console.log(
-            "Text Search API returned no results or error:",
-            textSearchData.status,
-            textSearchData.error_message,
-          )
+          console.log("Text Search API (New) returned no results")
         }
       } else {
-        console.error("Text Search API request failed:", textSearchResponse.statusText)
+        const errorText = await textSearchResponse.text()
+        console.error("Text Search API (New) request failed:", textSearchResponse.status, errorText)
       }
 
-      // If Text Search didn't work well, try Find Place API for business names
-      if (query.length > 3 && !query.match(/^\d+/)) {
-        console.log("Trying Find Place API for business name:", query)
-        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
-          query,
-        )}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+      // APPROACH 2: If the new API fails, try the Find Place API (New)
+      if (query.length > 3) {
+        console.log("Trying Find Place API (New) for:", query)
+        const findPlaceUrl = `https://places.googleapis.com/v1/places:searchText`
 
-        const findPlaceResponse = await fetch(findPlaceUrl)
-        const findPlaceData = await findPlaceResponse.json()
-
-        console.log("Find Place API response status:", findPlaceData.status)
+        const findPlaceResponse = await fetch(findPlaceUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": googleApiKey,
+            "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id,places.location,places.types",
+          },
+          body: JSON.stringify({
+            textQuery: query,
+            languageCode: "en",
+            // Optimize for exact name matches
+            exactMatchFields: ["displayName"],
+          }),
+        })
 
         if (findPlaceResponse.ok) {
-          if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
-            console.log("Found places using Find Place API:", findPlaceData.candidates.length)
+          const findPlaceData = await findPlaceResponse.json()
+          console.log("Find Place API (New) response:", findPlaceData)
 
-            const places = findPlaceData.candidates.map((place: any) => ({
-              id: place.place_id,
-              name: place.name,
-              address: place.formatted_address,
+          if (findPlaceData.places && findPlaceData.places.length > 0) {
+            console.log("Found places using Find Place API (New):", findPlaceData.places.length)
+
+            const places = findPlaceData.places.slice(0, 5).map((place: any) => ({
+              id: place.id,
+              name: place.displayName?.text || "Unknown Place",
+              address: place.formattedAddress || "",
               coordinates: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
+                lat: place.location?.latitude || 0,
+                lng: place.location?.longitude || 0,
               },
-              type: getPlaceType(place.types || []),
-              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+              type: getPlaceTypeFromNewApi(place.types || []),
+              url: `https://www.google.com/maps/place/?q=place_id:${place.id}`,
             }))
 
-            return NextResponse.json({ places })
+            return NextResponse.json({ places, source: "google-places-new" })
           } else {
-            console.log(
-              "Find Place API returned no results or error:",
-              findPlaceData.status,
-              findPlaceData.error_message,
-            )
+            console.log("Find Place API (New) returned no results")
           }
         } else {
-          console.error("Find Place API request failed:", findPlaceResponse.statusText)
+          const errorText = await findPlaceResponse.text()
+          console.error("Find Place API (New) request failed:", findPlaceResponse.status, errorText)
         }
       }
 
-      // Finally, fall back to Autocomplete + Details API
-      // This is good for partial queries and address completion
-      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-        query,
-      )}&key=${googleApiKey}&types=establishment|geocode`
+      // APPROACH 3: If the new APIs fail, try the Autocomplete API (New)
+      console.log("Trying Places Autocomplete API (New) for:", query)
+      const autocompleteUrl = `https://places.googleapis.com/v1/places:autocomplete`
 
-      console.log("Trying Google Places Autocomplete API for:", query)
-
-      const autocompleteResponse = await fetch(autocompleteUrl)
-      const autocompleteData = await autocompleteResponse.json()
-
-      console.log("Autocomplete API response status:", autocompleteData.status)
-
-      if (!autocompleteResponse.ok) {
-        console.error("Google Places Autocomplete API error:", autocompleteResponse.statusText)
-        return await fallbackSearch(query)
-      }
-
-      if (autocompleteData.status !== "OK") {
-        console.error("Google Places Autocomplete API error:", autocompleteData.status, autocompleteData.error_message)
-        return await fallbackSearch(query)
-      }
-
-      if (!autocompleteData.predictions || autocompleteData.predictions.length === 0) {
-        console.log("No predictions found from Autocomplete API, using fallback search")
-        return await fallbackSearch(query)
-      }
-
-      console.log("Found predictions using Autocomplete API:", autocompleteData.predictions.length)
-
-      // Step 2: Get place details for each prediction
-      const places = await Promise.all(
-        autocompleteData.predictions.slice(0, 5).map(async (prediction: any) => {
-          try {
-            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${
-              prediction.place_id
-            }&fields=name,formatted_address,geometry,types,url&key=${googleApiKey}`
-
-            console.log("Fetching place details for:", prediction.description)
-
-            const detailsResponse = await fetch(detailsUrl)
-            const detailsData = await detailsResponse.json()
-
-            console.log("Details API response status for", prediction.description, ":", detailsData.status)
-
-            if (!detailsResponse.ok) {
-              console.error("Place details API error:", detailsResponse.statusText)
-              return null
-            }
-
-            if (detailsData.status !== "OK") {
-              console.error("Place details API error:", detailsData.status, detailsData.error_message)
-              return null
-            }
-
-            const place = detailsData.result
-
-            return {
-              id: place.place_id,
-              name: place.name || prediction.description.split(",")[0],
-              address: place.formatted_address || prediction.description,
-              coordinates: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
-              },
-              type: getPlaceType(place.types || []),
-              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
-            }
-          } catch (error) {
-            console.error("Error getting place details:", error)
-            return null
-          }
+      const autocompleteResponse = await fetch(autocompleteUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+        },
+        body: JSON.stringify({
+          textQuery: query,
+          languageCode: "en",
+          types: ["establishment", "geocode"],
         }),
-      )
+      })
 
-      const validPlaces = places.filter(Boolean) as Place[]
+      if (autocompleteResponse.ok) {
+        const autocompleteData = await autocompleteResponse.json()
+        console.log("Autocomplete API (New) response:", autocompleteData)
 
-      console.log("Returning", validPlaces.length, "places from Google API")
+        if (autocompleteData.suggestions && autocompleteData.suggestions.length > 0) {
+          console.log("Found suggestions using Autocomplete API (New):", autocompleteData.suggestions.length)
 
-      if (validPlaces.length === 0) {
-        console.log("No valid places found from Google APIs, using fallback search")
-        return await fallbackSearch(query)
+          // Get place details for each suggestion
+          const places = await Promise.all(
+            autocompleteData.suggestions.slice(0, 5).map(async (suggestion: any) => {
+              try {
+                // Get place details using the place ID
+                const detailsUrl = `https://places.googleapis.com/v1/places/${suggestion.placeId}`
+
+                console.log("Fetching place details for:", suggestion.text?.text)
+
+                const detailsResponse = await fetch(detailsUrl, {
+                  method: "GET",
+                  headers: {
+                    "X-Goog-Api-Key": googleApiKey,
+                    "X-Goog-FieldMask": "displayName,formattedAddress,id,location,types",
+                  },
+                })
+
+                if (detailsResponse.ok) {
+                  const place = await detailsResponse.json()
+                  console.log("Details API (New) response for", suggestion.text?.text, ":", place)
+
+                  return {
+                    id: place.id,
+                    name: place.displayName?.text || suggestion.text?.text || "Unknown Place",
+                    address: place.formattedAddress || "",
+                    coordinates: {
+                      lat: place.location?.latitude || 0,
+                      lng: place.location?.longitude || 0,
+                    },
+                    type: getPlaceTypeFromNewApi(place.types || []),
+                    url: `https://www.google.com/maps/place/?q=place_id:${place.id}`,
+                  }
+                } else {
+                  const errorText = await detailsResponse.text()
+                  console.error("Place details API (New) error:", detailsResponse.status, errorText)
+                  return null
+                }
+              } catch (error) {
+                console.error("Error getting place details:", error)
+                return null
+              }
+            }),
+          )
+
+          const validPlaces = places.filter(Boolean) as Place[]
+          console.log("Returning", validPlaces.length, "places from Google Places API (New)")
+
+          if (validPlaces.length > 0) {
+            return NextResponse.json({ places: validPlaces, source: "google-places-new" })
+          }
+        } else {
+          console.log("Autocomplete API (New) returned no suggestions")
+        }
+      } else {
+        const errorText = await autocompleteResponse.text()
+        console.error("Autocomplete API (New) request failed:", autocompleteResponse.status, errorText)
       }
 
-      return NextResponse.json({ places: validPlaces })
+      // If all new API approaches fail, fall back to Nominatim
+      console.log("All Google Places API (New) approaches failed, using fallback search")
+      return await fallbackSearch(query)
     } catch (error) {
       console.error("Google Places API error:", error)
       return await fallbackSearch(query)
@@ -211,7 +224,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Modify the fallback search function to include more detailed logging
+// Fallback to Nominatim if Google Places API is not available
 async function fallbackSearch(query: string): Promise<NextResponse> {
   try {
     console.log("Using Nominatim fallback for:", query)
@@ -252,8 +265,8 @@ async function fallbackSearch(query: string): Promise<NextResponse> {
   }
 }
 
-// Helper function to get a friendly place type from Google Places types
-function getPlaceType(types: string[]): string {
+// Helper function to get a friendly place type from Google Places API (New) types
+function getPlaceTypeFromNewApi(types: string[]): string {
   if (types.includes("restaurant")) return "restaurant"
   if (types.includes("cafe")) return "cafe"
   if (types.includes("bar")) return "bar"
@@ -265,7 +278,7 @@ function getPlaceType(types: string[]): string {
   if (types.includes("train_station")) return "station"
   if (types.includes("bus_station")) return "station"
   if (types.includes("subway_station")) return "station"
-  if (types.includes("point_of_interest")) return "attraction"
+  if (types.includes("tourist_attraction")) return "attraction"
   if (types.includes("establishment")) return "business"
   if (types.includes("locality") || types.includes("administrative_area_level_1")) return "city"
   return "place"

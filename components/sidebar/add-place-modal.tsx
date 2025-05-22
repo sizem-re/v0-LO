@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
-import { X, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw } from "lucide-react"
+import { X, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw, Search, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,6 +11,9 @@ import { useAuth } from "@/lib/auth-context"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { PlaceSearch } from "@/components/place-search"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { useDebounce } from "use-debounce"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +32,7 @@ interface Place {
   lat: number
   lng: number
   type?: string
+  url?: string
 }
 
 interface List {
@@ -66,19 +69,21 @@ interface AddressAutocompleteResult {
 
 interface AddPlaceModalProps {
   listId: string
+  isOpen: boolean
   onClose: () => void
   onPlaceAdded: (place: any) => void
   onRefreshList?: () => void
 }
 
-export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: AddPlaceModalProps) {
+export function AddPlaceModal({ listId, isOpen, onClose, onPlaceAdded, onRefreshList }: AddPlaceModalProps) {
   const { dbUser } = useAuth()
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<AddressAutocompleteResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [debouncedQuery] = useDebounce(searchQuery, 500)
+  const [places, setPlaces] = useState<Place[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [apiSource, setApiSource] = useState<string | null>(null)
 
   // Place details state
   const [placeName, setPlaceName] = useState("")
@@ -846,54 +851,124 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
-        <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
-          <div className="p-4 border-b border-black/10 flex items-center justify-between">
-            <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
-            <button onClick={onClose} className="p-1" aria-label="Close">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-4">
-            {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
-
-            <div className="flex justify-between gap-2 mt-6">
-              {currentStep === "details" && (
-                <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
-                  Back
-                </Button>
-              )}
-
-              <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-
-                {currentStep === "details" && (
-                  <Button
-                    type="submit"
-                    className="bg-black text-white hover:bg-black/80"
-                    disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
-                  >
-                    {isAddingPlace ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add to List{selectedLists.length > 1 ? "s" : ""}
-                      </>
-                    )}
-                  </Button>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add a place{listId ? " to list" : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <Input
+                placeholder="Search for a place..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {searchQuery ? (
+                  <X
+                    className="h-4 w-4 cursor-pointer text-gray-400 hover:text-gray-600"
+                    onClick={() => setSearchQuery("")}
+                  />
+                ) : (
+                  <Search className="h-4 w-4 text-gray-400" />
                 )}
               </div>
             </div>
-          </form>
+
+            {apiSource && (
+              <div className="flex justify-end">
+                <Badge variant={apiSource.includes("google") ? "default" : "outline"}>Source: {apiSource}</Badge>
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto">
+                {places.length > 0 ? (
+                  <ul className="space-y-2">
+                    {places.map((place) => (
+                      <li
+                        key={place.id}
+                        className="flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-gray-100"
+                        onClick={() => handlePlaceSelect(place)}
+                      >
+                        <MapPin className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-500" />
+                        <div>
+                          <p className="font-medium">{place.name}</p>
+                          <p className="text-sm text-gray-500">{place.address}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : debouncedQuery.length > 1 ? (
+                  <p className="py-4 text-center text-gray-500">No places found</p>
+                ) : null}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
+          <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
+            <div className="p-4 border-b border-black/10 flex items-center justify-between">
+              <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
+              <button onClick={onClose} className="p-1" aria-label="Close">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-4">
+              {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
+
+              <div className="flex justify-between gap-2 mt-6">
+                {currentStep === "details" && (
+                  <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
+                    Back
+                  </Button>
+                )}
+
+                <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+
+                  {currentStep === "details" && (
+                    <Button
+                      type="submit"
+                      className="bg-black text-white hover:bg-black/80"
+                      disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
+                    >
+                      {isAddingPlace ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add to List{selectedLists.length > 1 ? "s" : ""}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Duplicate Place Alert Dialog */}
       <AlertDialog
