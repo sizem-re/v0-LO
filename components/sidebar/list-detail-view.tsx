@@ -1,49 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Edit, Trash2, Plus, Loader2 } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, Edit, Trash2, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
-
-interface Place {
-  id: string
-  name: string
-  type: string
-  address: string
-  coordinates: {
-    lat: number
-    lng: number
-  }
-  image?: string
-  notes?: string
-  listPlaceId: string
-}
-
-interface ListOwner {
-  id: string
-  farcaster_id: string
-  farcaster_username: string
-  farcaster_display_name: string
-  farcaster_pfp_url: string
-}
-
-interface List {
-  id: string
-  title: string
-  description: string | null
-  visibility: "public" | "community" | "private"
-  owner: ListOwner
-  places: Place[]
-  created_at: string
-}
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ListDetailViewProps {
   listId: string
   onBack: () => void
-  onPlaceClick?: (place: Place) => void
-  onEditList?: (list: List) => void
-  onDeleteList?: (list: List) => void
+  onPlaceClick: (place: any) => void
+  onEditList?: (list: any) => void
+  onDeleteList?: (list: any) => void
   onAddPlace?: (listId: string) => void
 }
 
@@ -55,25 +34,19 @@ export function ListDetailView({
   onDeleteList,
   onAddPlace,
 }: ListDetailViewProps) {
-  const router = useRouter()
-  const { user } = useAuth()
-  const [list, setList] = useState<List | null>(null)
+  const { dbUser } = useAuth()
+  const [list, setList] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
-    const fetchList = async () => {
-      if (!listId) {
-        setLoading(false)
-        setError("List ID is missing")
-        return
-      }
-
+    const fetchListDetails = async () => {
       try {
         setLoading(true)
         setError(null)
 
+        console.log(`Fetching list details for ID: ${listId}`)
         const response = await fetch(`/api/lists/${listId}`)
 
         if (!response.ok) {
@@ -81,203 +54,254 @@ export function ListDetailView({
         }
 
         const data = await response.json()
+        console.log("List details:", data)
         setList(data)
       } catch (err) {
-        console.error("Error fetching list:", err)
-        setError(err instanceof Error ? err.message : "Failed to load list")
+        console.error("Error fetching list details:", err)
+        setError(err instanceof Error ? err.message : "Failed to load list details")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchList()
+    if (listId) {
+      fetchListDetails()
+    }
   }, [listId])
 
-  const handlePlaceClick = (place: Place) => {
-    if (onPlaceClick) {
-      onPlaceClick(place)
-    }
-  }
-
   const handleEditList = () => {
-    if (list && onEditList) {
+    if (onEditList && list) {
       onEditList(list)
     }
   }
 
-  const handleDeleteList = async () => {
-    if (!deleteConfirm) {
-      setDeleteConfirm(true)
-      return
-    }
-
-    if (list && onDeleteList) {
+  const handleDeleteList = () => {
+    if (onDeleteList && list) {
       onDeleteList(list)
+      setShowDeleteConfirm(false)
     }
   }
 
   const handleAddPlace = () => {
-    if (onAddPlace) {
+    if (onAddPlace && listId) {
       onAddPlace(listId)
     }
   }
 
-  const getVisibilityIcon = (visibility: string) => {
-    switch (visibility) {
+  const isOwner = dbUser?.id === list?.owner_id
+  const canAddPlaces = isOwner || list?.visibility === "community"
+
+  const getVisibilityIcon = () => {
+    switch (list?.visibility) {
       case "public":
-        return <Globe size={14} className="text-green-600" />
+        return <Globe size={16} className="text-green-600" />
       case "community":
-        return <Users size={14} className="text-blue-600" />
+        return <Users size={16} className="text-blue-600" />
       case "private":
-        return <Lock size={14} className="text-gray-600" />
+        return <Lock size={16} className="text-gray-600" />
       default:
-        return <Globe size={14} className="text-green-600" />
+        return <Globe size={16} className="text-green-600" />
     }
   }
 
-  const getVisibilityText = (visibility: string) => {
-    switch (visibility) {
+  const getVisibilityText = () => {
+    switch (list?.visibility) {
       case "public":
-        return "Public"
+        return "Public - Anyone can view"
       case "community":
-        return "Community"
+        return "Community - Anyone can add places"
       case "private":
-        return "Private"
+        return "Private - Only you can view"
       default:
         return "Public"
     }
   }
-
-  const isOwner = list?.owner?.id === user?.id
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex justify-between items-center p-4 border-b border-black/10">
-          <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
-            <ChevronLeft size={16} className="mr-1" /> Back
+      <div className="p-4 h-full flex flex-col">
+        <div className="flex items-center mb-4">
+          <button
+            className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <ChevronLeft size={16} />
           </button>
+          <Skeleton className="h-6 w-32" />
         </div>
-        <div className="flex-grow flex items-center justify-center p-4">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <Skeleton className="h-4 w-24 mb-4" />
+        <Separator className="mb-4" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center">
+              <Skeleton className="h-12 w-12 rounded mr-3" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )
   }
 
-  if (error || !list) {
+  if (error) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex justify-between items-center p-4 border-b border-black/10">
-          <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
-            <ChevronLeft size={16} className="mr-1" /> Back
+      <div className="p-4 h-full flex flex-col">
+        <div className="flex items-center mb-4">
+          <button
+            className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <ChevronLeft size={16} />
           </button>
+          <h2 className="font-serif text-xl">Error</h2>
         </div>
-        <div className="flex-grow p-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
-            <p>{error || "Failed to load list"}</p>
-          </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+          <p>{error}</p>
+          <Button className="mt-4 bg-black text-white hover:bg-black/80" onClick={onBack}>
+            Go Back
+          </Button>
         </div>
       </div>
     )
   }
+
+  if (!list) {
+    return (
+      <div className="p-4 h-full flex flex-col">
+        <div className="flex items-center mb-4">
+          <button
+            className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <h2 className="font-serif text-xl">List Not Found</h2>
+        </div>
+        <p className="text-black/70 mb-4">The list you're looking for doesn't exist or has been deleted.</p>
+        <Button className="bg-black text-white hover:bg-black/80" onClick={onBack}>
+          Go Back
+        </Button>
+      </div>
+    )
+  }
+
+  const places = list.places || []
+  const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center p-4 border-b border-black/10">
-        <button className="flex items-center text-black hover:bg-black/5 p-1 rounded" onClick={onBack}>
-          <ChevronLeft size={16} className="mr-1" /> Back
-        </button>
-        {isOwner && (
-          <div className="flex items-center gap-2">
-            <button
-              className="p-1 rounded hover:bg-black/5"
+      {/* Header */}
+      <div className="p-4 border-b border-black/10">
+        <div className="flex items-center mb-2">
+          <button
+            className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <h2 className="font-serif text-xl truncate">{list.title}</h2>
+        </div>
+        <div className="flex items-center text-sm text-black/70 mb-2">
+          <div className="flex items-center mr-4">
+            {getVisibilityIcon()}
+            <span className="ml-1">{getVisibilityText()}</span>
+          </div>
+          <div className="flex items-center">
+            <MapPin size={14} className="mr-1" />
+            <span>{places.length} places</span>
+          </div>
+        </div>
+        {list.description && <p className="text-sm text-black/70 mb-2">{list.description}</p>}
+        <div className="text-xs text-black/60">Created by {ownerName}</div>
+      </div>
+
+      {/* Actions */}
+      <div className="p-4 border-b border-black/10 flex justify-between">
+        {isOwner ? (
+          <>
+            <Button
+              className="bg-transparent text-black border border-black/20 hover:bg-black/5 text-xs h-8"
               onClick={handleEditList}
-              aria-label="Edit list"
-              title="Edit list"
             >
-              <Edit size={16} />
-            </button>
-            <button
-              className={`p-1 rounded hover:bg-black/5 ${deleteConfirm ? "text-red-600" : ""}`}
-              onClick={handleDeleteList}
-              aria-label="Delete list"
-              title={deleteConfirm ? "Click again to confirm deletion" : "Delete list"}
+              <Edit size={14} className="mr-1" /> Edit List
+            </Button>
+            <Button
+              className="bg-transparent text-red-600 border border-red-200 hover:bg-red-50 text-xs h-8"
+              onClick={() => setShowDeleteConfirm(true)}
             >
-              <Trash2 size={16} />
-            </button>
+              <Trash2 size={14} className="mr-1" /> Delete
+            </Button>
+          </>
+        ) : (
+          <div></div>
+        )}
+        {canAddPlaces && (
+          <Button className="bg-black text-white hover:bg-black/80 text-xs h-8" onClick={handleAddPlace}>
+            <Plus size={14} className="mr-1" /> Add Place
+          </Button>
+        )}
+      </div>
+
+      {/* Places */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <h3 className="font-medium mb-3">Places</h3>
+        {places.length === 0 ? (
+          <div className="text-center py-8 text-black/70">
+            <p className="mb-2">No places in this list yet</p>
+            {canAddPlaces && (
+              <Button className="bg-black text-white hover:bg-black/80 text-sm" onClick={handleAddPlace}>
+                <Plus size={14} className="mr-1" /> Add First Place
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {places.map((item: any) => {
+              const place = item.place || {}
+              return (
+                <div
+                  key={item.id}
+                  className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
+                  onClick={() => onPlaceClick(place)}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium truncate">{place.name}</h4>
+                      {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
+                    </div>
+                    <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
-      <div className="flex-grow overflow-y-auto">
-        <div className="p-4">
-          <h2 className="font-serif text-xl mb-1">{list.title}</h2>
-
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center text-xs text-black/60">
-              {getVisibilityIcon(list.visibility)}
-              <span className="ml-1">{getVisibilityText(list.visibility)}</span>
-            </div>
-            <span className="text-black/40">•</span>
-            <div className="flex items-center text-xs text-black/60">
-              by {list.owner.farcaster_username || "Unknown"}
-            </div>
-          </div>
-
-          {list.description && <p className="text-sm text-black/80 mb-4">{list.description}</p>}
-
-          <div className="flex justify-between items-center mb-4 mt-6">
-            <h3 className="font-medium">Places ({list.places.length})</h3>
-            {(isOwner || list.visibility === "community") && (
-              <Button
-                className="bg-black text-white hover:bg-black/80 text-xs py-1 h-8 flex items-center"
-                onClick={handleAddPlace}
-              >
-                <Plus size={14} className="mr-1" /> Add Place
-              </Button>
-            )}
-          </div>
-
-          {list.places.length > 0 ? (
-            <div className="space-y-3">
-              {list.places.map((place) => (
-                <div
-                  key={place.listPlaceId}
-                  className="p-2 border border-black/10 rounded hover:bg-black/5 cursor-pointer flex"
-                  onClick={() => handlePlaceClick(place)}
-                >
-                  <div
-                    className="h-12 w-12 bg-gray-200 rounded mr-3 flex-shrink-0"
-                    style={{
-                      backgroundImage: place.image ? `url(${place.image})` : undefined,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  ></div>
-                  <div className="min-w-0">
-                    <h4 className="font-medium text-sm truncate">{place.name}</h4>
-                    <div className="flex items-center text-black/60 text-xs">
-                      <MapPin size={12} className="mr-1 flex-shrink-0" />
-                      <span className="truncate">{place.address}</span>
-                    </div>
-                    {place.notes && <p className="text-xs text-black/70 mt-1 truncate">{place.notes}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 border border-black/10 rounded">
-              <p className="text-black/60 mb-4">No places in this list yet</p>
-              {(isOwner || list.visibility === "community") && (
-                <Button className="bg-black text-white hover:bg-black/80" onClick={handleAddPlace}>
-                  <Plus size={16} className="mr-1" /> Add Your First Place
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the list "{list.title}" and remove it from your profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeleteList}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

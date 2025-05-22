@@ -10,9 +10,10 @@ interface UserProfileViewProps {
   onClose?: () => void
   expanded?: boolean
   onCreateList?: () => void
+  onSelectList?: (listId: string) => void
 }
 
-export function UserProfileView({ onClose, expanded = false, onCreateList }: UserProfileViewProps) {
+export function UserProfileView({ onClose, expanded = false, onCreateList, onSelectList }: UserProfileViewProps) {
   const router = useRouter()
   const { user } = useNeynarContext()
 
@@ -112,7 +113,7 @@ export function UserProfileView({ onClose, expanded = false, onCreateList }: Use
       {/* User's Lists */}
       <div className="mt-4">
         <h2 className="font-serif text-xl mb-3">My Lists</h2>
-        <UserListsDisplay onCreateList={onCreateList} />
+        <UserListsDisplay onCreateList={onCreateList} onSelectList={onSelectList} />
       </div>
 
       {/* Sign Out */}

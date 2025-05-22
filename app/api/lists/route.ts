@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const visibility = searchParams.get("visibility")
     const fid = searchParams.get("fid")
 
+    console.log("GET /api/lists - Query params:", { userId, visibility, fid })
+
     // If fid is provided, get the user's ID from Supabase
     let dbUserId = userId
     if (fid && !userId) {
@@ -17,6 +19,9 @@ export async function GET(request: NextRequest) {
 
       if (userData) {
         dbUserId = userData.id
+        console.log(`Found user ID ${dbUserId} for fid ${fid}`)
+      } else {
+        console.log(`No user found for fid ${fid}`)
       }
     }
 
@@ -32,13 +37,16 @@ export async function GET(request: NextRequest) {
     // Apply filters
     if (dbUserId) {
       query = query.eq("owner_id", dbUserId)
+      console.log(`Filtering lists by owner_id: ${dbUserId}`)
     }
 
     if (visibility) {
       if (visibility === "public-community") {
         query = query.in("visibility", ["public", "community"])
+        console.log(`Filtering lists by visibility: public or community`)
       } else {
         query = query.eq("visibility", visibility)
+        console.log(`Filtering lists by visibility: ${visibility}`)
       }
     }
 
@@ -49,6 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log(`Found ${data?.length || 0} lists`)
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/lists:", error)
