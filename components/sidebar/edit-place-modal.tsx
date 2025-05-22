@@ -272,7 +272,7 @@ export function EditPlaceModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
           </DialogHeader>
@@ -284,23 +284,30 @@ export function EditPlaceModal({
                 value={placeName}
                 onChange={(e) => setPlaceName(e.target.value)}
                 placeholder="Place name"
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" />
+              <Input
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Address"
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
-              <div className="relative">
+              <div className="relative w-full">
                 <Input
                   id="website"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://example.com"
-                  className="pl-8"
+                  className="pl-8 w-full"
                 />
                 <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
               </div>
@@ -313,7 +320,8 @@ export function EditPlaceModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add your notes about this place..."
-                rows={4}
+                rows={3}
+                className="w-full resize-none"
               />
             </div>
 
@@ -357,8 +365,14 @@ export function EditPlaceModal({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <div className="flex flex-col sm:flex-row justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
                 Cancel
               </Button>
               <Button
@@ -366,11 +380,12 @@ export function EditPlaceModal({
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isSubmitting}
+                className="w-full sm:w-auto"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Remove from List
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
