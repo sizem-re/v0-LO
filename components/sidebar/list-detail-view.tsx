@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditListModal } from "./edit-list-modal"
+import { AddPlaceModal } from "./add-place-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,32 +49,33 @@ export function ListDetailView({
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  useEffect(() => {
-    const fetchListDetails = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  const fetchListDetails = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-        console.log(`Fetching list details for ID: ${listId}`)
-        const response = await fetch(`/api/lists/${listId}`)
+      console.log(`Fetching list details for ID: ${listId}`)
+      const response = await fetch(`/api/lists/${listId}`)
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch list: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("List details:", data)
-        setList(data)
-      } catch (err) {
-        console.error("Error fetching list details:", err)
-        setError(err instanceof Error ? err.message : "Failed to load list details")
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch list: ${response.status}`)
       }
-    }
 
+      const data = await response.json()
+      console.log("List details:", data)
+      setList(data)
+    } catch (err) {
+      console.error("Error fetching list details:", err)
+      setError(err instanceof Error ? err.message : "Failed to load list details")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     if (listId) {
       fetchListDetails()
     }
@@ -140,9 +142,12 @@ export function ListDetailView({
   }
 
   const handleAddPlace = () => {
-    if (onAddPlace && listId) {
-      onAddPlace(listId)
-    }
+    setShowAddPlaceModal(true)
+  }
+
+  const handlePlaceAdded = (place: any) => {
+    // Refresh the list to show the new place
+    fetchListDetails()
   }
 
   const isOwner = dbUser?.id === list?.owner_id
@@ -325,24 +330,21 @@ export function ListDetailView({
           </div>
         ) : (
           <div className="space-y-3">
-            {places.map((item: any) => {
-              const place = item.place || {}
-              return (
-                <div
-                  key={item.id}
-                  className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
-                  onClick={() => onPlaceClick(place)}
-                >
-                  <div className="flex items-start">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{place.name}</h4>
-                      {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
-                    </div>
-                    <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
+            {places.map((place: any) => (
+              <div
+                key={place.id}
+                className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
+                onClick={() => onPlaceClick(place)}
+              >
+                <div className="flex items-start">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{place.name}</h4>
+                    {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
                   </div>
+                  <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -355,6 +357,11 @@ export function ListDetailView({
           list={list}
           onListUpdated={handleListUpdated}
         />
+      )}
+
+      {/* Add Place Modal */}
+      {showAddPlaceModal && (
+        <AddPlaceModal listId={listId} onClose={() => setShowAddPlaceModal(false)} onPlaceAdded={handlePlaceAdded} />
       )}
 
       {/* Delete Confirmation Dialog */}
