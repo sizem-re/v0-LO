@@ -68,6 +68,12 @@ interface PlaceSearchProps {
   initialValue?: string
 }
 
+// Default coordinates (center of Tacoma, WA)
+const DEFAULT_COORDINATES: PlaceCoordinates = {
+  lat: 47.2529,
+  lng: -122.4443,
+}
+
 export function PlaceSearch({
   onPlaceSelect,
   placeholder = "Search for a place or paste a URL",
@@ -118,6 +124,24 @@ export function PlaceSearch({
     }
   }
 
+  // Ensure place has valid coordinates
+  const ensureValidPlace = (place: Partial<Place>): Place => {
+    return {
+      id: place.id || `generated-${Date.now()}`,
+      name: place.name || "Unknown Place",
+      address: place.address || "No address provided",
+      coordinates:
+        place.coordinates && typeof place.coordinates.lat === "number" && typeof place.coordinates.lng === "number"
+          ? place.coordinates
+          : DEFAULT_COORDINATES,
+      type: place.type || "place",
+      url: place.url,
+      description: place.description,
+      image: place.image,
+      website: place.website,
+    }
+  }
+
   const searchPlaces = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSuggestions([])
@@ -157,7 +181,9 @@ export function PlaceSearch({
         throw new Error(data.error)
       }
 
-      setSuggestions(data.places || [])
+      // Ensure all places have valid coordinates
+      const validPlaces = (data.places || []).map(ensureValidPlace)
+      setSuggestions(validPlaces)
     } catch (err) {
       if (err instanceof Error && err.name !== "AbortError") {
         console.error("Error searching places:", err)
@@ -218,18 +244,18 @@ export function PlaceSearch({
       }
 
       if (data.place) {
-        setSuggestions([data.place])
+        setSuggestions([ensureValidPlace(data.place)])
       } else if (data.partialPlace) {
         // Create a place object from partial data
         const partialPlace = data.partialPlace
-        const place: Place = {
+        const place: Place = ensureValidPlace({
           id: `partial-${Date.now()}`,
           name: partialPlace.name,
           address: partialPlace.address || "Address not available",
-          coordinates: partialPlace.coordinates || { lat: 47.6062, lng: -122.3321 }, // Default to Seattle coordinates
+          coordinates: partialPlace.coordinates,
           type: "place",
           url: partialPlace.url,
-        }
+        })
         setSuggestions([place])
       } else {
         setSuggestions([])
@@ -279,7 +305,7 @@ export function PlaceSearch({
   }
 
   const handlePlaceSelect = (place: Place) => {
-    onPlaceSelect(place)
+    onPlaceSelect(ensureValidPlace(place))
     setInputValue("")
     setSuggestions([])
     setIsDropdownOpen(false)
