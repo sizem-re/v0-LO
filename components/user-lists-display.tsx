@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MapPin, Globe, Users, Lock, Edit, ExternalLink } from "lucide-react"
+import { MapPin, Globe, Users, Lock, Edit, ListIcon, Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useNeynarContext } from "@neynar/react"
@@ -85,15 +85,15 @@ export function UserListsDisplay({
     return (
       <div className={`space-y-3 ${className}`}>
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="p-3">
-            <div className="flex justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
+          <div key={i} className={compact ? "p-2" : "p-3 border border-black/10 rounded-md"}>
+            <div className="flex items-center">
+              <Skeleton className="h-8 w-8 rounded-md mr-3" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
               </div>
-              <Skeleton className="h-8 w-16" />
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     )
@@ -130,48 +130,51 @@ export function UserListsDisplay({
     )
   }
 
-  // Compact view for sidebar
+  // Compact view for sidebar and profile
   if (compact) {
     return (
       <div className={`space-y-2 ${className}`}>
         {lists.map((list) => (
           <div
             key={list.id}
-            className="flex items-center justify-between p-2 hover:bg-black/5 rounded-md transition-colors cursor-pointer"
+            className="flex items-center p-2 hover:bg-black/5 rounded-md transition-colors cursor-pointer"
             onClick={() => handleSelectList(list.id)}
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="flex-shrink-0">
-                {list.visibility === "public" ? (
-                  <Globe size={16} className="text-black/70" />
-                ) : list.visibility === "community" ? (
-                  <Users size={16} className="text-black/70" />
-                ) : (
-                  <Lock size={16} className="text-black/70" />
-                )}
-              </div>
-              <div className="truncate">
-                <p className="font-medium truncate">{list.title}</p>
+            <div className="bg-black/5 rounded p-2 mr-3 flex-shrink-0">
+              <ListIcon size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-medium text-sm truncate">{list.title}</h4>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center text-xs text-black/60">
+                  {list.visibility === "public" ? (
+                    <Globe size={14} className="text-green-600 mr-1" />
+                  ) : list.visibility === "community" ? (
+                    <Users size={14} className="text-blue-600 mr-1" />
+                  ) : (
+                    <Lock size={14} className="text-gray-600 mr-1" />
+                  )}
+                  <span className="hidden sm:inline">{list.visibility}</span>
+                </div>
                 <div className="flex items-center text-xs text-black/60">
                   <MapPin size={12} className="mr-1" />
                   <span>{list.places?.length || 0} places</span>
                 </div>
               </div>
             </div>
-            <ExternalLink size={14} className="text-black/40" />
           </div>
         ))}
         <Button
           className="w-full mt-2 bg-transparent text-black border border-black/20 hover:bg-black/5 text-sm py-1 h-auto"
           onClick={onCreateList}
         >
-          + New List
+          <Plus size={14} className="mr-1" /> New List
         </Button>
       </div>
     )
   }
 
-  // Full view for profile
+  // Full view
   return (
     <div className={`space-y-3 ${className}`}>
       {lists.map((list) => (
@@ -222,7 +225,7 @@ export function UserListsDisplay({
       ))}
       <div className="text-center pt-2">
         <Button className="bg-black text-white hover:bg-black/80" onClick={onCreateList}>
-          + Create New List
+          <Plus size={16} className="mr-1" /> Create New List
         </Button>
       </div>
     </div>

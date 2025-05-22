@@ -113,7 +113,8 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
       {/* User's Lists */}
       <div className="mt-4">
         <h2 className="font-serif text-xl mb-3">My Lists</h2>
-        <UserListsDisplay onCreateList={onCreateList} onSelectList={onSelectList} />
+        {/* Use compact mode to match the My Lists tab style */}
+        <UserListsDisplay onCreateList={onCreateList} onSelectList={onSelectList} compact={true} className="px-1" />
       </div>
 
       {/* Sign Out */}
