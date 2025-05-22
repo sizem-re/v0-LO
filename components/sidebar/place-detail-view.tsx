@@ -9,7 +9,6 @@ import {
   Edit,
   Trash2,
   ExternalLink,
-  Share2,
   Heart,
   Plus,
   Loader2,
@@ -47,6 +46,7 @@ import {
 interface PlaceDetailViewProps {
   place: any
   listId: string
+  listOwnerId?: string
   onBack: () => void
   onPlaceUpdated?: (updatedPlace: any) => void
   onPlaceDeleted?: (placeId: string) => void
@@ -56,6 +56,7 @@ interface PlaceDetailViewProps {
 export function PlaceDetailView({
   place,
   listId,
+  listOwnerId,
   onBack,
   onPlaceUpdated,
   onPlaceDeleted,
@@ -88,14 +89,26 @@ export function PlaceDetailView({
 
       try {
         setIsLoadingLists(true)
-        const response = await fetch(`/api/places/${place.id}/lists`)
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch connected lists: ${response.status}`)
+        // First, get all lists that contain this place
+        const response = await fetch(`/api/places/${place.id}/lists`)
+        let lists = []
+
+        if (response.ok) {
+          lists = await response.json()
         }
 
-        const data = await response.json()
-        setConnectedLists(data)
+        // Make sure the current list is included
+        if (!lists.some((list: any) => list.id === listId)) {
+          // Fetch the current list details
+          const currentListResponse = await fetch(`/api/lists/${listId}`)
+          if (currentListResponse.ok) {
+            const currentList = await currentListResponse.json()
+            lists.push(currentList)
+          }
+        }
+
+        setConnectedLists(lists)
       } catch (error) {
         console.error("Error fetching connected lists:", error)
         toast({
@@ -109,7 +122,7 @@ export function PlaceDetailView({
     }
 
     fetchConnectedLists()
-  }, [place?.id])
+  }, [place?.id, listId])
 
   // Fetch user's lists for adding the place to a new list
   useEffect(() => {
@@ -138,7 +151,9 @@ export function PlaceDetailView({
       }
     }
 
-    fetchUserLists()
+    if (connectedLists.length >= 0) {
+      fetchUserLists()
+    }
   }, [dbUser?.id, connectedLists])
 
   // Filter lists based on search query
@@ -186,8 +201,23 @@ export function PlaceDetailView({
       })
     : null
 
-  // Check if user is the owner of the place or the list
-  const isOwner = dbUser?.id === place.added_by || dbUser?.id === place.list_owner_id
+  // Check if user can edit/delete this place
+  // User can edit if they added the place OR if they own the current list
+  const canEdit =
+    dbUser &&
+    (dbUser.id === place.added_by ||
+      dbUser.id === place.added_by_user_id ||
+      dbUser.id === listOwnerId ||
+      dbUser.id === place.list_owner_id)
+
+  console.log("Place ownership check:", {
+    dbUserId: dbUser?.id,
+    placeAddedBy: place.added_by,
+    placeAddedByUserId: place.added_by_user_id,
+    listOwnerId: listOwnerId,
+    placeListOwnerId: place.list_owner_id,
+    canEdit,
+  })
 
   const handleEditPlace = () => {
     setShowEditModal(true)
@@ -239,14 +269,6 @@ export function PlaceDetailView({
     } finally {
       setIsDeleting(false)
     }
-  }
-
-  const handleSharePlace = () => {
-    // Implement sharing functionality
-    toast({
-      title: "Share feature",
-      description: "Sharing functionality will be implemented soon.",
-    })
   }
 
   const handleFavoritePlace = () => {
@@ -350,39 +372,39 @@ export function PlaceDetailView({
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
 
-          {/* Actions dropdown menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isOwner && (
-                <>
-                  <DropdownMenuItem onClick={handleEditPlace}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit place
+          {/* Actions dropdown menu - only show if user can edit or there are other actions */}
+          {(canEdit || dbUser) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <>
+                    <DropdownMenuItem onClick={handleEditPlace}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit place
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove from list
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {dbUser && (
+                  <DropdownMenuItem onClick={handleFavoritePlace}>
+                    <Heart className="mr-2 h-4 w-4" />
+                    Save place
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Remove from list
-                  </DropdownMenuItem>
-                </>
-              )}
-              <DropdownMenuItem onClick={handleSharePlace}>
-                <Share2 className="mr-2 h-4 w-4" />
-                Share place
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleFavoritePlace}>
-                <Heart className="mr-2 h-4 w-4" />
-                Save place
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -396,7 +418,6 @@ export function PlaceDetailView({
             backgroundPosition: "center",
           }}
         />
-        {/* Removed place type badge as requested */}
       </div>
 
       {/* Place Details */}
@@ -423,18 +444,6 @@ export function PlaceDetailView({
               <Plus size={14} /> Add to list
             </Button>
           )}
-
-          <div className="flex-grow"></div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={handleSharePlace}
-            title="Share place"
-          >
-            <Share2 size={14} /> Share
-          </Button>
         </div>
 
         {place.address && (
@@ -495,7 +504,7 @@ export function PlaceDetailView({
                       <div>
                         <p className="font-medium text-sm">{list.title}</p>
                         <p className="text-xs text-black/60">
-                          {list.place_count} {list.place_count === 1 ? "place" : "places"}
+                          {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
                         </p>
                       </div>
                     </div>
