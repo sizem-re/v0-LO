@@ -49,6 +49,8 @@ interface AutocompleteResponse {
 interface ExtractUrlResponse {
   place?: Place
   error?: string
+  details?: string
+  debug?: any
 }
 
 interface PlaceSearchProps {
@@ -70,6 +72,7 @@ export function PlaceSearch({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [inputType, setInputType] = useState<"text" | "url">("text")
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -123,8 +126,10 @@ export function PlaceSearch({
 
     setIsLoading(true)
     setError(null)
+    setDebugInfo(null)
 
     try {
+      console.log("Searching for places:", query)
       const response = await fetch(`/api/places/autocomplete?query=${encodeURIComponent(query)}`, {
         signal,
         headers: {
@@ -138,6 +143,7 @@ export function PlaceSearch({
       }
 
       const data: AutocompleteResponse = await response.json()
+      console.log("Search response:", data)
 
       if (data.error) {
         throw new Error(data.error)
@@ -169,12 +175,14 @@ export function PlaceSearch({
 
     setIsLoading(true)
     setError(null)
+    setDebugInfo(null)
 
     try {
       if (!/^https?:\/\//i.test(url)) {
         url = `https://${url}`
       }
 
+      console.log("Extracting place from URL:", url)
       const response = await fetch("/api/places/extract-url", {
         method: "POST",
         headers: {
@@ -184,14 +192,20 @@ export function PlaceSearch({
         signal,
       })
 
+      const data: ExtractUrlResponse = await response.json()
+      console.log("URL extraction response:", data)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to extract place from URL")
+        if (data.debug) {
+          setDebugInfo(data.debug)
+        }
+        throw new Error(data.error || "Failed to extract place from URL")
       }
 
-      const data: ExtractUrlResponse = await response.json()
-
       if (data.error) {
+        if (data.debug) {
+          setDebugInfo(data.debug)
+        }
         throw new Error(data.error)
       }
 
@@ -240,6 +254,7 @@ export function PlaceSearch({
       setIsDropdownOpen(false)
       setIsLoading(false)
       setError(null)
+      setDebugInfo(null)
     }
   }
 
@@ -249,6 +264,7 @@ export function PlaceSearch({
     setSuggestions([])
     setIsDropdownOpen(false)
     setError(null)
+    setDebugInfo(null)
   }
 
   useEffect(() => {
@@ -314,6 +330,14 @@ export function PlaceSearch({
       {error && (
         <div id="place-search-error" className="mt-1 text-xs text-red-500">
           {error}
+          {debugInfo && (
+            <details className="mt-1 text-xs text-gray-500">
+              <summary>Debug Info</summary>
+              <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       )}
 

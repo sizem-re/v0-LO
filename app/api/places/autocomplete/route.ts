@@ -1,14 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Define the place object structure
-interface PlaceResult {
+interface PlaceCoordinates {
+  lat: number
+  lng: number
+}
+
+interface Place {
   id: string
   name: string
   address: string
-  coordinates: {
-    lat: number
-    lng: number
-  }
+  coordinates: PlaceCoordinates
   type: string
   url?: string
 }
@@ -33,67 +34,87 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Use Google Places Autocomplete API
-      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${googleApiKey}&types=establishment|geocode`
-      console.log("Calling Google Places Autocomplete API")
+      // Step 1: Use Google Places Autocomplete API to get place predictions
+      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+        query,
+      )}&key=${googleApiKey}&types=establishment|geocode`
 
-      const response = await fetch(autocompleteUrl)
+      console.log("Calling Google Places Autocomplete API:", autocompleteUrl)
 
-      if (!response.ok) {
-        console.error("Google Places API error:", response.statusText)
+      const autocompleteResponse = await fetch(autocompleteUrl)
+
+      if (!autocompleteResponse.ok) {
+        console.error("Google Places Autocomplete API error:", autocompleteResponse.statusText)
         return await fallbackSearch(query)
       }
 
-      const data = await response.json()
-      console.log("Google Places API response status:", data.status)
+      const autocompleteData = await autocompleteResponse.json()
 
-      if (data.status !== "OK") {
-        console.error("Google Places API error:", data.status, data.error_message)
+      console.log("Google Places Autocomplete API response status:", autocompleteData.status)
+
+      if (autocompleteData.status !== "OK") {
+        console.error("Google Places Autocomplete API error:", autocompleteData.status, autocompleteData.error_message)
         return await fallbackSearch(query)
       }
 
-      // Get place details for each prediction
-      const placePromises = data.predictions.slice(0, 5).map(async (prediction: any) => {
-        try {
-          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=name,formatted_address,geometry,types,url&key=${googleApiKey}`
+      if (!autocompleteData.predictions || autocompleteData.predictions.length === 0) {
+        console.log("No predictions found, using fallback search")
+        return await fallbackSearch(query)
+      }
 
-          const detailsResponse = await fetch(detailsUrl)
+      // Step 2: Get place details for each prediction
+      const places = await Promise.all(
+        autocompleteData.predictions.slice(0, 5).map(async (prediction: any) => {
+          try {
+            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${
+              prediction.place_id
+            }&fields=name,formatted_address,geometry,types,url&key=${googleApiKey}`
 
-          if (!detailsResponse.ok) {
-            console.error("Place details API error:", detailsResponse.statusText)
+            console.log("Fetching place details for:", prediction.description)
+
+            const detailsResponse = await fetch(detailsUrl)
+
+            if (!detailsResponse.ok) {
+              console.error("Place details API error:", detailsResponse.statusText)
+              return null
+            }
+
+            const detailsData = await detailsResponse.json()
+
+            if (detailsData.status !== "OK") {
+              console.error("Place details API error:", detailsData.status, detailsData.error_message)
+              return null
+            }
+
+            const place = detailsData.result
+
+            return {
+              id: place.place_id,
+              name: place.name || prediction.description.split(",")[0],
+              address: place.formatted_address || prediction.description,
+              coordinates: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng,
+              },
+              type: getPlaceType(place.types || []),
+              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+            }
+          } catch (error) {
+            console.error("Error getting place details:", error)
             return null
           }
+        }),
+      )
 
-          const detailsData = await detailsResponse.json()
+      const validPlaces = places.filter(Boolean) as Place[]
 
-          if (detailsData.status !== "OK") {
-            console.error("Place details API error:", detailsData.status)
-            return null
-          }
+      console.log("Returning", validPlaces.length, "places from Google API")
 
-          const place = detailsData.result
+      if (validPlaces.length === 0) {
+        return await fallbackSearch(query)
+      }
 
-          return {
-            id: place.place_id || prediction.place_id,
-            name: place.name || prediction.description.split(",")[0],
-            address: place.formatted_address || prediction.description,
-            coordinates: {
-              lat: place.geometry.location.lat,
-              lng: place.geometry.location.lng,
-            },
-            type: getPlaceType(place.types || []),
-            url: place.url,
-          }
-        } catch (error) {
-          console.error("Error getting place details:", error)
-          return null
-        }
-      })
-
-      const places = (await Promise.all(placePromises)).filter(Boolean) as PlaceResult[]
-      console.log("Returning", places.length, "places from Google API")
-
-      return NextResponse.json({ places })
+      return NextResponse.json({ places: validPlaces })
     } catch (error) {
       console.error("Google Places API error:", error)
       return await fallbackSearch(query)
@@ -108,6 +129,7 @@ export async function GET(request: NextRequest) {
 async function fallbackSearch(query: string): Promise<NextResponse> {
   try {
     console.log("Using Nominatim fallback for:", query)
+
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`,
       {
@@ -122,9 +144,10 @@ async function fallbackSearch(query: string): Promise<NextResponse> {
     }
 
     const data = await response.json()
+
     console.log("Nominatim returned", data.length, "results")
 
-    const places: PlaceResult[] = data.map((item: any) => ({
+    const places: Place[] = data.map((item: any) => ({
       id: item.place_id.toString(),
       name: item.display_name.split(",")[0],
       address: item.display_name,
