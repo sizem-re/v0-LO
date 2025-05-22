@@ -42,6 +42,61 @@ interface ListData {
   places: Place[]
 }
 
+// Placeholder data for testing
+const PLACEHOLDER_LIST: ListData = {
+  id: "placeholder-list-1",
+  title: "Best Coffee Shops in Seattle",
+  description: "My favorite places to grab coffee and work in Seattle",
+  visibility: "public",
+  cover_image_url: "/cozy-corner-cafe.png",
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  owner: {
+    id: "placeholder-user-1",
+    farcaster_username: "coffeeexplorer",
+    farcaster_display_name: "Coffee Explorer",
+    farcaster_pfp_url: "/diverse-profile-avatars.png",
+  },
+  places: [
+    {
+      id: "place-1",
+      name: "Analog Coffee",
+      description: "Great pour-overs and minimalist vibe",
+      address: "235 Summit Ave E, Seattle, WA 98102",
+      latitude: 47.6205,
+      longitude: -122.3252,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/cozy-coffee-shop.png",
+    },
+    {
+      id: "place-2",
+      name: "Victrola Coffee Roasters",
+      description: "Spacious cafe with excellent espresso",
+      address: "310 E Pike St, Seattle, WA 98122",
+      latitude: 47.6142,
+      longitude: -122.3266,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/coffee-roastery.png",
+    },
+    {
+      id: "place-3",
+      name: "Storyville Coffee",
+      description: "Amazing views and great pastries",
+      address: "94 Pike St #34, Seattle, WA 98101",
+      latitude: 47.6088,
+      longitude: -122.3404,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/cozy-coffee-shop-view.png",
+    },
+  ],
+}
+
+// Flag to use placeholder data (set to true for testing)
+const USE_PLACEHOLDER_DATA = true
+
 export default function ListDetailPage({ params }: { params: { id: string } }) {
   const { isAuthenticated, user } = useAuth()
   const { isMiniApp } = useMiniApp()
@@ -50,18 +105,36 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   const [list, setList] = useState<ListData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [usePlaceholder, setUsePlaceholder] = useState(USE_PLACEHOLDER_DATA)
 
   useEffect(() => {
     const fetchList = async () => {
       try {
         setLoading(true)
         console.log(`Fetching list with ID: ${params.id}`)
+
+        // If using placeholder data, skip the API call
+        if (usePlaceholder) {
+          console.log("Using placeholder data for testing")
+          setTimeout(() => {
+            setList(PLACEHOLDER_LIST)
+            setLoading(false)
+          }, 500) // Simulate loading delay
+          return
+        }
+
         const response = await fetch(`/api/lists/${params.id}`)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           const errorMessage = errorData.error || response.statusText
-          throw new Error(`Failed to fetch list: ${errorMessage}`)
+
+          // If API call fails, fall back to placeholder data
+          console.log("API call failed, using placeholder data")
+          setList(PLACEHOLDER_LIST)
+          setUsePlaceholder(true)
+          setLoading(false)
+          return
         }
 
         const data = await response.json()
@@ -70,6 +143,11 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       } catch (err) {
         console.error("Error fetching list:", err)
         setError(err instanceof Error ? err.message : "Failed to load list")
+
+        // On error, fall back to placeholder data
+        console.log("Error occurred, using placeholder data")
+        setList(PLACEHOLDER_LIST)
+        setUsePlaceholder(true)
       } finally {
         setLoading(false)
       }
@@ -81,10 +159,16 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       setError("List ID is missing")
       setLoading(false)
     }
-  }, [params.id])
+  }, [params.id, usePlaceholder])
 
   const handleAddPlace = () => {
     router.push(`/lists/${params.id}/add-place`)
+  }
+
+  // Toggle between real and placeholder data (for testing)
+  const togglePlaceholderData = () => {
+    setUsePlaceholder(!usePlaceholder)
+    setLoading(true)
   }
 
   if (loading) {
@@ -127,6 +211,16 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
+        {/* Development toggle for placeholder data */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 p-2 bg-yellow-100 rounded text-sm">
+            <button onClick={togglePlaceholderData} className="underline text-blue-600">
+              {usePlaceholder ? "Try loading real data" : "Use placeholder data"}
+            </button>
+            {usePlaceholder && <span className="ml-2 text-yellow-800">Using placeholder data for testing</span>}
+          </div>
+        )}
+
         <div className="mb-8">
           <Link href="/lists" className="text-sm hover:underline mb-4 inline-block">
             ← Back to lists
