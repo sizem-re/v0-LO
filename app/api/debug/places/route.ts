@@ -1,67 +1,67 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const query = searchParams.get("query") || "coffee shop"
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY
+
+  if (!apiKey) {
+    return NextResponse.json({ error: "Google Places API key is not configured" }, { status: 500 })
+  }
+
   try {
-    const searchParams = request.nextUrl.searchParams
-    const query = searchParams.get("query") || "The Method Skateboards and Coffee"
+    // Test the Text Search API (New)
+    console.log("Testing Google Places Text Search API (New)")
+    const textSearchUrl = `https://places.googleapis.com/v1/places:searchText`
 
-    console.log("=== DEBUG PLACES API ===")
-    console.log("Query:", query)
+    const textSearchResponse = await fetch(textSearchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id,places.location",
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: "en",
+        maxResultCount: 1,
+      }),
+    })
 
-    const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
-    console.log("API Key exists:", !!googleApiKey)
-    console.log("API Key length:", googleApiKey?.length || 0)
+    const textSearchStatus = textSearchResponse.status
+    let textSearchData = null
 
-    if (!googleApiKey) {
-      return NextResponse.json({ error: "No Google Places API key found" }, { status: 500 })
+    try {
+      textSearchData = await textSearchResponse.json()
+    } catch (e) {
+      textSearchData = { error: "Failed to parse JSON response" }
     }
-
-    // Test Find Place API
-    console.log("Testing Find Place API...")
-    const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
-      query,
-    )}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
-
-    console.log("Find Place URL:", findPlaceUrl)
-
-    const findPlaceResponse = await fetch(findPlaceUrl)
-    console.log("Find Place Response Status:", findPlaceResponse.status)
-
-    const findPlaceData = await findPlaceResponse.json()
-    console.log("Find Place Response:", JSON.stringify(findPlaceData, null, 2))
-
-    // Test Autocomplete API
-    console.log("Testing Autocomplete API...")
-    const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-      query,
-    )}&key=${googleApiKey}&types=establishment|geocode`
-
-    console.log("Autocomplete URL:", autocompleteUrl)
-
-    const autocompleteResponse = await fetch(autocompleteUrl)
-    console.log("Autocomplete Response Status:", autocompleteResponse.status)
-
-    const autocompleteData = await autocompleteResponse.json()
-    console.log("Autocomplete Response:", JSON.stringify(autocompleteData, null, 2))
 
     return NextResponse.json({
       query,
-      apiKeyExists: !!googleApiKey,
-      findPlace: {
-        status: findPlaceResponse.status,
-        data: findPlaceData,
+      apiKeyFirstFive: apiKey.substring(0, 5) + "...",
+      textSearch: {
+        status: textSearchStatus,
+        statusText: textSearchResponse.statusText,
+        data: textSearchData,
       },
-      autocomplete: {
-        status: autocompleteResponse.status,
-        data: autocompleteData,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": "API_KEY_HIDDEN",
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.id,places.location",
+      },
+      body: {
+        textQuery: query,
+        languageCode: "en",
+        maxResultCount: 1,
       },
     })
   } catch (error) {
-    console.error("Debug error:", error)
+    console.error("Error in debug places endpoint:", error)
     return NextResponse.json(
       {
-        error: "Debug failed",
-        details: (error as Error).message,
+        error: "Failed to test Places API",
+        details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
     )
