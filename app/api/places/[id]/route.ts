@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase-client"
+import { supabase } from "@/lib/supabase-client"
 
 // GET /api/places/[id] - Get a specific place
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const supabase = createClient()
     const { id } = params
 
     const { data, error } = await supabase.from("places").select("*").eq("id", id).single()
@@ -31,9 +30,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PATCH /api/places/[id] - Update a place
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const supabase = createClient()
     const { id } = params
     const updates = await request.json()
+
+    console.log("PATCH /api/places/[id] - Received updates:", updates)
 
     // Validate required fields
     if (!updates || Object.keys(updates).length === 0) {
@@ -43,6 +43,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Only allow specific fields to be updated
     const allowedFields = ["name", "address", "lat", "lng", "website"]
     const filteredUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => allowedFields.includes(key)))
+
+    console.log("PATCH /api/places/[id] - Filtered updates:", filteredUpdates)
 
     // Add updated_at timestamp
     filteredUpdates.updated_at = new Date().toISOString()
@@ -54,6 +56,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log("PATCH /api/places/[id] - Updated place:", data)
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in PATCH /api/places/[id]:", error)
@@ -67,7 +70,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 // DELETE /api/places/[id] - Delete a place
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const supabase = createClient()
     const { id } = params
 
     // First, delete all list_places entries for this place
