@@ -334,21 +334,17 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
         }
       }
 
-      // Fallback to Nominatim for reverse geocoding
-      const address = await getAddressFromCoordinates(lat, lng)
-
+      // If Google geocoding fails, return partial data
       return NextResponse.json({
-        place: {
-          id: `gm-${Date.now()}`,
-          name: query || (address ? address.split(",")[0] : "Unknown Place"),
-          address: address || "Unknown Address",
+        partialPlace: {
+          name: query || "Location from Google Maps",
           coordinates: {
             lat,
             lng,
           },
-          type: "place",
           url,
         },
+        message: "Coordinates extracted. Please complete the location details.",
       })
     }
 
@@ -574,6 +570,17 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
       }
     }
 
+    // If all else fails, return partial data with just the title
+    if (title) {
+      return NextResponse.json({
+        partialPlace: {
+          name: title,
+          url: url,
+        },
+        message: "Website title extracted. Please complete the location details.",
+      })
+    }
+
     // If all else fails, return an error
     console.error("Could not extract place information from URL")
     return NextResponse.json(
@@ -594,31 +601,6 @@ async function extractGenericUrl(url: string): Promise<NextResponse> {
       },
       { status: 500 },
     )
-  }
-}
-
-async function getAddressFromCoordinates(lat: number, lng: number): Promise<string | null> {
-  try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
-      headers: {
-        "User-Agent": "LO Place App (https://llllllo.com)",
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-
-    if (data.display_name) {
-      return data.display_name
-    }
-
-    return null
-  } catch (error) {
-    console.error("Error in reverse geocoding:", error)
-    return null
   }
 }
 

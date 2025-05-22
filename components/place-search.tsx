@@ -48,9 +48,17 @@ interface AutocompleteResponse {
 
 interface ExtractUrlResponse {
   place?: Place
+  partialPlace?: {
+    name: string
+    address?: string
+    coordinates?: PlaceCoordinates
+    url?: string
+  }
   error?: string
   details?: string
   debug?: any
+  message?: string
+  fallbackOption?: string
 }
 
 interface PlaceSearchProps {
@@ -211,6 +219,18 @@ export function PlaceSearch({
 
       if (data.place) {
         setSuggestions([data.place])
+      } else if (data.partialPlace) {
+        // Create a place object from partial data
+        const partialPlace = data.partialPlace
+        const place: Place = {
+          id: `partial-${Date.now()}`,
+          name: partialPlace.name,
+          address: partialPlace.address || "Address not available",
+          coordinates: partialPlace.coordinates || { lat: 0, lng: 0 },
+          type: "place",
+          url: partialPlace.url,
+        }
+        setSuggestions([place])
       } else {
         setSuggestions([])
         setError("No place information found in this URL")
