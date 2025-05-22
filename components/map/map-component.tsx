@@ -17,9 +17,6 @@ const fixLeafletIcons = () => {
   })
 }
 
-// Default coordinates (Tacoma, WA)
-const DEFAULT_COORDINATES: [number, number] = [47.2529, -122.4443]
-
 interface MapComponentProps {
   places: Place[]
   onPlaceSelect?: (place: Place) => void
@@ -39,33 +36,16 @@ function MapController({
 
   useEffect(() => {
     if (places.length > 0) {
-      try {
-        // Create bounds from all places with valid coordinates
-        const validPlaces = places.filter(
-          (place) =>
-            (place.coordinates?.lat !== undefined && place.coordinates?.lng !== undefined) ||
-            (place.latitude !== undefined && place.longitude !== undefined),
-        )
+      // Create bounds from all places
+      const bounds = L.latLngBounds(
+        places.map((place) => [
+          place.coordinates?.lat || place.latitude || 0,
+          place.coordinates?.lng || place.longitude || 0,
+        ]),
+      )
 
-        if (validPlaces.length > 0) {
-          const bounds = L.latLngBounds(
-            validPlaces.map((place) => [
-              place.coordinates?.lat || place.latitude || DEFAULT_COORDINATES[0],
-              place.coordinates?.lng || place.longitude || DEFAULT_COORDINATES[1],
-            ]),
-          )
-
-          // Fit map to bounds with padding
-          map.fitBounds(bounds, { padding: [50, 50] })
-        } else {
-          // If no valid places, center on default
-          map.setView(DEFAULT_COORDINATES, 13)
-        }
-      } catch (error) {
-        console.error("Error fitting bounds:", error)
-        // Fallback to default view
-        map.setView(DEFAULT_COORDINATES, 13)
-      }
+      // Fit map to bounds with padding
+      map.fitBounds(bounds, { padding: [50, 50] })
     }
   }, [map, places])
 
@@ -76,7 +56,7 @@ export default function MapComponent({
   places,
   onPlaceSelect,
   onMapClick,
-  center = DEFAULT_COORDINATES,
+  center = [47.2529, -122.4443], // Default to Tacoma
   zoom = 13,
 }: MapComponentProps) {
   const { height, width } = useMapSize()
@@ -91,21 +71,6 @@ export default function MapComponent({
       onMapClick(e.latlng.lat, e.latlng.lng)
     }
   }
-
-  // Ensure all places have valid coordinates
-  const validPlaces = places.map((place) => {
-    // If coordinates are missing or invalid, use default coordinates
-    if (!place.coordinates?.lat || !place.coordinates?.lng) {
-      return {
-        ...place,
-        coordinates: {
-          lat: place.latitude || DEFAULT_COORDINATES[0],
-          lng: place.longitude || DEFAULT_COORDINATES[1],
-        },
-      }
-    }
-    return place
-  })
 
   return (
     <MapContainer
@@ -122,13 +87,10 @@ export default function MapComponent({
       />
       <ZoomControl position="bottomright" />
 
-      {validPlaces.map((place) => (
+      {places.map((place) => (
         <Marker
           key={place.id}
-          position={[
-            place.coordinates?.lat || place.latitude || DEFAULT_COORDINATES[0],
-            place.coordinates?.lng || place.longitude || DEFAULT_COORDINATES[1],
-          ]}
+          position={[place.coordinates?.lat || place.latitude || 0, place.coordinates?.lng || place.longitude || 0]}
           eventHandlers={{
             click: () => {
               if (onPlaceSelect) {
@@ -147,7 +109,7 @@ export default function MapComponent({
         </Marker>
       ))}
 
-      <MapController places={validPlaces} onPlaceSelect={onPlaceSelect} />
+      <MapController places={places} onPlaceSelect={onPlaceSelect} />
 
       {onMapClick && (
         <div
