@@ -14,6 +14,7 @@ interface Place {
   url?: string
 }
 
+// Modify the GET function to include more detailed logging
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -42,10 +43,11 @@ export async function GET(request: NextRequest) {
       )}&key=${googleApiKey}`
 
       const textSearchResponse = await fetch(textSearchUrl)
+      const textSearchData = await textSearchResponse.json()
+
+      console.log("Text Search API response status:", textSearchData.status)
 
       if (textSearchResponse.ok) {
-        const textSearchData = await textSearchResponse.json()
-
         if (textSearchData.status === "OK" && textSearchData.results && textSearchData.results.length > 0) {
           console.log("Found places using Text Search API:", textSearchData.results.length)
 
@@ -62,7 +64,15 @@ export async function GET(request: NextRequest) {
           }))
 
           return NextResponse.json({ places })
+        } else {
+          console.log(
+            "Text Search API returned no results or error:",
+            textSearchData.status,
+            textSearchData.error_message,
+          )
         }
+      } else {
+        console.error("Text Search API request failed:", textSearchResponse.statusText)
       }
 
       // If Text Search didn't work well, try Find Place API for business names
@@ -73,9 +83,11 @@ export async function GET(request: NextRequest) {
         )}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
 
         const findPlaceResponse = await fetch(findPlaceUrl)
-        if (findPlaceResponse.ok) {
-          const findPlaceData = await findPlaceResponse.json()
+        const findPlaceData = await findPlaceResponse.json()
 
+        console.log("Find Place API response status:", findPlaceData.status)
+
+        if (findPlaceResponse.ok) {
           if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
             console.log("Found places using Find Place API:", findPlaceData.candidates.length)
 
@@ -92,7 +104,15 @@ export async function GET(request: NextRequest) {
             }))
 
             return NextResponse.json({ places })
+          } else {
+            console.log(
+              "Find Place API returned no results or error:",
+              findPlaceData.status,
+              findPlaceData.error_message,
+            )
           }
+        } else {
+          console.error("Find Place API request failed:", findPlaceResponse.statusText)
         }
       }
 
@@ -102,18 +122,17 @@ export async function GET(request: NextRequest) {
         query,
       )}&key=${googleApiKey}&types=establishment|geocode`
 
-      console.log("Calling Google Places Autocomplete API")
+      console.log("Trying Google Places Autocomplete API for:", query)
 
       const autocompleteResponse = await fetch(autocompleteUrl)
+      const autocompleteData = await autocompleteResponse.json()
+
+      console.log("Autocomplete API response status:", autocompleteData.status)
 
       if (!autocompleteResponse.ok) {
         console.error("Google Places Autocomplete API error:", autocompleteResponse.statusText)
         return await fallbackSearch(query)
       }
-
-      const autocompleteData = await autocompleteResponse.json()
-
-      console.log("Google Places Autocomplete API response status:", autocompleteData.status)
 
       if (autocompleteData.status !== "OK") {
         console.error("Google Places Autocomplete API error:", autocompleteData.status, autocompleteData.error_message)
@@ -121,9 +140,11 @@ export async function GET(request: NextRequest) {
       }
 
       if (!autocompleteData.predictions || autocompleteData.predictions.length === 0) {
-        console.log("No predictions found, using fallback search")
+        console.log("No predictions found from Autocomplete API, using fallback search")
         return await fallbackSearch(query)
       }
+
+      console.log("Found predictions using Autocomplete API:", autocompleteData.predictions.length)
 
       // Step 2: Get place details for each prediction
       const places = await Promise.all(
@@ -136,13 +157,14 @@ export async function GET(request: NextRequest) {
             console.log("Fetching place details for:", prediction.description)
 
             const detailsResponse = await fetch(detailsUrl)
+            const detailsData = await detailsResponse.json()
+
+            console.log("Details API response status for", prediction.description, ":", detailsData.status)
 
             if (!detailsResponse.ok) {
               console.error("Place details API error:", detailsResponse.statusText)
               return null
             }
-
-            const detailsData = await detailsResponse.json()
 
             if (detailsData.status !== "OK") {
               console.error("Place details API error:", detailsData.status, detailsData.error_message)
@@ -174,6 +196,7 @@ export async function GET(request: NextRequest) {
       console.log("Returning", validPlaces.length, "places from Google API")
 
       if (validPlaces.length === 0) {
+        console.log("No valid places found from Google APIs, using fallback search")
         return await fallbackSearch(query)
       }
 
@@ -188,7 +211,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Fallback to Nominatim if Google Places API is not available
+// Modify the fallback search function to include more detailed logging
 async function fallbackSearch(query: string): Promise<NextResponse> {
   try {
     console.log("Using Nominatim fallback for:", query)
@@ -222,7 +245,7 @@ async function fallbackSearch(query: string): Promise<NextResponse> {
       url: `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`,
     }))
 
-    return NextResponse.json({ places })
+    return NextResponse.json({ places, source: "nominatim" })
   } catch (error) {
     console.error("Error in Nominatim fallback search:", error)
     return NextResponse.json({ error: "Failed to fetch place suggestions" }, { status: 500 })
