@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw } from "lucide-react"
+import { X, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw, Link } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -83,6 +83,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
   // Place details state
   const [placeName, setPlaceName] = useState("")
   const [note, setNote] = useState("")
+  const [website, setWebsite] = useState("")
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
   const [isEditingAddress, setIsEditingAddress] = useState(false)
   const [isAddingPlace, setIsAddingPlace] = useState(false)
@@ -322,6 +323,19 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     return list ? list.title : "Unknown List"
   }
 
+  // Validate website URL
+  const isValidUrl = (url: string) => {
+    if (!url) return true
+    try {
+      // Add https:// if no protocol is specified
+      const urlWithProtocol = url.match(/^https?:\/\//) ? url : `https://${url}`
+      new URL(urlWithProtocol)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
   // Handle refreshing the list to show the place that's already there
   const handleRefreshList = () => {
     if (onRefreshList) {
@@ -342,6 +356,16 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
       return
     }
 
+    // Validate website URL if provided
+    if (website && !isValidUrl(website)) {
+      toast({
+        title: "Invalid website",
+        description: "Please enter a valid URL (e.g., https://example.com)",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsAddingPlace(true)
 
@@ -349,8 +373,15 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
       console.log(`Adding place to ${selectedLists.length} lists:`, {
         name: placeName,
         address: fullAddress,
+        website,
         coordinates,
       })
+
+      // Format website URL if needed
+      let formattedWebsite = website
+      if (website && !website.match(/^https?:\/\//)) {
+        formattedWebsite = `https://${website}`
+      }
 
       // First, check if the place already exists in the database
       const checkResponse = await fetch(`/api/places?lat=${coordinates.lat}&lng=${coordinates.lng}`)
@@ -374,6 +405,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             body: JSON.stringify({
               name: placeName,
               address: fullAddress,
+              website: formattedWebsite,
               lat: coordinates.lat,
               lng: coordinates.lng,
               created_by: dbUser.id,
@@ -499,6 +531,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             id: placeId,
             name: placeName,
             address: fullAddress,
+            website: formattedWebsite,
             coordinates,
             listPlaceId: successfulAdds[0].id, // Use the first result for the original list
           })
@@ -566,6 +599,21 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
           className="mt-1"
           required
         />
+      </div>
+
+      <div>
+        <Label htmlFor="website">Website</Label>
+        <div className="relative mt-1">
+          <Input
+            id="website"
+            type="text"
+            placeholder="e.g., https://example.com"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            className="pl-8"
+          />
+          <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+        </div>
       </div>
 
       <div>

@@ -291,42 +291,11 @@ export function PlaceDetailView({
     })
   }
 
-  const handleDeletePlace = async () => {
-    try {
-      setIsDeleting(true)
-      console.log(`Deleting place with ID: ${place.id} from list: ${listId}`)
-
-      const response = await fetch(`/api/list-places?id=${place.listPlaceId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to delete place")
-      }
-
-      console.log("Place deleted successfully")
-      toast({
-        title: "Place removed",
-        description: `"${place.name}" has been removed from the list.`,
-      })
-
-      if (onPlaceDeleted) {
-        onPlaceDeleted(place.id)
-      }
-
-      setShowDeleteConfirm(false)
-      onBack() // Go back to the list view
-    } catch (err) {
-      console.error("Error deleting place:", err)
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to delete place",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
+  const handlePlaceRemoved = (placeId: string) => {
+    if (onPlaceDeleted) {
+      onPlaceDeleted(placeId)
     }
+    onBack() // Go back to the list view
   }
 
   const handleCenterMap = () => {
@@ -598,6 +567,7 @@ export function PlaceDetailView({
           place={place}
           listId={listId}
           onPlaceUpdated={handlePlaceUpdated}
+          onPlaceRemoved={handlePlaceRemoved}
         />
       )}
 
@@ -614,7 +584,52 @@ export function PlaceDetailView({
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={handleDeletePlace}
+              onClick={() => {
+                if (showEditModal) {
+                  setShowDeleteConfirm(false)
+                  return
+                }
+
+                // Use the same removal logic as in EditPlaceModal
+                setIsDeleting(true)
+                const listPlaceId = place.listPlaceId || place.list_place_id
+
+                fetch(`/api/list-places?id=${listPlaceId}`, {
+                  method: "DELETE",
+                })
+                  .then((response) => {
+                    if (!response.ok) {
+                      return response.json().then((data) => {
+                        throw new Error(data.error || "Failed to remove place")
+                      })
+                    }
+                    return response.json()
+                  })
+                  .then(() => {
+                    toast({
+                      title: "Place removed",
+                      description: `"${place.name}" has been removed from the list.`,
+                    })
+
+                    if (onPlaceDeleted) {
+                      onPlaceDeleted(place.id)
+                    }
+
+                    setShowDeleteConfirm(false)
+                    onBack()
+                  })
+                  .catch((err) => {
+                    console.error("Error removing place:", err)
+                    toast({
+                      title: "Error",
+                      description: err instanceof Error ? err.message : "Failed to remove place",
+                      variant: "destructive",
+                    })
+                  })
+                  .finally(() => {
+                    setIsDeleting(false)
+                  })
+              }}
               disabled={isDeleting}
             >
               {isDeleting ? "Removing..." : "Remove"}
