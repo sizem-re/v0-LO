@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check } from "lucide-react"
+import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +18,13 @@ interface Place {
   address: string
   lat: number
   lng: number
-  type?: string
+}
+
+interface List {
+  id: string
+  title: string
+  visibility: string
+  owner_id: string
 }
 
 interface AddressComponents {
@@ -63,7 +69,6 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
 
   // Place details state
   const [placeName, setPlaceName] = useState("")
-  const [placeType, setPlaceType] = useState("Place")
   const [note, setNote] = useState("")
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
   const [isEditingAddress, setIsEditingAddress] = useState(false)
@@ -82,11 +87,87 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
+  // List selection state
+  const [selectedLists, setSelectedLists] = useState<string[]>([listId])
+  const [userLists, setUserLists] = useState<List[]>([])
+  const [currentList, setCurrentList] = useState<List | null>(null)
+  const [recentLists, setRecentLists] = useState<List[]>([])
+  const [isLoadingLists, setIsLoadingLists] = useState(true)
+  const [isListDropdownOpen, setIsListDropdownOpen] = useState(false)
+  const [listSearchQuery, setListSearchQuery] = useState("")
+  const [filteredLists, setFilteredLists] = useState<List[]>([])
+
   // Current step state
   const [currentStep, setCurrentStep] = useState<"search" | "details">("search")
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const listDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch user's lists
+  useEffect(() => {
+    const fetchLists = async () => {
+      if (!dbUser?.id) return
+
+      try {
+        setIsLoadingLists(true)
+        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch lists: ${response.status}`)
+        }
+
+        const lists = await response.json()
+        setUserLists(lists)
+
+        // Find the current list
+        const current = lists.find((list: List) => list.id === listId)
+        if (current) {
+          setCurrentList(current)
+        }
+
+        // Set recent lists (excluding current list)
+        // In a real app, you might want to track recently used lists in a separate API
+        const recent = lists.filter((list: List) => list.id !== listId).slice(0, 3)
+        setRecentLists(recent)
+
+        // Initialize filtered lists
+        setFilteredLists(lists)
+      } catch (err) {
+        console.error("Error fetching lists:", err)
+      } finally {
+        setIsLoadingLists(false)
+      }
+    }
+
+    fetchLists()
+  }, [dbUser?.id, listId])
+
+  // Filter lists based on search query
+  useEffect(() => {
+    if (!listSearchQuery.trim()) {
+      setFilteredLists(userLists)
+      return
+    }
+
+    const query = listSearchQuery.toLowerCase()
+    const filtered = userLists.filter((list) => list.title.toLowerCase().includes(query))
+    setFilteredLists(filtered)
+  }, [listSearchQuery, userLists])
+
+  // Handle clicks outside the list dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (listDropdownRef.current && !listDropdownRef.current.contains(event.target as Node)) {
+        setIsListDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   // Handle search for places
   const searchPlaces = async () => {
@@ -247,12 +328,29 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
     }
   }
 
-  // Add the place to the list
+  // Toggle list selection
+  const handleToggleList = (listId: string) => {
+    setSelectedLists((prev) => {
+      if (prev.includes(listId)) {
+        return prev.filter((id) => id !== listId)
+      } else {
+        return [...prev, listId]
+      }
+    })
+  }
+
+  // Get list title by ID
+  const getListTitle = (id: string): string => {
+    const list = userLists.find((l) => l.id === id)
+    return list ? list.title : "Unknown List"
+  }
+
+  // Add the place to selected lists
   const handleAddPlace = async () => {
-    if (!placeName.trim() || !coordinates || !listId || !dbUser) {
+    if (!placeName.trim() || !coordinates || selectedLists.length === 0 || !dbUser) {
       toast({
         title: "Missing information",
-        description: "Please provide a name and valid address for the place.",
+        description: "Please provide a name, valid address, and select at least one list.",
         variant: "destructive",
       })
       return
@@ -262,7 +360,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
       setIsAddingPlace(true)
 
       const fullAddress = formatFullAddress()
-      console.log(`Adding place to list ${listId}:`, {
+      console.log(`Adding place to ${selectedLists.length} lists:`, {
         name: placeName,
         address: fullAddress,
         coordinates,
@@ -292,7 +390,6 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
               address: fullAddress,
               lat: coordinates.lat,
               lng: coordinates.lng,
-              type: placeType || "Place",
               created_by: dbUser.id,
             }),
           })
@@ -307,27 +404,31 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
           console.log("Created new place:", placeId)
         }
 
-        // Now add the place to the list
-        const addToListResponse = await fetch("/api/list-places", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            list_id: listId,
-            place_id: placeId,
-            note: note,
-            added_by: dbUser.id,
-          }),
+        // Add the place to all selected lists
+        const addPromises = selectedLists.map(async (listId) => {
+          const addToListResponse = await fetch("/api/list-places", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              list_id: listId,
+              place_id: placeId,
+              note: note,
+              added_by: dbUser.id,
+            }),
+          })
+
+          if (!addToListResponse.ok) {
+            const errorData = await addToListResponse.json()
+            throw new Error(errorData.error || `Failed to add place to list ${listId}`)
+          }
+
+          return addToListResponse.json()
         })
 
-        if (!addToListResponse.ok) {
-          const errorData = await addToListResponse.json()
-          throw new Error(errorData.error || "Failed to add place to list")
-        }
-
-        const listPlaceData = await addToListResponse.json()
-        console.log("Place added to list successfully:", listPlaceData)
+        const results = await Promise.all(addPromises)
+        console.log("Place added to lists successfully:", results)
 
         // TODO: Handle photo upload when backend is ready
         if (photoFile) {
@@ -336,7 +437,10 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
 
         toast({
           title: "Place added",
-          description: `${placeName} has been added to your list.`,
+          description:
+            selectedLists.length === 1
+              ? `${placeName} has been added to ${getListTitle(selectedLists[0])}.`
+              : `${placeName} has been added to ${selectedLists.length} lists.`,
         })
 
         // Call the callback with the added place
@@ -345,8 +449,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
           name: placeName,
           address: fullAddress,
           coordinates,
-          type: placeType,
-          listPlaceId: listPlaceData.id,
+          listPlaceId: results[0].id, // Use the first result for the original list
         })
 
         // Close the modal
@@ -355,10 +458,10 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
         throw new Error("Failed to check for existing places")
       }
     } catch (err) {
-      console.error("Error adding place to list:", err)
+      console.error("Error adding place to lists:", err)
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to add place to list",
+        description: err instanceof Error ? err.message : "Failed to add place to lists",
         variant: "destructive",
       })
     } finally {
@@ -452,15 +555,123 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
       </div>
 
       <div>
-        <Label htmlFor="placeType">Place Type</Label>
-        <Input
-          id="placeType"
-          type="text"
-          placeholder="e.g., Restaurant, Park, Shop"
-          value={placeType}
-          onChange={(e) => setPlaceType(e.target.value)}
-          className="mt-1"
-        />
+        <Label>
+          Add to Lists <span className="text-red-500">*</span>
+        </Label>
+        <div className="relative mt-1" ref={listDropdownRef}>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+            onClick={() => setIsListDropdownOpen(!isListDropdownOpen)}
+          >
+            <span>
+              {selectedLists.length === 0
+                ? "Select lists"
+                : selectedLists.length === 1
+                  ? getListTitle(selectedLists[0])
+                  : `${selectedLists.length} lists selected`}
+            </span>
+            <ChevronDown className="h-4 w-4 text-gray-500" />
+          </button>
+
+          {isListDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+              <div className="p-2 border-b border-gray-200">
+                <Input
+                  type="text"
+                  placeholder="Search lists..."
+                  value={listSearchQuery}
+                  onChange={(e) => setListSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="max-h-60 overflow-y-auto">
+                {isLoadingLists ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    Loading lists...
+                  </div>
+                ) : filteredLists.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">No lists found</div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {/* Current list (always shown at the top) */}
+                    {currentList && (
+                      <div className="p-2 bg-gray-50">
+                        <label className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedLists.includes(currentList.id)}
+                            onChange={() => handleToggleList(currentList.id)}
+                            className="mr-2"
+                          />
+                          <div>
+                            <div className="font-medium">{currentList.title}</div>
+                            <div className="text-xs text-gray-500">Current list</div>
+                          </div>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Recent lists section */}
+                    {recentLists.length > 0 && listSearchQuery === "" && (
+                      <div className="p-2">
+                        <div className="text-xs font-medium text-gray-500 px-2 py-1">Recent Lists</div>
+                        {recentLists.map((list) => (
+                          <label
+                            key={list.id}
+                            className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedLists.includes(list.id)}
+                              onChange={() => handleToggleList(list.id)}
+                              className="mr-2"
+                            />
+                            <span>{list.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* All lists or search results */}
+                    <div className="p-2">
+                      {listSearchQuery !== "" && (
+                        <div className="text-xs font-medium text-gray-500 px-2 py-1">Search Results</div>
+                      )}
+                      {filteredLists
+                        .filter((list) => {
+                          // Filter out the current list and recent lists when not searching
+                          if (listSearchQuery === "") {
+                            return (
+                              (!currentList || list.id !== currentList.id) &&
+                              !recentLists.some((recent) => recent.id === list.id)
+                            )
+                          }
+                          return true
+                        })
+                        .map((list) => (
+                          <label
+                            key={list.id}
+                            className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedLists.includes(list.id)}
+                              onChange={() => handleToggleList(list.id)}
+                              className="mr-2"
+                            />
+                            <span>{list.title}</span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div>
@@ -666,7 +877,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
                 <Button
                   type="submit"
                   className="bg-black text-white hover:bg-black/80"
-                  disabled={isAddingPlace || !placeName.trim() || !coordinates}
+                  disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
                 >
                   {isAddingPlace ? (
                     <>
@@ -676,7 +887,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
                   ) : (
                     <>
                       <Plus className="mr-2 h-4 w-4" />
-                      Add to List
+                      Add to List{selectedLists.length > 1 ? "s" : ""}
                     </>
                   )}
                 </Button>
