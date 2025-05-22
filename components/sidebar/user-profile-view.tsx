@@ -2,26 +2,14 @@
 
 import { User, LogOut, List, MapPin } from "lucide-react"
 import Link from "next/link"
-import { useNeynarContext } from "@neynar/react"
-import { useAuth } from "@/lib/auth-context"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 
 interface UserProfileViewProps {
   onClose?: () => void
 }
 
 export function UserProfileView({ onClose }: UserProfileViewProps) {
-  const { logout } = useAuth()
-  const { user, signOut } = useNeynarContext()
-
-  const handleSignOut = async () => {
-    if (typeof signOut === "function") {
-      await signOut()
-    }
-    if (onClose) {
-      onClose()
-    }
-    window.location.href = "/"
-  }
+  const { user } = useNeynarContext()
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -68,13 +56,12 @@ export function UserProfileView({ onClose }: UserProfileViewProps) {
           <MapPin size={16} />
           <span>Saved Places</span>
         </Link>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
-        >
+
+        {/* Use NeynarAuthButton directly for sign out */}
+        <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
           <LogOut size={16} />
           <span>Sign Out</span>
-        </button>
+        </NeynarAuthButton>
       </div>
     </div>
   )
