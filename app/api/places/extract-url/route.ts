@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
     }
 
-    console.log("Extracting place from URL:", url)
+    console.log("=== URL EXTRACTION DEBUG ===")
+    console.log("Original URL:", url)
 
     // Check if it's a Google Maps URL
     if (url.includes("google.com/maps") || url.includes("goo.gl/maps") || url.includes("maps.app.goo.gl")) {
@@ -41,12 +42,21 @@ export async function POST(request: NextRequest) {
 
 async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
   try {
-    // Handle short URLs
+    console.log("Processing Google Maps URL:", url)
+
+    // Handle short URLs by following redirects
     if (url.includes("goo.gl/maps") || url.includes("maps.app.goo.gl")) {
       try {
-        const response = await fetch(url, { redirect: "follow" })
+        console.log("Expanding short URL...")
+        const response = await fetch(url, {
+          redirect: "follow",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          },
+        })
         url = response.url
-        console.log("Expanded short URL to:", url)
+        console.log("Expanded URL:", url)
       } catch (error) {
         console.error("Error expanding short URL:", error)
         // Continue with the original URL if expansion fails
@@ -58,21 +68,23 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
     let lng: number | null = null
     let name: string | null = null
 
+    console.log("Trying to extract coordinates from URL...")
+
     // Try multiple regex patterns for different Google Maps URL formats
-    const patterns = [/@(-?\d+\.\d+),(-?\d+\.\d+)/, /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /ll=(-?\d+\.\d+),(-?\d+\.\d+)/]
+    const patterns = [
+      { name: "@pattern", regex: /@(-?\d+\.\d+),(-?\d+\.\d+)/ },
+      { name: "!3d pattern", regex: /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/ },
+      { name: "ll pattern", regex: /ll=(-?\d+\.\d+),(-?\d+\.\d+)/ },
+      { name: "center pattern", regex: /center=(-?\d+\.\d+),(-?\d+\.\d+)/ },
+      { name: "q pattern", regex: /q=(-?\d+\.\d+),(-?\d+\.\d+)/ },
+    ]
 
     for (const pattern of patterns) {
-      const match = url.match(pattern)
+      const match = url.match(pattern.regex)
       if (match) {
-        if (pattern.toString().includes("!3d")) {
-          // Format: !3d{lat}!4d{lng}
-          lat = Number.parseFloat(match[1])
-          lng = Number.parseFloat(match[2])
-        } else {
-          // Format: @{lat},{lng} or ll={lat},{lng}
-          lat = Number.parseFloat(match[1])
-          lng = Number.parseFloat(match[2])
-        }
+        console.log(`Found coordinates using ${pattern.name}:`, match[1], match[2])
+        lat = Number.parseFloat(match[1])
+        lng = Number.parseFloat(match[2])
         break
       }
     }
@@ -80,20 +92,31 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
     console.log("Extracted coordinates:", { lat, lng })
 
     // Try to extract place name from URL
-    const placeNamePatterns = [/place\/([^/]+)/, /query=([^&]+)/, /q=([^&]+)/, /search\/([^/]+)/]
+    console.log("Trying to extract place name from URL...")
+    const placeNamePatterns = [
+      { name: "place pattern", regex: /place\/([^/]+)/ },
+      { name: "query pattern", regex: /query=([^&]+)/ },
+      { name: "q pattern", regex: /q=([^&]+)/ },
+      { name: "search pattern", regex: /search\/([^/]+)/ },
+    ]
 
     for (const pattern of placeNamePatterns) {
-      const match = url.match(pattern)
+      const match = url.match(pattern.regex)
       if (match) {
+        console.log(`Found place name using ${pattern.name}:`, match[1])
         name = decodeURIComponent(match[1].replace(/\+/g, " "))
-        break
+        // Remove coordinates from name if they exist
+        name = name.replace(/^-?\d+\.\d+,-?\d+\.\d+/, "").trim()
+        if (name) break
       }
     }
 
-    // If we couldn't extract coordinates or name, fetch the page and try to extract from meta tags
-    if (!lat || !lng || !name) {
+    console.log("Extracted place name:", name)
+
+    // If we couldn't extract coordinates, try fetching the page
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      console.log("Coordinates not found in URL, trying to fetch page content...")
       try {
-        console.log("Fetching page content to extract data")
         const response = await fetch(url, {
           headers: {
             "User-Agent":
@@ -101,60 +124,59 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
           },
         })
         const html = await response.text()
+        console.log("Fetched page content, length:", html.length)
+
         const $ = cheerio.load(html)
 
         // Try to extract from meta tags
         const metaDescription = $('meta[name="description"]').attr("content")
+        console.log("Meta description:", metaDescription)
 
         if (metaDescription) {
           // Try to extract coordinates from meta description
           const metaMatch = metaDescription.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
-          if (metaMatch && !lat && !lng) {
+          if (metaMatch) {
+            console.log("Found coordinates in meta description:", metaMatch[1], metaMatch[2])
             lat = Number.parseFloat(metaMatch[1])
             lng = Number.parseFloat(metaMatch[2])
           }
 
           // Try to extract name from title or meta description
           if (!name) {
-            name = $("title").text().split(" - ")[0] || metaDescription.split(",")[0]
+            const title = $("title").text().trim()
+            console.log("Page title:", title)
+            name = title.split(" - ")[0] || metaDescription.split(",")[0]
           }
         }
 
-        // Try to extract from JSON-LD
-        const jsonLdScripts = $('script[type="application/ld+json"]')
-        jsonLdScripts.each((_, element) => {
-          try {
-            const jsonContent = $(element).html()
-            if (jsonContent) {
-              const data = JSON.parse(jsonContent)
-              if (data.geo && !lat && !lng) {
-                lat = Number.parseFloat(data.geo.latitude || data.geo.lat)
-                lng = Number.parseFloat(data.geo.longitude || data.geo.lng)
-              } else if (data.location && data.location.geo && !lat && !lng) {
-                lat = Number.parseFloat(data.location.geo.latitude || data.location.geo.lat)
-                lng = Number.parseFloat(data.location.geo.longitude || data.location.geo.lng)
-              }
-
-              if (!name && data.name) {
-                name = data.name
-              }
-            }
-          } catch (e) {
-            console.error("Error parsing JSON-LD:", e)
+        // Look for coordinates in script tags
+        const scripts = $("script").toArray()
+        for (const script of scripts) {
+          const scriptContent = $(script).html() || ""
+          const coordMatch = scriptContent.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+          if (coordMatch && !lat && !lng) {
+            console.log("Found coordinates in script:", coordMatch[1], coordMatch[2])
+            lat = Number.parseFloat(coordMatch[1])
+            lng = Number.parseFloat(coordMatch[2])
+            break
           }
-        })
+        }
       } catch (error) {
         console.error("Error fetching page content:", error)
       }
     }
 
+    console.log("Final extracted data:", { lat, lng, name })
+
     // If we still don't have coordinates, return an error
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-      console.error("Could not extract coordinates from URL:", url)
+      console.error("Could not extract coordinates from URL")
       return NextResponse.json(
         {
           error: "Could not extract location coordinates from URL",
-          details: "The URL doesn't contain recognizable location data",
+          details:
+            "The URL doesn't contain recognizable location data. Please try a different URL or add the place manually.",
+          debug: { originalUrl: url, extractedLat: lat, extractedLng: lng },
         },
         { status: 400 },
       )
@@ -165,6 +187,7 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
     }
 
     // Use reverse geocoding to get address
+    console.log("Getting address from coordinates...")
     const address = await getAddressFromCoordinates(lat, lng)
 
     const place: PlaceResult = {
@@ -176,6 +199,7 @@ async function extractGoogleMapsUrl(url: string): Promise<NextResponse> {
       url,
     }
 
+    console.log("Successfully extracted place:", place)
     return NextResponse.json({ place })
   } catch (error) {
     console.error("Error extracting from Google Maps URL:", error)
