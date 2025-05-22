@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -51,14 +51,15 @@ export function ListDetailView({
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const fetchListDetails = async () => {
+  const fetchListDetails = useCallback(async () => {
     try {
-      setLoading(true)
+      setIsRefreshing(true)
       setError(null)
 
       console.log(`Fetching list details for ID: ${listId}`)
-      const response = await fetch(`/api/lists/${listId}`)
+      const response = await fetch(`/api/lists/${listId}?_=${new Date().getTime()}`) // Add cache-busting parameter
 
       if (!response.ok) {
         throw new Error(`Failed to fetch list: ${response.status}`)
@@ -72,14 +73,16 @@ export function ListDetailView({
       setError(err instanceof Error ? err.message : "Failed to load list details")
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
-  }
+  }, [listId])
 
   useEffect(() => {
     if (listId) {
+      setLoading(true)
       fetchListDetails()
     }
-  }, [listId])
+  }, [listId, fetchListDetails])
 
   const handleEditList = () => {
     setShowEditModal(true)
@@ -147,6 +150,10 @@ export function ListDetailView({
 
   const handlePlaceAdded = (place: any) => {
     // Refresh the list to show the new place
+    fetchListDetails()
+  }
+
+  const handleRefreshList = () => {
     fetchListDetails()
   }
 
@@ -280,6 +287,9 @@ export function ListDetailView({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRefreshList} disabled={isRefreshing}>
+                  {isRefreshing ? "Refreshing..." : "Refresh List"}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-red-600 focus:text-red-600"
@@ -361,7 +371,12 @@ export function ListDetailView({
 
       {/* Add Place Modal */}
       {showAddPlaceModal && (
-        <AddPlaceModal listId={listId} onClose={() => setShowAddPlaceModal(false)} onPlaceAdded={handlePlaceAdded} />
+        <AddPlaceModal
+          listId={listId}
+          onClose={() => setShowAddPlaceModal(false)}
+          onPlaceAdded={handlePlaceAdded}
+          onRefreshList={handleRefreshList}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}

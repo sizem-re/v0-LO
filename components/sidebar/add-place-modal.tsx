@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check, ChevronDown } from "lucide-react"
+import { X, Search, MapPin, Plus, Loader2, Camera, Edit, Check, ChevronDown, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,6 +11,16 @@ import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Place {
   id?: string
@@ -56,9 +66,10 @@ interface AddPlaceModalProps {
   listId: string
   onClose: () => void
   onPlaceAdded: (place: any) => void
+  onRefreshList?: () => void
 }
 
-export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalProps) {
+export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: AddPlaceModalProps) {
   const { dbUser } = useAuth()
 
   // Search state
@@ -96,6 +107,19 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
   const [isListDropdownOpen, setIsListDropdownOpen] = useState(false)
   const [listSearchQuery, setListSearchQuery] = useState("")
   const [filteredLists, setFilteredLists] = useState<List[]>([])
+
+  // Error handling state
+  const [duplicateError, setDuplicateError] = useState<{
+    show: boolean
+    message: string
+    listId: string
+    placeName: string
+  }>({
+    show: false,
+    message: "",
+    listId: "",
+    placeName: "",
+  })
 
   // Current step state
   const [currentStep, setCurrentStep] = useState<"search" | "details">("search")
@@ -345,6 +369,15 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
     return list ? list.title : "Unknown List"
   }
 
+  // Handle refreshing the list to show the place that's already there
+  const handleRefreshList = () => {
+    if (onRefreshList) {
+      onRefreshList()
+    }
+    setDuplicateError({ show: false, message: "", listId: "", placeName: "" })
+    onClose()
+  }
+
   // Add the place to selected lists
   const handleAddPlace = async () => {
     if (!placeName.trim() || !coordinates || selectedLists.length === 0 || !dbUser) {
@@ -406,54 +439,122 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
 
         // Add the place to all selected lists
         const addPromises = selectedLists.map(async (listId) => {
-          const addToListResponse = await fetch("/api/list-places", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              list_id: listId,
-              place_id: placeId,
-              note: note,
-              added_by: dbUser.id,
-            }),
-          })
+          try {
+            const addToListResponse = await fetch("/api/list-places", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                list_id: listId,
+                place_id: placeId,
+                note: note,
+                added_by: dbUser.id,
+              }),
+            })
 
-          if (!addToListResponse.ok) {
-            const errorData = await addToListResponse.json()
-            throw new Error(errorData.error || `Failed to add place to list ${listId}`)
+            const responseData = await addToListResponse.json()
+
+            if (!addToListResponse.ok) {
+              // Check if this is a duplicate error
+              if (addToListResponse.status === 409 && responseData.alreadyExists) {
+                console.log("Place already exists in list:", responseData)
+
+                // If this is the only list we're adding to, show the duplicate error dialog
+                if (selectedLists.length === 1) {
+                  setDuplicateError({
+                    show: true,
+                    message: responseData.error || "This place is already in the list",
+                    listId: listId,
+                    placeName: placeName,
+                  })
+                  return { error: true, duplicate: true, listId }
+                }
+
+                // Otherwise just return the error but continue with other lists
+                return { error: true, duplicate: true, listId }
+              }
+
+              throw new Error(responseData.error || `Failed to add place to list ${listId}`)
+            }
+
+            return responseData
+          } catch (err) {
+            console.error(`Error adding place to list ${listId}:`, err)
+            return { error: true, message: err instanceof Error ? err.message : "Unknown error", listId }
           }
-
-          return addToListResponse.json()
         })
 
         const results = await Promise.all(addPromises)
-        console.log("Place added to lists successfully:", results)
+        console.log("Place add results:", results)
+
+        // Check if we had any successful additions
+        const successfulAdds = results.filter((result) => !result.error)
+        const duplicates = results.filter((result) => result.error && result.duplicate)
+
+        if (successfulAdds.length === 0 && duplicates.length > 0) {
+          // If all were duplicates, show a message
+          if (duplicates.length === 1) {
+            setDuplicateError({
+              show: true,
+              message: `${placeName} is already in this list`,
+              listId: duplicates[0].listId,
+              placeName,
+            })
+            return
+          } else {
+            toast({
+              title: "Already added",
+              description: `${placeName} is already in all selected lists.`,
+              action: (
+                <Button variant="outline" size="sm" onClick={handleRefreshList}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              ),
+            })
+            onClose()
+            return
+          }
+        }
 
         // TODO: Handle photo upload when backend is ready
         if (photoFile) {
           console.log("Photo will be uploaded in a future update:", photoFile.name)
         }
 
-        toast({
-          title: "Place added",
-          description:
-            selectedLists.length === 1
-              ? `${placeName} has been added to ${getListTitle(selectedLists[0])}.`
-              : `${placeName} has been added to ${selectedLists.length} lists.`,
-        })
+        // If we had some successful adds but also some duplicates
+        if (successfulAdds.length > 0 && duplicates.length > 0) {
+          toast({
+            title: "Place added partially",
+            description: `${placeName} was added to ${successfulAdds.length} list(s) but was already in ${duplicates.length} list(s).`,
+          })
+        } else if (successfulAdds.length > 0) {
+          // All successful
+          toast({
+            title: "Place added",
+            description:
+              selectedLists.length === 1
+                ? `${placeName} has been added to ${getListTitle(selectedLists[0])}.`
+                : `${placeName} has been added to ${successfulAdds.length} lists.`,
+          })
+        }
 
-        // Call the callback with the added place
-        onPlaceAdded({
-          id: placeId,
-          name: placeName,
-          address: fullAddress,
-          coordinates,
-          listPlaceId: results[0].id, // Use the first result for the original list
-        })
+        // Call the callback with the added place if we had at least one successful add
+        if (successfulAdds.length > 0) {
+          onPlaceAdded({
+            id: placeId,
+            name: placeName,
+            address: fullAddress,
+            coordinates,
+            listPlaceId: successfulAdds[0].id, // Use the first result for the original list
+          })
+        }
 
-        // Close the modal
-        onClose()
+        // Close the modal if we didn't show the duplicate error dialog
+        if (!duplicateError.show) {
+          onClose()
+        }
       } else {
         throw new Error("Failed to check for existing places")
       }
@@ -831,71 +932,95 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded }: AddPlaceModalPr
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
-      <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
-        <div className="p-4 border-b border-black/10 flex items-center justify-between">
-          <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
-          <button onClick={onClose} className="p-1" aria-label="Close">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
+        <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
+          <div className="p-4 border-b border-black/10 flex items-center justify-between">
+            <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
+            <button onClick={onClose} className="p-1" aria-label="Close">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-        <form onSubmit={handleSubmit} className="p-4">
-          {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
+          <form onSubmit={handleSubmit} className="p-4">
+            {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
 
-          <div className="flex justify-between gap-2 mt-6">
-            {currentStep === "details" && (
-              <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
-                Back
-              </Button>
-            )}
-
-            <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-
-              {currentStep === "search" ? (
-                <Button
-                  type="submit"
-                  className="bg-black text-white hover:bg-black/80"
-                  disabled={isSearching || !searchQuery.trim()}
-                >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="mr-2 h-4 w-4" />
-                      Search
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  className="bg-black text-white hover:bg-black/80"
-                  disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
-                >
-                  {isAddingPlace ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add to List{selectedLists.length > 1 ? "s" : ""}
-                    </>
-                  )}
+            <div className="flex justify-between gap-2 mt-6">
+              {currentStep === "details" && (
+                <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
+                  Back
                 </Button>
               )}
+
+              <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+
+                {currentStep === "search" ? (
+                  <Button
+                    type="submit"
+                    className="bg-black text-white hover:bg-black/80"
+                    disabled={isSearching || !searchQuery.trim()}
+                  >
+                    {isSearching ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mr-2 h-4 w-4" />
+                        Search
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    className="bg-black text-white hover:bg-black/80"
+                    disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
+                  >
+                    {isAddingPlace ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add to List{selectedLists.length > 1 ? "s" : ""}
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {/* Duplicate Place Alert Dialog */}
+      <AlertDialog
+        open={duplicateError.show}
+        onOpenChange={(open) => setDuplicateError({ ...duplicateError, show: open })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Place Already in List</AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateError.message}. This place might not be visible in your list due to a synchronization issue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRefreshList}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh List
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`Adding place ${place_id} to list ${list_id}`)
 
-    // Check if the place is already in the list
+    // Check if the place is already in the list - get more details for debugging
     const { data: existingListPlace, error: checkError } = await supabaseAdmin
       .from("list_places")
-      .select("id")
+      .select("id, added_at, added_by, place:place_id(name)")
       .eq("list_id", list_id)
       .eq("place_id", place_id)
       .maybeSingle()
@@ -36,9 +36,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingListPlace) {
-      console.log("Place already exists in list")
+      console.log("Place already exists in list:", existingListPlace)
+
+      // Get place details for better error message
+      const { data: placeDetails } = await supabaseAdmin.from("places").select("name").eq("id", place_id).single()
+
+      const placeName = placeDetails?.name || "This place"
+
       return NextResponse.json(
-        { error: "This place is already in the list", id: existingListPlace.id },
+        {
+          error: `${placeName} is already in this list`,
+          existingPlace: existingListPlace,
+          alreadyExists: true,
+        },
         { status: 409 },
       )
     }
