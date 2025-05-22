@@ -34,12 +34,75 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Step 1: Use Google Places Autocomplete API to get place predictions
+      // First, try the Text Search API for direct results
+      // This is better for general queries like "coffee shops in portland"
+      console.log("Trying Google Places Text Search API for:", query)
+      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+        query,
+      )}&key=${googleApiKey}`
+
+      const textSearchResponse = await fetch(textSearchUrl)
+
+      if (textSearchResponse.ok) {
+        const textSearchData = await textSearchResponse.json()
+
+        if (textSearchData.status === "OK" && textSearchData.results && textSearchData.results.length > 0) {
+          console.log("Found places using Text Search API:", textSearchData.results.length)
+
+          const places = textSearchData.results.slice(0, 5).map((place: any) => ({
+            id: place.place_id,
+            name: place.name,
+            address: place.formatted_address,
+            coordinates: {
+              lat: place.geometry.location.lat,
+              lng: place.geometry.location.lng,
+            },
+            type: getPlaceType(place.types || []),
+            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          }))
+
+          return NextResponse.json({ places })
+        }
+      }
+
+      // If Text Search didn't work well, try Find Place API for business names
+      if (query.length > 3 && !query.match(/^\d+/)) {
+        console.log("Trying Find Place API for business name:", query)
+        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
+          query,
+        )}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,types&key=${googleApiKey}`
+
+        const findPlaceResponse = await fetch(findPlaceUrl)
+        if (findPlaceResponse.ok) {
+          const findPlaceData = await findPlaceResponse.json()
+
+          if (findPlaceData.status === "OK" && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
+            console.log("Found places using Find Place API:", findPlaceData.candidates.length)
+
+            const places = findPlaceData.candidates.map((place: any) => ({
+              id: place.place_id,
+              name: place.name,
+              address: place.formatted_address,
+              coordinates: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng,
+              },
+              type: getPlaceType(place.types || []),
+              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+            }))
+
+            return NextResponse.json({ places })
+          }
+        }
+      }
+
+      // Finally, fall back to Autocomplete + Details API
+      // This is good for partial queries and address completion
       const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
         query,
       )}&key=${googleApiKey}&types=establishment|geocode`
 
-      console.log("Calling Google Places Autocomplete API:", autocompleteUrl)
+      console.log("Calling Google Places Autocomplete API")
 
       const autocompleteResponse = await fetch(autocompleteUrl)
 
