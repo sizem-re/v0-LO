@@ -11,6 +11,7 @@ import { useMiniApp } from "@/hooks/use-mini-app"
 import { UserProfileView } from "./user-profile-view"
 import { CreateListModal } from "@/components/create-list-modal"
 import { UserListsDisplay } from "@/components/user-lists-display"
+import { ListDetailView } from "./list-detail-view"
 
 export function Sidebar() {
   // Get miniapp context
@@ -29,6 +30,7 @@ export function Sidebar() {
   const [showLogin, setShowLogin] = useState(false)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
   const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
+  const [selectedListId, setSelectedListId] = useState<string | null>(null)
 
   // Auth context
   const { isAuthenticated } = useAuth()
@@ -77,6 +79,7 @@ export function Sidebar() {
     } else {
       // If user is authenticated, toggle profile view or navigate to profile
       setActiveTab("profile")
+      setSelectedListId(null) // Clear any selected list
       setIsCollapsed(false)
     }
   }
@@ -84,6 +87,7 @@ export function Sidebar() {
   const handleTabClick = (tab: string) => {
     setActiveTab(tab)
     setShowLogin(false)
+    setSelectedListId(null) // Clear any selected list
     setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
@@ -97,6 +101,40 @@ export function Sidebar() {
     setListsKey((prev) => prev + 1)
     // You could add additional logic here, like showing a success message
     // or navigating to the new list
+  }
+
+  const handleSelectList = (listId: string) => {
+    setSelectedListId(listId)
+  }
+
+  const handleBackFromList = () => {
+    setSelectedListId(null)
+  }
+
+  const handlePlaceClick = (place: any) => {
+    console.log("Place clicked:", place)
+    // Here you would typically center the map on this place
+    // or show a place detail view
+    setIsCollapsed(true) // Collapse sidebar to show the map better
+  }
+
+  const handleEditList = (list: any) => {
+    console.log("Edit list:", list)
+    // Here you would show an edit list modal or navigate to edit page
+  }
+
+  const handleDeleteList = (list: any) => {
+    console.log("Delete list:", list)
+    // Here you would confirm and then delete the list
+    // After deletion, go back to the lists view
+    setSelectedListId(null)
+    // Force refresh the lists
+    setListsKey((prev) => prev + 1)
+  }
+
+  const handleAddPlace = (listId: string) => {
+    console.log("Add place to list:", listId)
+    // Here you would show an add place modal or navigate to add place page
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -266,9 +304,19 @@ export function Sidebar() {
                   onClose={() => setActiveTab("discover")}
                   expanded={true}
                   onCreateList={handleCreateList}
+                  onSelectList={handleSelectList}
                   key={listsKey}
                 />
               </div>
+            ) : selectedListId ? (
+              <ListDetailView
+                listId={selectedListId}
+                onBack={handleBackFromList}
+                onPlaceClick={handlePlaceClick}
+                onEditList={handleEditList}
+                onDeleteList={handleDeleteList}
+                onAddPlace={handleAddPlace}
+              />
             ) : (
               <>
                 {/* Tabs */}
@@ -324,7 +372,12 @@ export function Sidebar() {
                   )}
 
                   {activeTab === "mylists" && (
-                    <UserListsDisplay compact={true} onCreateList={handleCreateList} key={listsKey} />
+                    <UserListsDisplay
+                      compact={true}
+                      onCreateList={handleCreateList}
+                      onSelectList={handleSelectList}
+                      key={listsKey}
+                    />
                   )}
 
                   {activeTab === "places" && (

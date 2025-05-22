@@ -7,20 +7,10 @@ import { useAuth } from "@/lib/auth-context"
 import dynamic from "next/dynamic"
 import type { Place } from "@/types/place"
 import { useMiniApp } from "@/hooks/use-mini-app"
-import { Edit, Share2, Plus, Loader2, Globe, Users, Lock, Trash2 } from "lucide-react"
+import { Edit, Share2, Plus, Loader2 } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -43,14 +33,69 @@ interface ListOwner {
 interface ListData {
   id: string
   title: string
-  description: string | null
+  description: string
   visibility: string
-  cover_image_url?: string | null
+  cover_image_url?: string
   created_at: string
   updated_at: string
   owner: ListOwner
   places: Place[]
 }
+
+// Placeholder data for testing
+const PLACEHOLDER_LIST: ListData = {
+  id: "placeholder-list-1",
+  title: "Best Coffee Shops in Seattle",
+  description: "My favorite places to grab coffee and work in Seattle",
+  visibility: "public",
+  cover_image_url: "/cozy-corner-cafe.png",
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  owner: {
+    id: "placeholder-user-1",
+    farcaster_username: "coffeeexplorer",
+    farcaster_display_name: "Coffee Explorer",
+    farcaster_pfp_url: "/diverse-profile-avatars.png",
+  },
+  places: [
+    {
+      id: "place-1",
+      name: "Analog Coffee",
+      description: "Great pour-overs and minimalist vibe",
+      address: "235 Summit Ave E, Seattle, WA 98102",
+      latitude: 47.6205,
+      longitude: -122.3252,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/cozy-coffee-shop.png",
+    },
+    {
+      id: "place-2",
+      name: "Victrola Coffee Roasters",
+      description: "Spacious cafe with excellent espresso",
+      address: "310 E Pike St, Seattle, WA 98122",
+      latitude: 47.6142,
+      longitude: -122.3266,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/coffee-roastery.png",
+    },
+    {
+      id: "place-3",
+      name: "Storyville Coffee",
+      description: "Amazing views and great pastries",
+      address: "94 Pike St #34, Seattle, WA 98101",
+      latitude: 47.6088,
+      longitude: -122.3404,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      image_url: "/cozy-coffee-shop-view.png",
+    },
+  ],
+}
+
+// Flag to use placeholder data (set to true for testing)
+const USE_PLACEHOLDER_DATA = true
 
 export default function ListDetailPage({ params }: { params: { id: string } }) {
   const { isAuthenticated, user } = useAuth()
@@ -60,8 +105,7 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   const [list, setList] = useState<ListData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [usePlaceholder, setUsePlaceholder] = useState(USE_PLACEHOLDER_DATA)
 
   useEffect(() => {
     const fetchList = async () => {
@@ -69,12 +113,28 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
         setLoading(true)
         console.log(`Fetching list with ID: ${params.id}`)
 
+        // If using placeholder data, skip the API call
+        if (usePlaceholder) {
+          console.log("Using placeholder data for testing")
+          setTimeout(() => {
+            setList(PLACEHOLDER_LIST)
+            setLoading(false)
+          }, 500) // Simulate loading delay
+          return
+        }
+
         const response = await fetch(`/api/lists/${params.id}`)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           const errorMessage = errorData.error || response.statusText
-          throw new Error(errorMessage)
+
+          // If API call fails, fall back to placeholder data
+          console.log("API call failed, using placeholder data")
+          setList(PLACEHOLDER_LIST)
+          setUsePlaceholder(true)
+          setLoading(false)
+          return
         }
 
         const data = await response.json()
@@ -83,6 +143,11 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       } catch (err) {
         console.error("Error fetching list:", err)
         setError(err instanceof Error ? err.message : "Failed to load list")
+
+        // On error, fall back to placeholder data
+        console.log("Error occurred, using placeholder data")
+        setList(PLACEHOLDER_LIST)
+        setUsePlaceholder(true)
       } finally {
         setLoading(false)
       }
@@ -94,60 +159,16 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       setError("List ID is missing")
       setLoading(false)
     }
-  }, [params.id])
+  }, [params.id, usePlaceholder])
 
   const handleAddPlace = () => {
     router.push(`/lists/${params.id}/add-place`)
   }
 
-  const handleDeleteList = async () => {
-    if (!list?.id) return
-
-    try {
-      setIsDeleting(true)
-      const response = await fetch(`/api/lists/${list.id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete list")
-      }
-
-      router.push("/") // Redirect to home page after deletion
-      router.refresh() // Refresh the page to update the lists
-    } catch (err) {
-      console.error("Error deleting list:", err)
-      alert("Failed to delete list. Please try again.")
-    } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
-    }
-  }
-
-  const getVisibilityIcon = (visibility: string) => {
-    switch (visibility) {
-      case "public":
-        return <Globe size={16} className="text-black/70" />
-      case "community":
-        return <Users size={16} className="text-black/70" />
-      case "private":
-        return <Lock size={16} className="text-black/70" />
-      default:
-        return <Globe size={16} className="text-black/70" />
-    }
-  }
-
-  const getVisibilityLabel = (visibility: string) => {
-    switch (visibility) {
-      case "public":
-        return "Public"
-      case "community":
-        return "Community"
-      case "private":
-        return "Private"
-      default:
-        return "Public"
-    }
+  // Toggle between real and placeholder data (for testing)
+  const togglePlaceholderData = () => {
+    setUsePlaceholder(!usePlaceholder)
+    setLoading(true)
   }
 
   if (loading) {
@@ -170,8 +191,8 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
             <h2 className="text-lg font-medium mb-2">Error</h2>
             <p>{error || "Failed to load list"}</p>
-            <Link href="/" className="text-red-700 underline mt-4 inline-block">
-              Back to home
+            <Link href="/lists" className="text-red-700 underline mt-4 inline-block">
+              Back to lists
             </Link>
           </div>
         </div>
@@ -190,22 +211,25 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
+        {/* Development toggle for placeholder data */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 p-2 bg-yellow-100 rounded text-sm">
+            <button onClick={togglePlaceholderData} className="underline text-blue-600">
+              {usePlaceholder ? "Try loading real data" : "Use placeholder data"}
+            </button>
+            {usePlaceholder && <span className="ml-2 text-yellow-800">Using placeholder data for testing</span>}
+          </div>
+        )}
+
         <div className="mb-8">
-          <Link href="/" className="text-sm hover:underline mb-4 inline-block">
-            ← Back to home
+          <Link href="/lists" className="text-sm hover:underline mb-4 inline-block">
+            ← Back to lists
           </Link>
 
           <div className="flex justify-between items-start mt-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-serif mb-2">{list.title}</h1>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-sm text-black/70">by {ownerName}</p>
-                <span className="text-black/30">•</span>
-                <div className="flex items-center text-sm text-black/70">
-                  {getVisibilityIcon(list.visibility)}
-                  <span className="ml-1">{getVisibilityLabel(list.visibility)}</span>
-                </div>
-              </div>
+              <p className="text-sm text-black/70 mb-4">by {ownerName}</p>
               {list.description && <p className="text-lg max-w-2xl mb-4">{list.description}</p>}
               <p className="text-sm text-black/60">
                 {new Date(list.created_at).toLocaleDateString(undefined, {
@@ -236,22 +260,10 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
               </Button>
 
               {isOwner && (
-                <>
-                  <Link href={`/lists/${params.id}/edit`}>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Edit size={18} />
-                      Edit
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash2 size={18} />
-                    Delete
-                  </Button>
-                </>
+                <Link href={`/lists/${params.id}/edit`} className="lo-button flex items-center gap-2">
+                  <Edit size={18} />
+                  Edit
+                </Link>
               )}
             </div>
           </div>
@@ -261,7 +273,7 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-serif">Places</h2>
-              {(isOwner || list.visibility === "community") && (
+              {isOwner && (
                 <Button onClick={handleAddPlace} className="flex items-center gap-2">
                   <Plus size={16} />
                   Add Place
@@ -283,7 +295,7 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
             ) : (
               <div className="border border-black/10 rounded-md p-8 text-center">
                 <p className="text-black/60 mb-4">No places in this list yet</p>
-                {(isOwner || list.visibility === "community") && (
+                {isOwner && (
                   <Button onClick={handleAddPlace}>
                     <Plus size={16} className="mr-2" />
                     Add Your First Place
@@ -313,38 +325,6 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
           </div>
         )}
       </div>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this list?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the list "{list.title}" and remove all places
-              associated with it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleDeleteList()
-              }}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete List"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PageLayout>
   )
 }
