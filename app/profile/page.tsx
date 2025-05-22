@@ -16,19 +16,22 @@ export default function ProfilePage() {
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
   const user = neynarUser || authUser
 
-  // Redirect if not authenticated
   useEffect(() => {
-    if (!isLoading && !userIsAuthenticated) {
-      router.push("/login")
+    // If the user is authenticated, redirect to home page
+    // If not authenticated, redirect to login
+    if (!isLoading) {
+      if (userIsAuthenticated) {
+        // We're transitioning away from this page, so redirect to home
+        router.push("/")
+      } else {
+        router.push("/login")
+      }
     }
   }, [isLoading, userIsAuthenticated, router])
 
+  // Show loading state while redirecting
   if (isLoading) {
     return <div className="p-8 text-center">Loading...</div>
-  }
-
-  if (!userIsAuthenticated) {
-    return null // This will redirect due to the useEffect above
   }
 
   // Format user data

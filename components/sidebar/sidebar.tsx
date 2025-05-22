@@ -245,7 +245,7 @@ export function Sidebar() {
         <>
           {activeTab === "profile" ? (
             <div className="flex-grow overflow-y-auto">
-              <UserProfileView onClose={() => setActiveTab("discover")} />
+              <UserProfileView onClose={() => setActiveTab("discover")} expanded={true} />
             </div>
           ) : (
             <>
