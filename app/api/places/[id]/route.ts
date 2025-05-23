@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase-client"
+import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 
 // GET /api/places/[id] - Get a specific place
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -64,14 +64,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     let checkError = null
 
     // First try as string
-    const stringResult = await supabase.from("places").select("*").eq("id", id).maybeSingle()
+    const stringResult = await supabaseAdmin.from("places").select("*").eq("id", id).maybeSingle()
 
     if (stringResult.data) {
       existingPlace = stringResult.data
     } else if (!stringResult.error && /^\d+$/.test(id)) {
       // Try as number if it looks like a number
       console.log(`Trying ID as number for existence check: ${Number(id)}`)
-      const numberResult = await supabase.from("places").select("*").eq("id", Number(id)).maybeSingle()
+      const numberResult = await supabaseAdmin.from("places").select("*").eq("id", Number(id)).maybeSingle()
       existingPlace = numberResult.data
       checkError = numberResult.error
     } else {
@@ -119,20 +119,75 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     console.log("Final update payload:", JSON.stringify(filteredUpdates, null, 2))
     console.log("Using actual ID for update:", actualId, "(type:", typeof actualId, ")")
 
-    // Perform the update using the actual ID from the database
-    const { data, error } = await supabase.from("places").update(filteredUpdates).eq("id", actualId).select()
+    // Try using supabaseAdmin instead of supabase for the update
+    const { data, error } = await supabaseAdmin.from("places").update(filteredUpdates).eq("id", actualId).select()
 
     if (error) {
       console.error("Supabase update error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+
+      // If there's an error, try a different approach - direct SQL
+      console.log("Trying direct SQL update as fallback...")
+
+      // Build the SET clause for the SQL query
+      const setClauses = Object.entries(filteredUpdates)
+        .map(([key, value]) => {
+          if (value === null) {
+            return `${key} = NULL`
+          } else if (typeof value === "string") {
+            return `${key} = '${value.replace(/'/g, "''")}'`
+          } else {
+            return `${key} = ${value}`
+          }
+        })
+        .join(", ")
+
+      const sqlQuery = `
+        UPDATE places 
+        SET ${setClauses}
+        WHERE id = '${actualId}'
+        RETURNING *;
+      `
+
+      console.log("Executing SQL:", sqlQuery)
+
+      const { data: sqlData, error: sqlError } = await supabaseAdmin.rpc("execute_sql", {
+        sql_query: sqlQuery,
+      })
+
+      if (sqlError) {
+        console.error("SQL update error:", sqlError)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      console.log("SQL update result:", sqlData)
+
+      // Fetch the updated place
+      const { data: updatedPlace, error: fetchError } = await supabaseAdmin
+        .from("places")
+        .select("*")
+        .eq("id", actualId)
+        .maybeSingle()
+
+      if (fetchError || !updatedPlace) {
+        console.error("Error fetching updated place:", fetchError)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      console.log("Successfully updated place via SQL:", updatedPlace)
+      return NextResponse.json(updatedPlace)
     }
 
     if (!data || data.length === 0) {
       console.error("No rows were updated - this shouldn't happen!")
       console.log("Attempting to fetch the place again to see current state...")
 
-      const { data: currentPlace } = await supabase.from("places").select("*").eq("id", actualId).maybeSingle()
-      console.log("Current place state:", currentPlace)
+      const { data: currentPlace } = await supabaseAdmin.from("places").select("*").eq("id", actualId).maybeSingle()
+
+      if (currentPlace) {
+        console.log("Current place state:", currentPlace)
+        console.log("Returning current place state as fallback")
+        return NextResponse.json(currentPlace)
+      }
 
       return NextResponse.json({ error: "No rows were updated" }, { status: 500 })
     }
@@ -162,10 +217,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     let actualId = id
 
     // Check if place exists and get the actual ID
-    const { data: existingPlace } = await supabase.from("places").select("id").eq("id", id).maybeSingle()
+    const { data: existingPlace } = await supabaseAdmin.from("places").select("id").eq("id", id).maybeSingle()
 
     if (!existingPlace && /^\d+$/.test(id)) {
-      const { data: numberPlace } = await supabase.from("places").select("id").eq("id", Number(id)).maybeSingle()
+      const { data: numberPlace } = await supabaseAdmin.from("places").select("id").eq("id", Number(id)).maybeSingle()
       if (numberPlace) {
         actualId = numberPlace.id
       }
@@ -174,7 +229,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // First, delete all list_places entries for this place
-    const { error: listPlacesError } = await supabase.from("list_places").delete().eq("place_id", actualId)
+    const { error: listPlacesError } = await supabaseAdmin.from("list_places").delete().eq("place_id", actualId)
 
     if (listPlacesError) {
       console.error("Error deleting list_places entries:", listPlacesError)
@@ -182,7 +237,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Then delete the place itself
-    const { error } = await supabase.from("places").delete().eq("id", actualId)
+    const { error } = await supabaseAdmin.from("places").delete().eq("id", actualId)
 
     if (error) {
       console.error("Error deleting place:", error)

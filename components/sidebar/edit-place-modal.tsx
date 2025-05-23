@@ -99,6 +99,7 @@ export function EditPlaceModal({
       console.log("- Address:", place.address || "")
       console.log("- Website URL:", place.website_url || "")
       console.log("- Notes:", place.notes || "")
+      console.log("- List Place ID:", place.listPlaceId || place.list_place_id)
 
       // Parse address into components (simplified)
       if (place.address) {
@@ -295,7 +296,7 @@ export function EditPlaceModal({
       const listPlaceId = place.listPlaceId || place.list_place_id
 
       if (listPlaceId && notes !== place.notes) {
-        console.log("Updating list-place notes...")
+        console.log("Updating list-place notes with ID:", listPlaceId)
         const listPlaceUpdateResponse = await fetch(`/api/list-places`, {
           method: "PATCH",
           headers: {
@@ -365,6 +366,10 @@ export function EditPlaceModal({
       const listPlaceId = place.listPlaceId || place.list_place_id
 
       console.log(`Removing place with list_places ID: ${listPlaceId}`)
+
+      if (!listPlaceId) {
+        throw new Error("List place ID is missing")
+      }
 
       const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
         method: "DELETE",

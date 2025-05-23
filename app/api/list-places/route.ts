@@ -85,6 +85,8 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
+    console.log("DELETE /api/list-places - Request params:", { id })
+
     if (!id) {
       return NextResponse.json({ error: "List place ID is required" }, { status: 400 })
     }
@@ -111,6 +113,8 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
     const { id, note } = body
+
+    console.log("PATCH /api/list-places - Request body:", body)
 
     if (!id) {
       return NextResponse.json({ error: "List place ID is required" }, { status: 400 })
