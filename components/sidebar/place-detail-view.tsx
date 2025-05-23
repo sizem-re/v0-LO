@@ -70,7 +70,6 @@ export function PlaceDetailView({
   const [currentList, setCurrentList] = useState<any>(null)
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
 
   // Debug function
@@ -139,61 +138,73 @@ export function PlaceDetailView({
     fetchCurrentList()
   }, [listId])
 
-  // Fetch user who added this place - improved logic with retry
+  // Improved user lookup with better error handling and multiple sources
   const fetchAddedByUser = useCallback(async () => {
-    // Try multiple sources for the user ID
-    let userId = currentPlace?.added_by
-
-    // If no user ID in place, try to get it from the list_places relationship
-    if (!userId) {
-      try {
-        const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
-        if (listPlaceResponse.ok) {
-          const debugData = await listPlaceResponse.json()
-          userId = debugData.listPlace?.added_by || debugData.place?.added_by
-          console.log("Found user ID from list_places:", userId)
-        }
-      } catch (error) {
-        console.error("Error fetching list_places data:", error)
-      }
-    }
-
-    if (!userId) {
-      console.log("No user ID found for place:", currentPlace)
-      setAddedByUser({ farcaster_display_name: "Unknown User" })
-      return
-    }
-
     try {
       setIsLoadingAddedBy(true)
       setUserError(null)
+
+      // Try to get user ID from multiple sources
+      let userId = currentPlace?.added_by
+
+      // If no user ID in place, try to get it from the list_places relationship
+      if (!userId) {
+        try {
+          const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+          if (listPlaceResponse.ok) {
+            const debugData = await listPlaceResponse.json()
+            userId = debugData.listPlace?.added_by || debugData.place?.added_by
+            console.log("Found user ID from list_places:", userId)
+          }
+        } catch (error) {
+          console.error("Error fetching list_places data:", error)
+        }
+      }
+
+      if (!userId) {
+        console.log("No user ID found for place:", currentPlace)
+        setAddedByUser({ farcaster_display_name: "Unknown User" })
+        return
+      }
+
       console.log("Fetching user with ID:", userId)
 
-      // Add cache busting and retry count to URL
-      const response = await fetch(`/api/users/${userId}?t=${Date.now()}&retry=${retryCount}`)
+      // First, try to get user data from our API
+      const userResponse = await fetch(`/api/users/${userId}?t=${Date.now()}`)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
-        throw new Error(errorData.error || `Failed to fetch user: ${response.status}`)
+      if (!userResponse.ok) {
+        throw new Error(`Failed to fetch user: ${userResponse.status}`)
       }
 
-      const userData = await response.json()
+      const userData = await userResponse.json()
       console.log("Fetched user data:", userData)
 
-      if (userData.farcaster_display_name === "Unknown User" && userData.farcaster_username === "unknown") {
-        console.log("API returned fallback user data")
+      // If we got a fallback user and the ID looks like an FID, try Neynar directly
+      if (userData.farcaster_display_name === "Unknown User" && /^\d+$/.test(userId)) {
+        console.log("Trying Neynar API directly for FID:", userId)
 
-        // If we got a fallback user and have retries left, try again
-        if (retryCount < 2) {
-          console.log(`Retry attempt ${retryCount + 1} for user ${userId}`)
-          setRetryCount(retryCount + 1)
-          return
+        try {
+          const neynarResponse = await fetch(`/api/debug/neynar-user?fid=${userId}`)
+          if (neynarResponse.ok) {
+            const neynarData = await neynarResponse.json()
+            console.log("Neynar debug response:", neynarData)
+
+            if (neynarData.userData) {
+              setAddedByUser({
+                farcaster_display_name:
+                  neynarData.userData.display_name || neynarData.userData.username || "Unknown User",
+                farcaster_username: neynarData.userData.username || "unknown",
+                farcaster_pfp_url: neynarData.userData.pfp_url || "",
+              })
+              return
+            }
+          }
+        } catch (neynarError) {
+          console.error("Error fetching from Neynar:", neynarError)
         }
-
-        setAddedByUser({ farcaster_display_name: "Unknown User" })
-      } else {
-        setAddedByUser(userData)
       }
+
+      setAddedByUser(userData)
     } catch (error) {
       console.error("Error fetching user who added the place:", error)
       setAddedByUser({ farcaster_display_name: "Unknown User" })
@@ -201,7 +212,7 @@ export function PlaceDetailView({
     } finally {
       setIsLoadingAddedBy(false)
     }
-  }, [currentPlace, listId, retryCount])
+  }, [currentPlace, listId])
 
   useEffect(() => {
     fetchAddedByUser()
@@ -346,9 +357,6 @@ export function PlaceDetailView({
     if (onPlaceUpdated) {
       onPlaceUpdated(updatedPlace)
     }
-
-    // Remove this line - it's causing the issue by fetching stale data
-    // fetchPlaceData()
   }
 
   const handlePlaceRemoved = (placeId: string) => {
@@ -443,7 +451,6 @@ export function PlaceDetailView({
 
   const handleRetryUser = () => {
     setUserError(null)
-    setRetryCount(0)
     fetchAddedByUser()
   }
 

@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase, supabaseAdmin } from "@/lib/supabase-client"
-import { v4 as uuidv4 } from "uuid"
 
 // Cache for user data to reduce duplicate lookups
 const userCache = new Map<string, any>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 // Helper function to create user from FID using Neynar
 async function createUserFromFid(fid: string) {
@@ -12,12 +12,13 @@ async function createUserFromFid(fid: string) {
 
     // Check cache first
     const cacheKey = `fid:${fid}`
-    if (userCache.has(cacheKey)) {
+    const cached = userCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       console.log(`Using cached user for FID: ${fid}`)
-      return userCache.get(cacheKey)
+      return cached.data
     }
 
-    // Fetch user data from Neynar
+    // Use the correct Neynar API endpoint and format
     const neynarResponse = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
       headers: {
         api_key: process.env.NEYNAR_API_KEY || "",
@@ -26,11 +27,15 @@ async function createUserFromFid(fid: string) {
     })
 
     if (!neynarResponse.ok) {
-      console.error(`Neynar API error: ${neynarResponse.status}`)
+      console.error(`Neynar API error: ${neynarResponse.status} ${neynarResponse.statusText}`)
+      const errorText = await neynarResponse.text()
+      console.error(`Neynar error response:`, errorText)
       return null
     }
 
     const neynarData = await neynarResponse.json()
+    console.log(`Neynar API response:`, neynarData)
+
     const userData = neynarData.users?.[0]
 
     if (!userData) {
@@ -40,16 +45,18 @@ async function createUserFromFid(fid: string) {
 
     console.log(`Found Neynar user data:`, userData)
 
-    // Create user in Supabase - using exact column names from the database
+    // Create user in Supabase using the correct field mapping
     const newUser = {
-      id: uuidv4(),
-      farcaster_id: fid, // This is the correct column name
+      id: crypto.randomUUID(),
+      farcaster_id: fid,
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
+
+    console.log(`Creating user in Supabase:`, newUser)
 
     const { data: createdUser, error } = await supabaseAdmin.from("users").insert(newUser).select().single()
 
@@ -61,8 +68,8 @@ async function createUserFromFid(fid: string) {
     console.log(`Created user in Supabase:`, createdUser)
 
     // Add to cache
-    userCache.set(cacheKey, createdUser)
-    userCache.set(`id:${createdUser.id}`, createdUser)
+    userCache.set(cacheKey, { data: createdUser, timestamp: Date.now() })
+    userCache.set(`id:${createdUser.id}`, { data: createdUser, timestamp: Date.now() })
 
     return createdUser
   } catch (error) {
@@ -77,12 +84,13 @@ async function findUserById(userId: string) {
 
   // Check cache first
   const cacheKey = `id:${userId}`
-  if (userCache.has(cacheKey)) {
+  const cached = userCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     console.log(`Using cached user for ID: ${userId}`)
-    return userCache.get(cacheKey)
+    return cached.data
   }
 
-  // Try multiple search strategies - using exact column names from the database
+  // Try multiple search strategies
   const searchStrategies = [
     // Search by UUID
     () => supabase.from("users").select("*").eq("id", userId).maybeSingle(),
@@ -103,8 +111,10 @@ async function findUserById(userId: string) {
         console.log(`Found user with strategy ${index + 1}:`, user)
 
         // Add to cache
-        userCache.set(cacheKey, user)
-        if (user.farcaster_id) userCache.set(`fid:${user.farcaster_id}`, user)
+        userCache.set(cacheKey, { data: user, timestamp: Date.now() })
+        if (user.farcaster_id) {
+          userCache.set(`fid:${user.farcaster_id}`, { data: user, timestamp: Date.now() })
+        }
 
         return user
       }
@@ -114,23 +124,6 @@ async function findUserById(userId: string) {
     }
   }
 
-  // If we get here, try a direct query to debug
-  try {
-    console.log(`Attempting direct debug query for user ID: ${userId}`)
-    const { data: allUsers, error } = await supabase.from("users").select("*").limit(10)
-
-    if (error) {
-      console.error("Error fetching users for debug:", error)
-    } else {
-      console.log(`Debug: Found ${allUsers?.length || 0} users in database`)
-      if (allUsers && allUsers.length > 0) {
-        console.log("Sample user data:", allUsers[0])
-      }
-    }
-  } catch (error) {
-    console.error("Error in debug query:", error)
-  }
-
   console.log(`No user found with any strategy for ID: ${userId}`)
   return null
 }
@@ -138,7 +131,7 @@ async function findUserById(userId: string) {
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const userId = params.id
-    const timestamp = Date.now() // For cache busting
+    const timestamp = Date.now()
     console.log(`GET /api/users/${userId} (${timestamp})`)
 
     if (!userId) {
@@ -166,7 +159,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
     }
 
-    // Normalize the response format - using exact column names from the database
+    // Normalize the response format
     const responseUser = {
       id: user.id,
       farcaster_username: user.farcaster_username || "unknown",
