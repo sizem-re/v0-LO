@@ -13,6 +13,7 @@ import {
   ListIcon,
   AlertCircle,
   Bug,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -29,6 +30,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -64,13 +66,16 @@ export function PlaceDetailView({
   const [filteredLists, setFilteredLists] = useState<any[]>([])
   const [isAddingToList, setIsAddingToList] = useState(false)
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
-  const [addedByUser, setAddedByUser] = useState<any>(null)
-  const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
+  const [createdByUser, setCreatedByUser] = useState<any>(null)
+  const [isLoadingCreatedBy, setIsLoadingCreatedBy] = useState(false)
   const [userError, setUserError] = useState<string | null>(null)
   const [currentList, setCurrentList] = useState<any>(null)
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const [listPlaceId, setListPlaceId] = useState<string | null>(null)
 
   // Debug function
   const fetchDebugData = async () => {
@@ -139,9 +144,9 @@ export function PlaceDetailView({
   }, [listId])
 
   // Improved user lookup with better error handling and multiple sources
-  const fetchAddedByUser = useCallback(async () => {
+  const fetchCreatedByUser = useCallback(async () => {
     try {
-      setIsLoadingAddedBy(true)
+      setIsLoadingCreatedBy(true)
       setUserError(null)
 
       // Try to get user ID from multiple sources
@@ -163,7 +168,7 @@ export function PlaceDetailView({
 
       if (!userId) {
         console.log("No user ID found for place:", currentPlace)
-        setAddedByUser({ farcaster_display_name: "Unknown User" })
+        setCreatedByUser({ farcaster_display_name: "Unknown User" })
         return
       }
 
@@ -190,7 +195,7 @@ export function PlaceDetailView({
             console.log("Neynar debug response:", neynarData)
 
             if (neynarData.userData) {
-              setAddedByUser({
+              setCreatedByUser({
                 farcaster_display_name:
                   neynarData.userData.display_name || neynarData.userData.username || "Unknown User",
                 farcaster_username: neynarData.userData.username || "unknown",
@@ -204,19 +209,19 @@ export function PlaceDetailView({
         }
       }
 
-      setAddedByUser(userData)
+      setCreatedByUser(userData)
     } catch (error) {
-      console.error("Error fetching user who added the place:", error)
-      setAddedByUser({ farcaster_display_name: "Unknown User" })
+      console.error("Error fetching user who created the place:", error)
+      setCreatedByUser({ farcaster_display_name: "Unknown User" })
       setUserError(error instanceof Error ? error.message : "Failed to load user data")
     } finally {
-      setIsLoadingAddedBy(false)
+      setIsLoadingCreatedBy(false)
     }
   }, [currentPlace, listId])
 
   useEffect(() => {
-    fetchAddedByUser()
-  }, [fetchAddedByUser])
+    fetchCreatedByUser()
+  }, [fetchCreatedByUser])
 
   // Fetch lists that contain this place
   const fetchConnectedLists = useCallback(async () => {
@@ -236,7 +241,7 @@ export function PlaceDetailView({
       const lists = await response.json()
 
       // Make sure current list is included
-      if (!lists.some((list: any) => list.id === listId)) {
+      if (listId && !lists.some((list: any) => list.id === listId)) {
         try {
           const currentListResponse = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
           if (currentListResponse.ok) {
@@ -245,6 +250,22 @@ export function PlaceDetailView({
           }
         } catch (error) {
           console.error("Error fetching current list:", error)
+        }
+      }
+
+      // Fetch list_places ID for the current list
+      if (listId) {
+        try {
+          const listPlacesResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+          if (listPlacesResponse.ok) {
+            const data = await listPlacesResponse.json()
+            if (data.listPlace?.id) {
+              setListPlaceId(data.listPlace.id)
+              console.log("Found list_places ID:", data.listPlace.id)
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching list_places ID:", error)
         }
       }
 
@@ -445,6 +466,54 @@ export function PlaceDetailView({
     }
   }
 
+  const handleRemoveFromList = async () => {
+    if (!listPlaceId) {
+      toast({
+        title: "Error",
+        description: "Could not find the list-place relationship ID",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsRemoving(true)
+      console.log(`Removing place from list with list_places ID: ${listPlaceId}`)
+
+      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        throw new Error(errorData.error || `Failed to remove place from list: ${response.status}`)
+      }
+
+      toast({
+        title: "Removed from list",
+        description: `"${currentPlace.name}" has been removed from the list.`,
+      })
+
+      // If we're viewing the place from the list we just removed it from, go back
+      if (listId) {
+        onBack()
+      } else {
+        // Otherwise, just update the connected lists
+        fetchConnectedLists()
+      }
+    } catch (err) {
+      console.error("Error removing place from list:", err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to remove place from list",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRemoving(false)
+      setShowRemoveDialog(false)
+    }
+  }
+
   const handleRetryLists = () => {
     setListsError(null)
     fetchConnectedLists()
@@ -452,7 +521,7 @@ export function PlaceDetailView({
 
   const handleRetryUser = () => {
     setUserError(null)
-    fetchAddedByUser()
+    fetchCreatedByUser()
   }
 
   const handleListClick = (listId: string) => {
@@ -550,6 +619,19 @@ export function PlaceDetailView({
               <Plus size={14} /> Add to list
             </Button>
           )}
+
+          {/* Remove from list button - only show if we're viewing from a list */}
+          {listId && listPlaceId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 text-red-600 hover:bg-red-50"
+              onClick={() => setShowRemoveDialog(true)}
+              title="Remove from this list"
+            >
+              <Trash2 size={14} /> Remove
+            </Button>
+          )}
         </div>
 
         {currentPlace.address && (
@@ -577,12 +659,12 @@ export function PlaceDetailView({
         {/* Added By field */}
         <div className="flex items-start mb-3">
           <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-          {isLoadingAddedBy ? (
+          {isLoadingCreatedBy ? (
             <Skeleton className="h-4 w-24" />
-          ) : addedByUser ? (
+          ) : createdByUser ? (
             <div className="flex items-center">
-              <p className="text-sm text-black/70">Added by {addedByUser.farcaster_display_name || "Unknown user"}</p>
-              {addedByUser.farcaster_display_name === "Unknown User" && (
+              <p className="text-sm text-black/70">Added by {createdByUser.farcaster_display_name || "Unknown user"}</p>
+              {createdByUser.farcaster_display_name === "Unknown User" && (
                 <Button variant="ghost" size="sm" onClick={handleRetryUser} className="h-6 px-2 ml-2 text-xs">
                   Retry
                 </Button>
@@ -732,6 +814,30 @@ export function PlaceDetailView({
               Cancel
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove from List Dialog */}
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove from List</DialogTitle>
+            <DialogDescription>Are you sure you want to remove "{currentPlace.name}" from this list?</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveFromList}
+              disabled={isRemoving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Remove
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

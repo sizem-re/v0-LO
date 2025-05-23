@@ -93,11 +93,29 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`Removing place with list_places ID: ${id}`)
 
-    const { error } = await supabaseAdmin.from("list_places").delete().eq("id", id)
+    // First, get the list_place record to confirm it exists
+    const { data: listPlace, error: fetchError } = await supabaseAdmin
+      .from("list_places")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle()
 
-    if (error) {
-      console.error("Error removing place from list:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (fetchError) {
+      console.error("Error fetching list_place record:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    if (!listPlace) {
+      console.error("List place record not found with ID:", id)
+      return NextResponse.json({ error: "List place record not found" }, { status: 404 })
+    }
+
+    // Now delete the record
+    const { error: deleteError } = await supabaseAdmin.from("list_places").delete().eq("id", id)
+
+    if (deleteError) {
+      console.error("Error removing place from list:", deleteError)
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
     }
 
     console.log("Place removed from list successfully")
