@@ -148,27 +148,61 @@ export function PlaceDetailView({
       // Get the creator_id from the list_places relationship
       const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
       if (!listPlaceResponse.ok) {
+        console.log("Failed to fetch list-place relationship")
         setCreatedByUser({ farcaster_display_name: "Unknown User" })
         return
       }
 
       const debugData = await listPlaceResponse.json()
-      const creatorId = debugData.listPlace?.creator_id
+      console.log("Debug data for user lookup:", debugData)
+      
+      // The debug endpoint already includes user data
+      if (debugData.user) {
+        console.log("User data found in debug response:", debugData.user)
+        const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
+        console.log("Final display name:", displayName)
+        
+        setCreatedByUser({
+          ...debugData.user,
+          farcaster_display_name: displayName
+        })
+        return
+      }
+      
+      // Fallback: try to get user ID and fetch separately
+      const creatorId = debugData.listPlace?.creator_id || debugData.listPlace?.added_by || debugData.userId
+
+      console.log("Creator ID found:", creatorId)
 
       if (!creatorId) {
+        console.log("No creator ID found in debug data")
         setCreatedByUser({ farcaster_display_name: "Unknown User" })
         return
       }
 
       // Fetch user data
+      console.log(`Fetching user data for ID: ${creatorId}`)
       const userResponse = await fetch(`/api/users/${creatorId}`)
+      
+      console.log(`User API response status: ${userResponse.status}`)
+      
       if (!userResponse.ok) {
+        console.log(`Failed to fetch user data: ${userResponse.status}`)
         setCreatedByUser({ farcaster_display_name: "Unknown User" })
         return
       }
 
       const userData = await userResponse.json()
-      setCreatedByUser(userData)
+      console.log("User data received:", userData)
+      
+      // Ensure we have the correct display name
+      const displayName = userData.farcaster_display_name || userData.farcaster_username || "Unknown User"
+      console.log("Final display name:", displayName)
+      
+      setCreatedByUser({
+        ...userData,
+        farcaster_display_name: displayName
+      })
     } catch (error) {
       console.error("Error fetching user who added the place:", error)
       setCreatedByUser({ farcaster_display_name: "Unknown User" })
