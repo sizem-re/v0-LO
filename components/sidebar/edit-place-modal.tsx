@@ -28,6 +28,7 @@ interface EditPlaceModalProps {
   onClose: () => void
   place: any
   listId: string
+  listPlaceId?: string | null
   onPlaceUpdated?: (updatedPlace: any) => void
   onPlaceRemoved?: (placeId: string) => void
 }
@@ -45,6 +46,7 @@ export function EditPlaceModal({
   onClose,
   place,
   listId,
+  listPlaceId,
   onPlaceUpdated,
   onPlaceRemoved,
 }: EditPlaceModalProps) {
@@ -666,7 +668,17 @@ export function EditPlaceModal({
               onClick={handleRemovePlace}
               disabled={isDeleting}
             >
-              {isDeleting ? "Removing..." : "Remove"}
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Removing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove
+                </>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

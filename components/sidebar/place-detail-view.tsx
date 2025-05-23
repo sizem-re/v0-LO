@@ -622,6 +622,7 @@ export function PlaceDetailView({
           onClose={() => setShowEditModal(false)}
           place={currentPlace}
           listId={listId}
+          listPlaceId={listPlaceId}
           onPlaceUpdated={handlePlaceUpdated}
           onPlaceRemoved={handlePlaceRemoved}
         />
