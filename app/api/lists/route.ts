@@ -33,7 +33,8 @@ async function createUserFromFid(fid: string) {
     // Create user in Supabase
     const newUser = {
       id: uuidv4(),
-      farcaster_id: fid,
+      fid: Number.parseInt(fid), // Store as integer
+      farcaster_id: fid, // Keep as string for compatibility
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
@@ -56,6 +57,41 @@ async function createUserFromFid(fid: string) {
   }
 }
 
+// Helper function to find user by FID with multiple search strategies
+async function findUserByFid(fid: string) {
+  console.log(`Searching for user with FID: ${fid}`)
+
+  // Try multiple search strategies
+  const searchStrategies = [
+    // Search by farcaster_id as string
+    () => supabase.from("users").select("*").eq("farcaster_id", fid).maybeSingle(),
+    // Search by fid as integer
+    () => supabase.from("users").select("*").eq("fid", Number.parseInt(fid)).maybeSingle(),
+    // Search by farcaster_id as integer (in case it was stored as int)
+    () => supabase.from("users").select("*").eq("farcaster_id", Number.parseInt(fid)).maybeSingle(),
+  ]
+
+  for (const [index, strategy] of searchStrategies.entries()) {
+    try {
+      const { data: user, error } = await strategy()
+      if (error) {
+        console.log(`Search strategy ${index + 1} failed:`, error.message)
+        continue
+      }
+      if (user) {
+        console.log(`Found user with strategy ${index + 1}:`, user)
+        return user
+      }
+    } catch (error) {
+      console.log(`Search strategy ${index + 1} threw error:`, error)
+      continue
+    }
+  }
+
+  console.log(`No user found with any strategy for FID: ${fid}`)
+  return null
+}
+
 // GET /api/lists - Get lists (with filtering options)
 export async function GET(request: NextRequest) {
   try {
@@ -69,7 +105,8 @@ export async function GET(request: NextRequest) {
     // If fid is provided, get the user's ID from Supabase
     let dbUserId = userId
     if (fid && !userId) {
-      const { data: userData } = await supabase.from("users").select("id").eq("farcaster_id", fid).single()
+      // Use improved user search
+      const userData = await findUserByFid(fid)
 
       if (userData) {
         dbUserId = userData.id
@@ -90,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase.from("lists").select(`
       *,
-      owner:users(farcaster_username, farcaster_display_name, farcaster_pfp_url),
+      owner:users(id, farcaster_username, farcaster_display_name, farcaster_pfp_url),
       places:list_places(
         id,
         place:places(*)

@@ -33,7 +33,8 @@ async function createUserFromFid(fid: string) {
     // Create user in Supabase
     const newUser = {
       id: uuidv4(),
-      farcaster_id: fid,
+      fid: Number.parseInt(fid), // Store as integer
+      farcaster_id: fid, // Keep as string for compatibility
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
@@ -56,6 +57,46 @@ async function createUserFromFid(fid: string) {
   }
 }
 
+// Helper function to find user by ID with multiple search strategies
+async function findUserById(userId: string) {
+  console.log(`Searching for user with ID: ${userId}`)
+
+  // Try multiple search strategies
+  const searchStrategies = [
+    // Search by UUID
+    () => supabase.from("users").select("*").eq("id", userId).maybeSingle(),
+    // Search by farcaster_id as string
+    () => supabase.from("users").select("*").eq("farcaster_id", userId).maybeSingle(),
+    // Search by fid as integer (if userId is numeric)
+    () =>
+      /^\d+$/.test(userId)
+        ? supabase.from("users").select("*").eq("fid", Number.parseInt(userId)).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    // Search by username
+    () => supabase.from("users").select("*").eq("farcaster_username", userId).maybeSingle(),
+  ]
+
+  for (const [index, strategy] of searchStrategies.entries()) {
+    try {
+      const { data: user, error } = await strategy()
+      if (error) {
+        console.log(`Search strategy ${index + 1} failed:`, error.message)
+        continue
+      }
+      if (user) {
+        console.log(`Found user with strategy ${index + 1}:`, user)
+        return user
+      }
+    } catch (error) {
+      console.log(`Search strategy ${index + 1} threw error:`, error)
+      continue
+    }
+  }
+
+  console.log(`No user found with any strategy for ID: ${userId}`)
+  return null
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const userId = params.id
@@ -65,37 +106,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    // First try to find user by ID
-    let { data: user, error } = await supabase.from("users").select("*").eq("id", userId).maybeSingle()
+    // Use improved user search
+    let user = await findUserById(userId)
 
-    if (error) {
-      console.error("Error fetching user by ID:", error)
-    }
-
-    // If not found by ID, try by farcaster_id (in case the ID is actually an FID)
-    if (!user) {
-      console.log(`User not found by ID, trying farcaster_id: ${userId}`)
-
-      const { data: userByFid, error: fidError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("farcaster_id", userId)
-        .maybeSingle()
-
-      if (fidError) {
-        console.error("Error fetching user by farcaster_id:", fidError)
-      }
-
-      if (userByFid) {
-        user = userByFid
-        console.log(`Found user by farcaster_id: ${user.id}`)
-      } else {
-        // Try to create user from Neynar if it looks like an FID (numeric)
-        if (/^\d+$/.test(userId)) {
-          console.log(`Attempting to create user from FID: ${userId}`)
-          user = await createUserFromFid(userId)
-        }
-      }
+    // If still not found and it looks like an FID, try to create from Neynar
+    if (!user && /^\d+$/.test(userId)) {
+      console.log(`Attempting to create user from FID: ${userId}`)
+      user = await createUserFromFid(userId)
     }
 
     if (!user) {
@@ -110,8 +127,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
     }
 
-    console.log(`Returning user data:`, user)
-    return NextResponse.json(user)
+    // Normalize the response format
+    const responseUser = {
+      id: user.id,
+      farcaster_username: user.farcaster_username || "Unknown User",
+      farcaster_display_name: user.farcaster_display_name || user.farcaster_username || "Unknown User",
+      farcaster_pfp_url: user.farcaster_pfp_url || "",
+      farcaster_id: user.farcaster_id || user.fid?.toString(),
+      fid: user.fid,
+    }
+
+    console.log(`Returning user data:`, responseUser)
+    return NextResponse.json(responseUser)
   } catch (error) {
     console.error("Error in GET /api/users/[id]:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
