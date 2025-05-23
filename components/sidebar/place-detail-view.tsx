@@ -40,6 +40,7 @@ interface PlaceDetailViewProps {
   onPlaceUpdated?: (updatedPlace: any) => void
   onPlaceDeleted?: (placeId: string) => void
   onCenterMap?: (coordinates: { lat: number; lng: number }) => void
+  onNavigateToList?: (listId: string) => void
 }
 
 export function PlaceDetailView({
@@ -50,6 +51,7 @@ export function PlaceDetailView({
   onPlaceUpdated,
   onPlaceDeleted,
   onCenterMap,
+  onNavigateToList,
 }: PlaceDetailViewProps) {
   const { dbUser } = useAuth()
   const [showEditModal, setShowEditModal] = useState(false)
@@ -399,6 +401,14 @@ export function PlaceDetailView({
     }
   }
 
+  const handleListClick = (listId: string) => {
+    if (onNavigateToList) {
+      onNavigateToList(listId)
+    } else {
+      console.log("Navigate to list:", listId)
+    }
+  }
+
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
@@ -415,17 +425,19 @@ export function PlaceDetailView({
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
           {/* Debug button - remove in production */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              fetchDebugData()
-              setShowDebug(!showDebug)
-            }}
-            className="text-xs"
-          >
-            <Bug size={12} />
-          </Button>
+          {process.env.NODE_ENV === "development" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                fetchDebugData()
+                setShowDebug(!showDebug)
+              }}
+              className="text-xs"
+            >
+              <Bug size={12} />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -564,9 +576,7 @@ export function PlaceDetailView({
                 <Card
                   key={list.id}
                   className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => {
-                    window.location.href = `/lists/${list.id}`
-                  }}
+                  onClick={() => handleListClick(list.id)}
                 >
                   <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center">

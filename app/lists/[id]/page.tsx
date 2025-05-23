@@ -94,8 +94,8 @@ const PLACEHOLDER_LIST: ListData = {
   ],
 }
 
-// Flag to use placeholder data (set to true for testing)
-const USE_PLACEHOLDER_DATA = true
+// Flag to use placeholder data (set to false for production)
+const USE_PLACEHOLDER_DATA = false
 
 export default function ListDetailPage({ params }: { params: { id: string } }) {
   const { isAuthenticated, user } = useAuth()
@@ -105,7 +105,6 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   const [list, setList] = useState<ListData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [usePlaceholder, setUsePlaceholder] = useState(USE_PLACEHOLDER_DATA)
 
   useEffect(() => {
     const fetchList = async () => {
@@ -113,28 +112,12 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
         setLoading(true)
         console.log(`Fetching list with ID: ${params.id}`)
 
-        // If using placeholder data, skip the API call
-        if (usePlaceholder) {
-          console.log("Using placeholder data for testing")
-          setTimeout(() => {
-            setList(PLACEHOLDER_LIST)
-            setLoading(false)
-          }, 500) // Simulate loading delay
-          return
-        }
-
         const response = await fetch(`/api/lists/${params.id}`)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           const errorMessage = errorData.error || response.statusText
-
-          // If API call fails, fall back to placeholder data
-          console.log("API call failed, using placeholder data")
-          setList(PLACEHOLDER_LIST)
-          setUsePlaceholder(true)
-          setLoading(false)
-          return
+          throw new Error(errorMessage)
         }
 
         const data = await response.json()
@@ -143,11 +126,6 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       } catch (err) {
         console.error("Error fetching list:", err)
         setError(err instanceof Error ? err.message : "Failed to load list")
-
-        // On error, fall back to placeholder data
-        console.log("Error occurred, using placeholder data")
-        setList(PLACEHOLDER_LIST)
-        setUsePlaceholder(true)
       } finally {
         setLoading(false)
       }
@@ -159,16 +137,10 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
       setError("List ID is missing")
       setLoading(false)
     }
-  }, [params.id, usePlaceholder])
+  }, [params.id])
 
   const handleAddPlace = () => {
     router.push(`/lists/${params.id}/add-place`)
-  }
-
-  // Toggle between real and placeholder data (for testing)
-  const togglePlaceholderData = () => {
-    setUsePlaceholder(!usePlaceholder)
-    setLoading(true)
   }
 
   if (loading) {
@@ -211,16 +183,6 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
-        {/* Development toggle for placeholder data */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mb-4 p-2 bg-yellow-100 rounded text-sm">
-            <button onClick={togglePlaceholderData} className="underline text-blue-600">
-              {usePlaceholder ? "Try loading real data" : "Use placeholder data"}
-            </button>
-            {usePlaceholder && <span className="ml-2 text-yellow-800">Using placeholder data for testing</span>}
-          </div>
-        )}
-
         <div className="mb-8">
           <Link href="/lists" className="text-sm hover:underline mb-4 inline-block">
             ← Back to lists

@@ -167,6 +167,12 @@ export function Sidebar() {
     window.dispatchEvent(event)
   }
 
+  const handleNavigateToList = (listId: string) => {
+    console.log("Navigate to list:", listId)
+    setSelectedListId(listId)
+    setSelectedPlace(null) // Clear any selected place when navigating to a list
+  }
+
   // For very small screens, we can completely hide the sidebar
   if (isHidden) {
     return (
@@ -351,6 +357,7 @@ export function Sidebar() {
                     onPlaceUpdated={handlePlaceUpdated}
                     onPlaceDeleted={handlePlaceDeleted}
                     onCenterMap={handleCenterMap}
+                    onNavigateToList={handleNavigateToList}
                   />
                 </div>
               ) : selectedListId ? (
