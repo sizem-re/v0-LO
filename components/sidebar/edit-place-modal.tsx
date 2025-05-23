@@ -50,6 +50,7 @@ export function EditPlaceModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [websiteSupported, setWebsiteSupported] = useState(true)
 
   // Photo placeholder state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -66,6 +67,10 @@ export function EditPlaceModal({
       setWebsite(place.website || "")
       setNotes(place.notes || "")
       setPhotoPreview(place.image || null)
+
+      // Check if website is supported in the database schema
+      // If place was fetched and doesn't have a website property, assume it's not supported
+      setWebsiteSupported("website" in place)
     }
   }, [place])
 
@@ -80,7 +85,7 @@ export function EditPlaceModal({
       return false
     }
 
-    if (website && !isValidUrl(website)) {
+    if (websiteSupported && website && !isValidUrl(website)) {
       toast({
         title: "Invalid website",
         description: "Please enter a valid URL (e.g., https://example.com)",
@@ -139,34 +144,66 @@ export function EditPlaceModal({
 
       // Format website URL if needed
       let formattedWebsite = website
-      if (website && !website.match(/^https?:\/\//)) {
+      if (websiteSupported && website && !website.match(/^https?:\/\//)) {
         formattedWebsite = `https://${website}`
       }
 
       console.log("Updating place:", {
         name: placeName,
         address,
-        website: formattedWebsite,
+        ...(websiteSupported ? { website: formattedWebsite } : {}),
         notes,
       })
 
       // First, update the place details if needed
-      if (placeName !== place.name || address !== place.address || formattedWebsite !== place.website) {
+      const updateData: Record<string, any> = {
+        name: placeName,
+        address,
+      }
+
+      // Only include website if it's supported in the database
+      if (websiteSupported) {
+        updateData.website = formattedWebsite
+      }
+
+      if (
+        placeName !== place.name ||
+        address !== place.address ||
+        (websiteSupported && formattedWebsite !== place.website)
+      ) {
         const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            name: placeName,
-            address,
-            website: formattedWebsite,
-          }),
+          body: JSON.stringify(updateData),
         })
 
         if (!placeUpdateResponse.ok) {
           const errorData = await placeUpdateResponse.json()
-          throw new Error(errorData.error || "Failed to update place")
+
+          // Special handling for website column not found error
+          if (errorData.error && errorData.error.includes("website")) {
+            console.warn("Website column not found in database, disabling website field")
+            setWebsiteSupported(false)
+
+            // Try again without the website field
+            delete updateData.website
+            const retryResponse = await fetch(`/api/places/${place.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updateData),
+            })
+
+            if (!retryResponse.ok) {
+              const retryErrorData = await retryResponse.json()
+              throw new Error(retryErrorData.error || "Failed to update place")
+            }
+          } else {
+            throw new Error(errorData.error || "Failed to update place")
+          }
         }
       }
 
@@ -207,7 +244,7 @@ export function EditPlaceModal({
           ...place,
           name: placeName,
           address,
-          website: formattedWebsite,
+          ...(websiteSupported ? { website: formattedWebsite } : {}),
           notes,
           // image: photoPreview, // Will be added when photo upload is implemented
         })
@@ -299,19 +336,21 @@ export function EditPlaceModal({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
-              <div className="relative w-full">
-                <Input
-                  id="website"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="https://example.com"
-                  className="pl-8 w-full"
-                />
-                <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+            {websiteSupported && (
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <div className="relative w-full">
+                  <Input
+                    id="website"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://example.com"
+                    className="pl-8 w-full"
+                  />
+                  <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>

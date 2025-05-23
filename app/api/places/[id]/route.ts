@@ -44,19 +44,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "No update data provided" }, { status: 400 })
     }
 
-    // Only allow specific fields to be updated
-    const allowedFields = ["name", "address", "lat", "lng", "website"]
-    const filteredUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => allowedFields.includes(key)))
-
-    console.log("PATCH /api/places/[id] - Filtered updates:", filteredUpdates)
-
-    // Add updated_at timestamp
-    filteredUpdates.updated_at = new Date().toISOString()
-
-    // Check if place exists first
+    // First, get the current place to check available columns
     const { data: existingPlace, error: checkError } = await supabase
       .from("places")
-      .select("id")
+      .select("*")
       .eq("id", id)
       .maybeSingle()
 
@@ -68,6 +59,42 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (!existingPlace) {
       console.log(`Place not found for update: ${id}`)
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
+    }
+
+    // Determine which columns actually exist in the database
+    const existingColumns = Object.keys(existingPlace)
+    console.log("Existing columns in places table:", existingColumns)
+
+    // Only allow updates to fields that actually exist in the database
+    const allowedFields = ["name", "address", "lat", "lng"]
+
+    // Check if website column exists before adding it to allowed fields
+    if (existingColumns.includes("website")) {
+      allowedFields.push("website")
+    } else {
+      console.log("WARNING: 'website' column does not exist in places table")
+      // If updates contains website but the column doesn't exist, log it
+      if (updates.website) {
+        console.log(`Cannot update website field (${updates.website}) as column does not exist`)
+      }
+    }
+
+    const filteredUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => allowedFields.includes(key)))
+
+    console.log("PATCH /api/places/[id] - Filtered updates:", filteredUpdates)
+
+    // Add updated_at timestamp if it exists in the schema
+    if (existingColumns.includes("updated_at")) {
+      filteredUpdates.updated_at = new Date().toISOString()
+    }
+
+    // If there are no valid updates after filtering, return success without updating
+    if (Object.keys(filteredUpdates).length === 0) {
+      console.log("No valid fields to update after filtering")
+      return NextResponse.json({
+        message: "No changes made - some fields may not exist in the database schema",
+        data: existingPlace,
+      })
     }
 
     const { data, error } = await supabase.from("places").update(filteredUpdates).eq("id", id).select().single()
