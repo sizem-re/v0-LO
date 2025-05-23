@@ -30,11 +30,10 @@ async function createUserFromFid(fid: string) {
 
     console.log(`Found Neynar user data:`, userData)
 
-    // Create user in Supabase
+    // Create user in Supabase with correct schema
     const newUser = {
       id: uuidv4(),
-      fid: Number.parseInt(fid), // Store as integer
-      farcaster_id: fid, // Keep as string for compatibility
+      farcaster_id: fid.toString(), // Store FID as string in farcaster_id
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
@@ -64,11 +63,9 @@ async function findUserByFid(fid: string) {
   // Try multiple search strategies
   const searchStrategies = [
     // Search by farcaster_id as string
-    () => supabase.from("users").select("*").eq("farcaster_id", fid).maybeSingle(),
-    // Search by fid as integer
-    () => supabase.from("users").select("*").eq("fid", Number.parseInt(fid)).maybeSingle(),
-    // Search by farcaster_id as integer (in case it was stored as int)
-    () => supabase.from("users").select("*").eq("farcaster_id", Number.parseInt(fid)).maybeSingle(),
+    () => supabase.from("users").select("*").eq("farcaster_id", fid.toString()).maybeSingle(),
+    // Search by farcaster_id as number string
+    () => supabase.from("users").select("*").eq("farcaster_id", Number.parseInt(fid).toString()).maybeSingle(),
   ]
 
   for (const [index, strategy] of searchStrategies.entries()) {
