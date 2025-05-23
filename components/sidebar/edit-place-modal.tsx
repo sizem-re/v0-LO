@@ -82,6 +82,9 @@ export function EditPlaceModal({
   // Update state when place changes
   useEffect(() => {
     if (place) {
+      console.log("=== EDIT MODAL DEBUG ===")
+      console.log("Place data received:", JSON.stringify(place, null, 2))
+
       setPlaceName(place.name || "")
       setAddress(place.address || "")
       setWebsiteUrl(place.website_url || "")
@@ -90,6 +93,12 @@ export function EditPlaceModal({
       setCoordinates(
         place.lat && place.lng ? { lat: Number.parseFloat(place.lat), lng: Number.parseFloat(place.lng) } : null,
       )
+
+      console.log("Initial form values:")
+      console.log("- Name:", place.name || "")
+      console.log("- Address:", place.address || "")
+      console.log("- Website URL:", place.website_url || "")
+      console.log("- Notes:", place.notes || "")
 
       // Parse address into components (simplified)
       if (place.address) {
@@ -233,13 +242,20 @@ export function EditPlaceModal({
       // Use the formatted address from components if editing address
       const finalAddress = isEditingAddress ? formatFullAddress() : address
 
-      console.log("Updating place:", {
-        name: placeName,
-        address: finalAddress,
-        website_url: formattedWebsite,
-        notes,
-        coordinates,
-      })
+      console.log("=== UPDATE PLACE DEBUG ===")
+      console.log("Current form values:")
+      console.log("- Name:", placeName)
+      console.log("- Address:", finalAddress)
+      console.log("- Website URL (raw):", websiteUrl)
+      console.log("- Website URL (formatted):", formattedWebsite)
+      console.log("- Notes:", notes)
+      console.log("- Coordinates:", coordinates)
+
+      console.log("Original place values:")
+      console.log("- Name:", place.name)
+      console.log("- Address:", place.address)
+      console.log("- Website URL:", place.website_url)
+      console.log("- Notes:", place.notes)
 
       // First, update the place details if needed
       const updateData: Record<string, any> = {
@@ -254,55 +270,32 @@ export function EditPlaceModal({
         updateData.lng = coordinates.lng.toString()
       }
 
-      if (
-        placeName !== place.name ||
-        finalAddress !== place.address ||
-        formattedWebsite !== place.website_url ||
-        (coordinates &&
-          (coordinates.lat !== Number.parseFloat(place.lat || "0") ||
-            coordinates.lng !== Number.parseFloat(place.lng || "0")))
-      ) {
-        const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        })
+      console.log("Update payload being sent:", JSON.stringify(updateData, null, 2))
 
-        if (!placeUpdateResponse.ok) {
-          const errorData = await placeUpdateResponse.json()
+      const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      })
 
-          // Special handling for website column not found error
-          if (errorData.error && errorData.error.includes("website")) {
-            console.warn("Website column not found in database, trying with website_url")
+      console.log("API response status:", placeUpdateResponse.status)
 
-            // Try again with website_url instead of website
-            delete updateData.website
-            updateData.website_url = formattedWebsite
-
-            const retryResponse = await fetch(`/api/places/${place.id}`, {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(updateData),
-            })
-
-            if (!retryResponse.ok) {
-              const retryErrorData = await retryResponse.json()
-              throw new Error(retryErrorData.error || "Failed to update place")
-            }
-          } else {
-            throw new Error(errorData.error || "Failed to update place")
-          }
-        }
+      if (!placeUpdateResponse.ok) {
+        const errorData = await placeUpdateResponse.json()
+        console.error("API error response:", errorData)
+        throw new Error(errorData.error || "Failed to update place")
       }
+
+      const updatedPlaceData = await placeUpdateResponse.json()
+      console.log("Updated place data from API:", JSON.stringify(updatedPlaceData, null, 2))
 
       // Then, update the list-place relationship (notes)
       const listPlaceId = place.listPlaceId || place.list_place_id
 
       if (listPlaceId && notes !== place.notes) {
+        console.log("Updating list-place notes...")
         const listPlaceUpdateResponse = await fetch(`/api/list-places`, {
           method: "PATCH",
           headers: {
@@ -343,6 +336,9 @@ export function EditPlaceModal({
         updatedPlace.lat = coordinates.lat.toString()
         updatedPlace.lng = coordinates.lng.toString()
       }
+
+      console.log("Final updated place object:", JSON.stringify(updatedPlace, null, 2))
+      console.log("=== END UPDATE DEBUG ===")
 
       // Call the callback with the updated place
       if (onPlaceUpdated) {
@@ -538,12 +534,16 @@ export function EditPlaceModal({
                 <Input
                   id="website"
                   value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  onChange={(e) => {
+                    console.log("Website URL changed to:", e.target.value)
+                    setWebsiteUrl(e.target.value)
+                  }}
                   placeholder="https://example.com"
                   className="pl-8 w-full"
                 />
                 <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
               </div>
+              <div className="text-xs text-gray-500">Current value: "{websiteUrl}"</div>
             </div>
 
             <div className="space-y-2">
