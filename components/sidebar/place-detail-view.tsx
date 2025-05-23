@@ -12,6 +12,7 @@ import {
   Loader2,
   ListIcon,
   AlertCircle,
+  Bug,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -50,9 +51,6 @@ export function PlaceDetailView({
   onPlaceDeleted,
   onCenterMap,
 }: PlaceDetailViewProps) {
-  // Add this right after the component starts, before the first useEffect
-  console.log("PlaceDetailView received place:", place)
-  console.log("Available place fields:", Object.keys(place || {}))
   const { dbUser } = useAuth()
   const [showEditModal, setShowEditModal] = useState(false)
   const [connectedLists, setConnectedLists] = useState<any[]>([])
@@ -68,6 +66,22 @@ export function PlaceDetailView({
   const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
   const [userError, setUserError] = useState<string | null>(null)
   const [currentList, setCurrentList] = useState<any>(null)
+  const [debugData, setDebugData] = useState<any>(null)
+  const [showDebug, setShowDebug] = useState(false)
+
+  // Debug function
+  const fetchDebugData = async () => {
+    try {
+      const response = await fetch(`/api/debug/place-user?placeId=${place.id}&listId=${listId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setDebugData(data)
+        console.log("Debug data:", data)
+      }
+    } catch (error) {
+      console.error("Error fetching debug data:", error)
+    }
+  }
 
   // Center map on the place when component mounts
   useEffect(() => {
@@ -95,10 +109,26 @@ export function PlaceDetailView({
     fetchCurrentList()
   }, [listId])
 
-  // Fetch user who added this place
+  // Fetch user who added this place - improved logic
   useEffect(() => {
     const fetchAddedByUser = async () => {
-      const userId = place?.addedBy || place?.added_by
+      // Try multiple sources for the user ID
+      let userId = place?.addedBy || place?.added_by
+
+      // If no user ID in place, try to get it from the list_places relationship
+      if (!userId) {
+        try {
+          const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${place.id}&listId=${listId}`)
+          if (listPlaceResponse.ok) {
+            const debugData = await listPlaceResponse.json()
+            userId = debugData.listPlace?.added_by || debugData.place?.added_by
+            console.log("Found user ID from list_places:", userId)
+          }
+        } catch (error) {
+          console.error("Error fetching list_places data:", error)
+        }
+      }
+
       if (!userId) {
         console.log("No user ID found for place:", place)
         setAddedByUser({ display_name: "Unknown User" })
@@ -110,7 +140,6 @@ export function PlaceDetailView({
         setUserError(null)
         console.log("Fetching user with ID:", userId)
 
-        // Add cache-busting query parameter to prevent stale data
         const response = await fetch(`/api/users/${userId}?t=${Date.now()}`)
 
         if (!response.ok) {
@@ -121,7 +150,6 @@ export function PlaceDetailView({
         const userData = await response.json()
         console.log("Fetched user data:", userData)
 
-        // Only set as "Unknown User" if the API explicitly returned that
         if (userData.display_name === "Unknown User" && userData.username === "unknown") {
           console.log("API returned fallback user data")
           setAddedByUser({ display_name: "Unknown User" })
@@ -138,7 +166,7 @@ export function PlaceDetailView({
     }
 
     fetchAddedByUser()
-  }, [place])
+  }, [place, listId])
 
   // Fetch lists that contain this place
   useEffect(() => {
@@ -149,7 +177,6 @@ export function PlaceDetailView({
         setIsLoadingLists(true)
         setListsError(null)
 
-        // First, get all lists that contain this place
         const response = await fetch(`/api/places/${place.id}/lists`)
 
         if (!response.ok) {
@@ -159,9 +186,7 @@ export function PlaceDetailView({
 
         const lists = await response.json()
 
-        // Make sure the current list is included
         if (!lists.some((list: any) => list.id === listId)) {
-          // Fetch the current list details
           const currentListResponse = await fetch(`/api/lists/${listId}`)
           if (currentListResponse.ok) {
             const currentList = await currentListResponse.json()
@@ -200,7 +225,6 @@ export function PlaceDetailView({
         }
 
         const data = await response.json()
-        // Filter out lists that already contain this place
         const filteredData = data.filter(
           (list: any) => !connectedLists.some((connectedList) => connectedList.id === list.id),
         )
@@ -256,7 +280,6 @@ export function PlaceDetailView({
   }
 
   // Check if user can edit/delete this place
-  // User can edit if they added the place OR if they own the current list
   const canEdit =
     dbUser &&
     (dbUser.id === place.addedBy ||
@@ -271,8 +294,6 @@ export function PlaceDetailView({
     currentListOwnerId: currentList?.owner_id,
     listOwnerIdProp: listOwnerId,
     canEdit,
-    place: place,
-    currentList: currentList,
   })
 
   const handleEditPlace = () => {
@@ -283,17 +304,15 @@ export function PlaceDetailView({
     if (onPlaceUpdated) {
       onPlaceUpdated(updatedPlace)
     }
-    toast({
-      title: "Place updated",
-      description: "The place details have been updated successfully.",
-    })
+    // Refresh the component data
+    window.location.reload()
   }
 
   const handlePlaceRemoved = (placeId: string) => {
     if (onPlaceDeleted) {
       onPlaceDeleted(placeId)
     }
-    onBack() // Go back to the list view
+    onBack()
   }
 
   const handleCenterMap = () => {
@@ -330,7 +349,6 @@ export function PlaceDetailView({
       if (!response.ok) {
         const errorData = await response.json()
 
-        // Handle duplicate error gracefully
         if (response.status === 409) {
           toast({
             title: "Already in list",
@@ -344,13 +362,11 @@ export function PlaceDetailView({
 
       const result = await response.json()
 
-      // Update the connected lists
       const addedList = userLists.find((list) => list.id === listId)
       if (addedList) {
         setConnectedLists([...connectedLists, addedList])
       }
 
-      // Remove the list from available lists
       setUserLists(userLists.filter((list) => list.id !== listId))
       setFilteredLists(filteredLists.filter((list) => list.id !== listId))
 
@@ -359,7 +375,6 @@ export function PlaceDetailView({
         description: `"${place.name}" has been added to the list.`,
       })
 
-      // Close the dialog after successful addition
       setShowAddToListDialog(false)
     } catch (err) {
       console.error("Error adding place to list:", err)
@@ -375,10 +390,8 @@ export function PlaceDetailView({
 
   const handleRetryLists = () => {
     setListsError(null)
-    // This will trigger the useEffect to fetch lists again
     const placeId = place?.id
     if (placeId) {
-      // Create a new object to force the useEffect to run
       const updatedPlace = { ...place, id: placeId }
       if (onPlaceUpdated) {
         onPlaceUpdated(updatedPlace)
@@ -401,8 +414,27 @@ export function PlaceDetailView({
             </button>
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
+          {/* Debug button - remove in production */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              fetchDebugData()
+              setShowDebug(!showDebug)
+            }}
+            className="text-xs"
+          >
+            <Bug size={12} />
+          </Button>
         </div>
       </div>
+
+      {/* Debug info - remove in production */}
+      {showDebug && debugData && (
+        <div className="p-4 bg-yellow-50 border-b text-xs">
+          <pre className="whitespace-pre-wrap overflow-auto max-h-40">{JSON.stringify(debugData, null, 2)}</pre>
+        </div>
+      )}
 
       {/* Place Image */}
       <div className="relative">
@@ -476,21 +508,19 @@ export function PlaceDetailView({
           </div>
         )}
 
-        {/* Added By field instead of Date Added */}
-        {(place.addedBy || place.added_by) && (
-          <div className="flex items-start mb-3">
-            <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-            {isLoadingAddedBy ? (
-              <Skeleton className="h-4 w-24" />
-            ) : addedByUser ? (
-              <p className="text-sm text-black/70">
-                Added by {addedByUser.display_name || addedByUser.username || "Unknown user"}
-              </p>
-            ) : (
-              <p className="text-sm text-black/70">Added by a user</p>
-            )}
-          </div>
-        )}
+        {/* Added By field */}
+        <div className="flex items-start mb-3">
+          <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
+          {isLoadingAddedBy ? (
+            <Skeleton className="h-4 w-24" />
+          ) : addedByUser ? (
+            <p className="text-sm text-black/70">
+              Added by {addedByUser.display_name || addedByUser.username || "Unknown user"}
+            </p>
+          ) : (
+            <p className="text-sm text-black/70">Added by a user</p>
+          )}
+        </div>
 
         {userError && (
           <Alert variant="destructive" className="mb-4">
@@ -535,7 +565,6 @@ export function PlaceDetailView({
                   key={list.id}
                   className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => {
-                    // Navigate to the list
                     window.location.href = `/lists/${list.id}`
                   }}
                 >
