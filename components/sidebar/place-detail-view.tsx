@@ -140,89 +140,70 @@ export function PlaceDetailView({
     fetchCurrentList()
   }, [listId])
 
-  // Simplified user lookup - just use the creator_id from list_places
-  const fetchCreatedByUser = useCallback(async () => {
-    try {
-      setIsLoadingCreatedBy(true)
-
-      // Get the creator_id from the list_places relationship
-      const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
-      if (!listPlaceResponse.ok) {
-        console.log("Failed to fetch list-place relationship")
-        setCreatedByUser({ farcaster_display_name: "Unknown User" })
-        return
-      }
-
-      const debugData = await listPlaceResponse.json()
-      console.log("Debug data for user lookup:", debugData)
-      
-      // The debug endpoint already includes user data
-      if (debugData.user) {
-        console.log("User data found in debug response:", debugData.user)
-        const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
-        console.log("Final display name:", displayName)
-        
-        setCreatedByUser({
-          ...debugData.user,
-          farcaster_display_name: displayName
-        })
-        return
-      }
-      
-      // Fallback: try to get user ID and fetch separately
-      const creatorId = debugData.listPlace?.creator_id || debugData.listPlace?.added_by || debugData.userId
-
-      console.log("Creator ID found:", creatorId)
-
-      if (!creatorId) {
-        console.log("No creator ID found in debug data")
-        setCreatedByUser({ farcaster_display_name: "Unknown User" })
-        return
-      }
-
-      // Fetch user data
-      console.log(`Fetching user data for ID: ${creatorId}`)
-      const userResponse = await fetch(`/api/users/${creatorId}`)
-      
-      console.log(`User API response status: ${userResponse.status}`)
-      
-      if (!userResponse.ok) {
-        console.log(`Failed to fetch user data: ${userResponse.status}`)
-        setCreatedByUser({ farcaster_display_name: "Unknown User" })
-        return
-      }
-
-      const userData = await userResponse.json()
-      console.log("User data received:", userData)
-      
-      // Ensure we have the correct display name
-      const displayName = userData.farcaster_display_name || userData.farcaster_username || "Unknown User"
-      console.log("Final display name:", displayName)
-      
-      setCreatedByUser({
-        ...userData,
-        farcaster_display_name: displayName
-      })
-    } catch (error) {
-      console.error("Error fetching user who added the place:", error)
-      setCreatedByUser({ farcaster_display_name: "Unknown User" })
-    } finally {
-      setIsLoadingCreatedBy(false)
-    }
-  }, [currentPlace?.id, listId])
-
-  useEffect(() => {
-    fetchCreatedByUser()
-  }, [fetchCreatedByUser])
-
-  // Fetch lists that contain this place
-  const fetchConnectedLists = useCallback(async () => {
-    if (!currentPlace?.id) return
+  // Consolidated data fetching to reduce API calls
+  const fetchAllData = useCallback(async () => {
+    if (!currentPlace?.id || !listId) return
 
     try {
       setIsLoadingLists(true)
+      setIsLoadingCreatedBy(true)
       setListsError(null)
 
+      // Fetch debug data first (includes list-place relationship and should include user)
+      const debugResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+      let debugData = null
+      
+      if (debugResponse.ok) {
+        debugData = await debugResponse.json()
+        console.log("Debug data:", debugData)
+        
+        // Set list place ID for remove functionality
+        if (debugData.listPlace?.id) {
+          setListPlaceId(debugData.listPlace.id)
+        }
+        
+        // Handle user data from debug response
+        if (debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
+          const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
+          setCreatedByUser({
+            ...debugData.user,
+            farcaster_display_name: displayName
+          })
+          setIsLoadingCreatedBy(false)
+        } else {
+          // If user data is missing or generic, try to fetch it properly
+          const userId = debugData.listPlace?.added_by || debugData.listPlace?.creator_id || debugData.userId
+          if (userId) {
+            try {
+              const userResponse = await fetch(`/api/users/${userId}`)
+              if (userResponse.ok) {
+                const userData = await userResponse.json()
+                console.log("Fetched user data:", userData)
+                
+                if (userData.farcaster_display_name && userData.farcaster_display_name !== "Unknown User") {
+                  setCreatedByUser(userData)
+                } else {
+                  // User exists but has no Farcaster data, show as "Unknown User"
+                  setCreatedByUser({ farcaster_display_name: "Unknown User" })
+                }
+              } else {
+                setCreatedByUser({ farcaster_display_name: "Unknown User" })
+              }
+            } catch (error) {
+              console.error("Error fetching user separately:", error)
+              setCreatedByUser({ farcaster_display_name: "Unknown User" })
+            }
+          } else {
+            setCreatedByUser({ farcaster_display_name: "Unknown User" })
+          }
+          setIsLoadingCreatedBy(false)
+        }
+      } else {
+        setCreatedByUser({ farcaster_display_name: "Unknown User" })
+        setIsLoadingCreatedBy(false)
+      }
+
+      // Fetch lists containing this place
       const response = await fetch(`/api/places/${currentPlace.id}/lists?t=${Date.now()}`)
 
       if (!response.ok) {
@@ -245,29 +226,15 @@ export function PlaceDetailView({
         }
       }
 
-      // Fetch list_places ID for the current list
-      if (listId) {
-        try {
-          const listPlacesResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
-          if (listPlacesResponse.ok) {
-            const data = await listPlacesResponse.json()
-            if (data.listPlace?.id) {
-              setListPlaceId(data.listPlace.id)
-              console.log("Found list_places ID:", data.listPlace.id)
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching list_places ID:", error)
-        }
-      }
-
       setConnectedLists(lists)
     } catch (error) {
-      console.error("Error fetching connected lists:", error)
-      setListsError(error instanceof Error ? error.message : "Failed to load lists data")
+      console.error("Error fetching data:", error)
+      setListsError(error instanceof Error ? error.message : "Failed to load data")
+      setCreatedByUser({ farcaster_display_name: "Unknown User" })
+      setIsLoadingCreatedBy(false)
       toast({
         title: "Error",
-        description: "Failed to load lists containing this place",
+        description: "Failed to load place data",
         variant: "destructive",
       })
     } finally {
@@ -276,8 +243,8 @@ export function PlaceDetailView({
   }, [currentPlace?.id, listId])
 
   useEffect(() => {
-    fetchConnectedLists()
-  }, [fetchConnectedLists])
+    fetchAllData()
+  }, [fetchAllData])
 
   // Fetch user's lists for adding the place to a new list
   useEffect(() => {
@@ -613,7 +580,7 @@ export function PlaceDetailView({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex flex-col">
                 <span>Error loading lists: {listsError}</span>
-                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={fetchConnectedLists}>
+                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={fetchAllData}>
                   Retry
                 </Button>
               </AlertDescription>
