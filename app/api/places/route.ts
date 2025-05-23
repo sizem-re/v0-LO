@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const lat = searchParams.get("lat")
     const lng = searchParams.get("lng")
     const name = searchParams.get("name")
-    const search = searchParams.get("search") // New search parameter
+    const search = searchParams.get("search")
     const limit = searchParams.get("limit") || "100"
 
     let query = supabaseAdmin.from("places").select("*").order("created_at", { ascending: false })
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         .lte("lng", maxLng.toString())
     }
 
-    // Filter by name if provided (legacy support)
+    // Filter by name if provided
     if (name) {
       query = query.ilike("name", `%${name}%`)
     }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, address, lat, lng, type, description, website_url } = body
+    const { name, address, lat, lng, type, description, website_url, created_by } = body
 
     // Validate required fields
     if (!name) {
@@ -81,9 +81,10 @@ export async function POST(request: NextRequest) {
       type,
       description,
       website_url,
+      created_by,
     })
 
-    // Create the place
+    // Create the place with created_by field
     const { data: place, error } = await supabaseAdmin
       .from("places")
       .insert({
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
         type: type || "Place",
         description: description || "",
         website_url: website_url || "",
+        created_by: created_by || null, // Ensure we store the user ID
         created_at: new Date().toISOString(),
       })
       .select()

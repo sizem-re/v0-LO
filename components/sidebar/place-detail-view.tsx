@@ -145,7 +145,7 @@ export function PlaceDetailView({
       setUserError(null)
 
       // Try to get user ID from multiple sources
-      let userId = currentPlace?.added_by
+      let userId = currentPlace?.created_by // Use created_by instead of added_by
 
       // If no user ID in place, try to get it from the list_places relationship
       if (!userId) {
@@ -153,7 +153,7 @@ export function PlaceDetailView({
           const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
           if (listPlaceResponse.ok) {
             const debugData = await listPlaceResponse.json()
-            userId = debugData.listPlace?.added_by || debugData.place?.added_by
+            userId = debugData.listPlace?.added_by || debugData.place?.created_by
             console.log("Found user ID from list_places:", userId)
           }
         } catch (error) {
@@ -336,11 +336,12 @@ export function PlaceDetailView({
 
   // Check if user can edit/delete this place
   const canEdit =
-    dbUser && (dbUser.id === currentPlace.added_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
+    dbUser &&
+    (dbUser.id === currentPlace.created_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
 
   console.log("Place ownership check:", {
     dbUserId: dbUser?.id,
-    placeAddedBy: currentPlace.added_by,
+    placeCreatedBy: currentPlace.created_by,
     currentListOwnerId: currentList?.owner_id,
     listOwnerIdProp: listOwnerId,
     canEdit,

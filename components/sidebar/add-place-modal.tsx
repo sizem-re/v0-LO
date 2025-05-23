@@ -375,6 +375,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
         address: fullAddress,
         website,
         coordinates,
+        userId: dbUser.id,
       })
 
       // Format website URL if needed
@@ -405,10 +406,10 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             body: JSON.stringify({
               name: placeName,
               address: fullAddress,
-              website_url: formattedWebsite, // Use website_url instead of website
+              website_url: formattedWebsite,
               lat: coordinates.lat,
               lng: coordinates.lng,
-              created_by: dbUser.id,
+              created_by: dbUser.id, // Use created_by instead of added_by
             }),
           })
 
@@ -531,7 +532,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             id: placeId,
             name: placeName,
             address: fullAddress,
-            website_url: formattedWebsite, // Use website_url instead of website
+            website_url: formattedWebsite,
             coordinates,
             listPlaceId: successfulAdds[0].id, // Use the first result for the original list
           })
