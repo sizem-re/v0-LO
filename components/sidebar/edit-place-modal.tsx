@@ -2,22 +2,26 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
+import { Loader2, Camera, Check, Trash2, Link, Edit } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
-import { Loader2, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/lib/auth-context"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface EditPlaceModalProps {
   isOpen: boolean
@@ -28,6 +32,14 @@ interface EditPlaceModalProps {
   onPlaceRemoved?: (placeId: string) => void
 }
 
+interface AddressComponents {
+  street: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+}
+
 export function EditPlaceModal({
   isOpen,
   onClose,
@@ -36,115 +48,310 @@ export function EditPlaceModal({
   onPlaceUpdated,
   onPlaceRemoved,
 }: EditPlaceModalProps) {
-  const [name, setName] = useState(place?.name || "")
+  const { dbUser } = useAuth()
+
+  // Place details state
+  const [placeName, setPlaceName] = useState(place?.name || "")
   const [address, setAddress] = useState(place?.address || "")
   const [websiteUrl, setWebsiteUrl] = useState(place?.website_url || "")
   const [notes, setNotes] = useState(place?.notes || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditingAddress, setIsEditingAddress] = useState(false)
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(
+    place?.lat && place?.lng ? { lat: Number.parseFloat(place.lat), lng: Number.parseFloat(place.lng) } : null,
+  )
 
+  // Address components state
+  const [addressComponents, setAddressComponents] = useState<AddressComponents>({
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+  })
+
+  // Photo placeholder state
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(place?.image || null)
+
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Update state when place changes
   useEffect(() => {
     if (place) {
-      setName(place.name || "")
+      setPlaceName(place.name || "")
       setAddress(place.address || "")
       setWebsiteUrl(place.website_url || "")
       setNotes(place.notes || "")
+      setPhotoPreview(place.image || null)
+      setCoordinates(
+        place.lat && place.lng ? { lat: Number.parseFloat(place.lat), lng: Number.parseFloat(place.lng) } : null,
+      )
+
+      // Parse address into components (simplified)
+      if (place.address) {
+        const addressParts = place.address.split(",").map((part: string) => part.trim())
+        setAddressComponents({
+          street: addressParts[0] || "",
+          city: addressParts[1] || "",
+          state: addressParts[2] || "",
+          postalCode: addressParts[3] || "",
+          country: addressParts[4] || "",
+        })
+      }
     }
   }, [place])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Format address components into a single string
+  const formatFullAddress = (): string => {
+    const components = []
+
+    if (addressComponents.street) components.push(addressComponents.street)
+    if (addressComponents.city) components.push(addressComponents.city)
+    if (addressComponents.state) components.push(addressComponents.state)
+    if (addressComponents.postalCode) components.push(addressComponents.postalCode)
+    if (addressComponents.country) components.push(addressComponents.country)
+
+    return components.join(", ")
+  }
+
+  // Geocode the address when components change
+  useEffect(() => {
+    const geocodeAddress = async () => {
+      if (!isEditingAddress) return
+
+      const addressString = formatFullAddress()
+      if (!addressString) return
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressString)}&limit=1`,
+          {
+            headers: {
+              "Accept-Language": "en-US,en",
+              "User-Agent": "LO Place App (https://llllllo.com)",
+            },
+          },
+        )
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (data.length > 0) {
+          setCoordinates({
+            lat: Number.parseFloat(data[0].lat),
+            lng: Number.parseFloat(data[0].lon),
+          })
+        }
+      } catch (err) {
+        console.error("Error geocoding address:", err)
+      }
+    }
+
+    // Debounce the geocoding
+    const timer = setTimeout(geocodeAddress, 1000)
+    return () => clearTimeout(timer)
+  }, [addressComponents, isEditingAddress])
+
+  // Validate form
+  const validateForm = () => {
+    if (!placeName.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please provide a name for the place.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (websiteUrl && !isValidUrl(websiteUrl)) {
+      toast({
+        title: "Invalid website",
+        description: "Please enter a valid URL (e.g., https://example.com)",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
+  }
+
+  const isValidUrl = (url: string) => {
+    if (!url) return true
+    try {
+      // Add https:// if no protocol is specified
+      const urlWithProtocol = url.match(/^https?:\/\//) ? url : `https://${url}`
+      new URL(urlWithProtocol)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  // Handle photo selection
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPhotoFile(file)
+
+      // Create a preview URL
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Trigger file input click
+  const handlePhotoButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  // Update the place
+  const handleUpdatePlace = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) {
-      setError("Place name is required")
+    if (!validateForm() || !dbUser) {
       return
     }
 
     try {
       setIsSubmitting(true)
-      setError(null)
 
-      // Prepare the update data
-      const updateData: Record<string, any> = {
-        name,
-        address,
+      // Format website URL if needed
+      let formattedWebsite = websiteUrl
+      if (websiteUrl && !websiteUrl.match(/^https?:\/\//)) {
+        formattedWebsite = `https://${websiteUrl}`
+      }
+
+      // Use the formatted address from components if editing address
+      const finalAddress = isEditingAddress ? formatFullAddress() : address
+
+      console.log("Updating place:", {
+        name: placeName,
+        address: finalAddress,
+        website_url: formattedWebsite,
         notes,
-      }
-
-      // Only include website_url if it's not empty
-      if (websiteUrl.trim()) {
-        updateData.website_url = websiteUrl
-      }
-
-      console.log("Updating place with data:", updateData)
-
-      const response = await fetch(`/api/places/${place.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
+        coordinates,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
-        console.error("Error updating place:", errorData)
-
-        // If there's an issue with the website_url field, try again without it
-        if (errorData.message?.includes("website") || errorData.message?.includes("website_url")) {
-          console.log("Retrying update without website_url field")
-
-          // Remove website_url from the update data
-          delete updateData.website_url
-
-          const retryResponse = await fetch(`/api/places/${place.id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updateData),
-          })
-
-          if (!retryResponse.ok) {
-            const retryErrorData = await retryResponse.json().catch(() => ({ error: "Failed to parse error response" }))
-            throw new Error(retryErrorData.error || retryErrorData.message || "Failed to update place")
-          }
-
-          const updatedPlace = await retryResponse.json()
-
-          if (onPlaceUpdated) {
-            onPlaceUpdated(updatedPlace)
-          }
-
-          toast({
-            title: "Place updated",
-            description: "The place has been updated successfully (without website URL).",
-          })
-
-          onClose()
-          return
-        }
-
-        throw new Error(errorData.error || errorData.message || "Failed to update place")
+      // First, update the place details if needed
+      const updateData: Record<string, any> = {
+        name: placeName,
+        address: finalAddress,
+        website_url: formattedWebsite,
       }
 
-      const updatedPlace = await response.json()
+      // Add coordinates if available
+      if (coordinates) {
+        updateData.lat = coordinates.lat.toString()
+        updateData.lng = coordinates.lng.toString()
+      }
 
-      if (onPlaceUpdated) {
-        onPlaceUpdated(updatedPlace)
+      if (
+        placeName !== place.name ||
+        finalAddress !== place.address ||
+        formattedWebsite !== place.website_url ||
+        (coordinates &&
+          (coordinates.lat !== Number.parseFloat(place.lat || "0") ||
+            coordinates.lng !== Number.parseFloat(place.lng || "0")))
+      ) {
+        const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        })
+
+        if (!placeUpdateResponse.ok) {
+          const errorData = await placeUpdateResponse.json()
+
+          // Special handling for website column not found error
+          if (errorData.error && errorData.error.includes("website")) {
+            console.warn("Website column not found in database, trying with website_url")
+
+            // Try again with website_url instead of website
+            delete updateData.website
+            updateData.website_url = formattedWebsite
+
+            const retryResponse = await fetch(`/api/places/${place.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updateData),
+            })
+
+            if (!retryResponse.ok) {
+              const retryErrorData = await retryResponse.json()
+              throw new Error(retryErrorData.error || "Failed to update place")
+            }
+          } else {
+            throw new Error(errorData.error || "Failed to update place")
+          }
+        }
+      }
+
+      // Then, update the list-place relationship (notes)
+      const listPlaceId = place.listPlaceId || place.list_place_id
+
+      if (listPlaceId && notes !== place.notes) {
+        const listPlaceUpdateResponse = await fetch(`/api/list-places`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: listPlaceId,
+            note: notes,
+          }),
+        })
+
+        if (!listPlaceUpdateResponse.ok) {
+          const errorData = await listPlaceUpdateResponse.json()
+          throw new Error(errorData.error || "Failed to update place notes")
+        }
+      }
+
+      // TODO: Handle photo upload when backend is ready
+      if (photoFile) {
+        console.log("Photo will be uploaded in a future update:", photoFile.name)
       }
 
       toast({
         title: "Place updated",
-        description: "The place has been updated successfully.",
+        description: `${placeName} has been updated successfully.`,
       })
+
+      // Create an updated place object with the new values
+      const updatedPlace = {
+        ...place,
+        name: placeName,
+        address: finalAddress,
+        website_url: formattedWebsite,
+        notes,
+      }
+
+      if (coordinates) {
+        updatedPlace.lat = coordinates.lat.toString()
+        updatedPlace.lng = coordinates.lng.toString()
+      }
+
+      // Call the callback with the updated place
+      if (onPlaceUpdated) {
+        onPlaceUpdated(updatedPlace)
+      }
 
       onClose()
     } catch (err) {
-      console.error("Error in handleSubmit:", err)
-      setError(err instanceof Error ? err.message : "Failed to update place")
+      console.error("Error updating place:", err)
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to update place",
@@ -155,40 +362,37 @@ export function EditPlaceModal({
     }
   }
 
-  const handleDelete = async () => {
+  // Handle place removal
+  const handleRemovePlace = async () => {
     try {
       setIsDeleting(true)
-      setError(null)
+      const listPlaceId = place.listPlaceId || place.list_place_id
 
-      const response = await fetch(`/api/list-places`, {
+      console.log(`Removing place with list_places ID: ${listPlaceId}`)
+
+      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          list_id: listId,
-          place_id: place.id,
-        }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to remove place from list")
+        throw new Error(errorData.error || "Failed to remove place")
       }
+
+      console.log("Place removed successfully")
+      toast({
+        title: "Place removed",
+        description: `"${placeName}" has been removed from the list.`,
+      })
 
       if (onPlaceRemoved) {
         onPlaceRemoved(place.id)
       }
 
-      toast({
-        title: "Place removed",
-        description: "The place has been removed from the list.",
-      })
-
+      setShowDeleteConfirm(false)
       onClose()
     } catch (err) {
-      console.error("Error in handleDelete:", err)
-      setError(err instanceof Error ? err.message : "Failed to remove place")
+      console.error("Error removing place:", err)
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to remove place",
@@ -196,110 +400,263 @@ export function EditPlaceModal({
       })
     } finally {
       setIsDeleting(false)
-      setShowDeleteConfirm(false)
     }
   }
 
+  if (!isOpen) return null
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Place</DialogTitle>
-          <DialogDescription>Update the details for this place.</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Place</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePlace} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="placeName">Name *</Label>
+              <Input
+                id="placeName"
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                placeholder="Place name"
+                className="w-full"
+              />
+            </div>
 
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>
+                  Address <span className="text-red-500">*</span>
+                </Label>
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+                  onClick={() => setIsEditingAddress(!isEditingAddress)}
+                >
+                  {isEditingAddress ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1" />
+                      Done
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </>
+                  )}
+                </button>
+              </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" required />
-          </div>
+              {isEditingAddress ? (
+                <div className="grid grid-cols-1 gap-3 mt-1">
+                  <div>
+                    <Label htmlFor="street" className="text-xs">
+                      Street
+                    </Label>
+                    <Input
+                      id="street"
+                      type="text"
+                      placeholder="Street address"
+                      value={addressComponents.street}
+                      onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="city" className="text-xs">
+                        City
+                      </Label>
+                      <Input
+                        id="city"
+                        type="text"
+                        placeholder="City"
+                        value={addressComponents.city}
+                        onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state" className="text-xs">
+                        State/Province
+                      </Label>
+                      <Input
+                        id="state"
+                        type="text"
+                        placeholder="State/Province"
+                        value={addressComponents.state}
+                        onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="postalCode" className="text-xs">
+                        Postal Code
+                      </Label>
+                      <Input
+                        id="postalCode"
+                        type="text"
+                        placeholder="Postal/ZIP code"
+                        value={addressComponents.postalCode}
+                        onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="country" className="text-xs">
+                        Country
+                      </Label>
+                      <Input
+                        id="country"
+                        type="text"
+                        placeholder="Country"
+                        value={addressComponents.country}
+                        onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-md mt-1">
+                  {address || formatFullAddress() || "No address provided"}
+                  {coordinates && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <div className="relative w-full">
+                <Input
+                  id="website"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="pl-8 w-full"
+                />
+                <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="website">Website URL</Label>
-            <Input
-              id="website"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="https://example.com"
-              type="url"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add your notes about this place..."
+                rows={3}
+                className="w-full resize-none"
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about this place"
-              className="min-h-[100px]"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>Photo (coming soon)</Label>
+              <div
+                className={cn(
+                  "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
+                  photoPreview ? "border-gray-300" : "border-gray-200",
+                )}
+                onClick={handlePhotoButtonClick}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handlePhotoSelect}
+                  accept="image/*"
+                  className="hidden"
+                />
 
-          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
-            <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
+                {photoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={photoPreview || "/placeholder.svg"}
+                      alt="Place preview"
+                      className="mx-auto max-h-40 rounded-md"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
+                      <Camera className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">
+                      Click to add a photo
+                      <span className="block text-xs mt-1">(Photo uploads will be available soon)</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
-                disabled={isSubmitting || isDeleting}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
               >
-                Remove from list
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove from List
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </div>
-            <Button type="submit" disabled={isSubmitting || isDeleting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-
-      {/* Delete confirmation dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Remove Place</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove this place from the list? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
-            <Button type="button" variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-              Cancel
-            </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Removing...
-                </>
-              ) : (
-                "Remove"
-              )}
-            </Button>
-          </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
-    </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this place?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove "{placeName}" from this list. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleRemovePlace}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

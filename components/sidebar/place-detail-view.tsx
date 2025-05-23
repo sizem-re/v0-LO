@@ -71,6 +71,7 @@ export function PlaceDetailView({
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [currentPlace, setCurrentPlace] = useState<any>(place)
 
   // Debug function
   const fetchDebugData = async () => {
@@ -86,12 +87,38 @@ export function PlaceDetailView({
     }
   }
 
+  // Fetch the latest place data
+  const fetchPlaceData = useCallback(async () => {
+    if (!place?.id) return
+
+    try {
+      const response = await fetch(`/api/places/${place.id}?t=${Date.now()}`)
+      if (response.ok) {
+        const placeData = await response.json()
+        console.log("Fetched updated place data:", placeData)
+        setCurrentPlace(placeData)
+      }
+    } catch (error) {
+      console.error("Error fetching place data:", error)
+    }
+  }, [place?.id])
+
+  // Fetch place data on mount and when place changes
+  useEffect(() => {
+    fetchPlaceData()
+  }, [fetchPlaceData])
+
   // Center map on the place when component mounts
   useEffect(() => {
-    if (place?.coordinates && onCenterMap) {
-      onCenterMap(place.coordinates)
+    if (currentPlace?.coordinates && onCenterMap) {
+      onCenterMap(currentPlace.coordinates)
+    } else if (currentPlace?.lat && currentPlace?.lng && onCenterMap) {
+      onCenterMap({
+        lat: Number.parseFloat(currentPlace.lat),
+        lng: Number.parseFloat(currentPlace.lng),
+      })
     }
-  }, [place, onCenterMap])
+  }, [currentPlace, onCenterMap])
 
   // Fetch current list details to get owner information
   useEffect(() => {
@@ -115,12 +142,12 @@ export function PlaceDetailView({
   // Fetch user who added this place - improved logic with retry
   const fetchAddedByUser = useCallback(async () => {
     // Try multiple sources for the user ID
-    let userId = place?.added_by
+    let userId = currentPlace?.added_by
 
     // If no user ID in place, try to get it from the list_places relationship
     if (!userId) {
       try {
-        const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${place.id}&listId=${listId}`)
+        const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
         if (listPlaceResponse.ok) {
           const debugData = await listPlaceResponse.json()
           userId = debugData.listPlace?.added_by || debugData.place?.added_by
@@ -132,7 +159,7 @@ export function PlaceDetailView({
     }
 
     if (!userId) {
-      console.log("No user ID found for place:", place)
+      console.log("No user ID found for place:", currentPlace)
       setAddedByUser({ farcaster_display_name: "Unknown User" })
       return
     }
@@ -174,7 +201,7 @@ export function PlaceDetailView({
     } finally {
       setIsLoadingAddedBy(false)
     }
-  }, [place, listId, retryCount])
+  }, [currentPlace, listId, retryCount])
 
   useEffect(() => {
     fetchAddedByUser()
@@ -182,13 +209,13 @@ export function PlaceDetailView({
 
   // Fetch lists that contain this place
   const fetchConnectedLists = useCallback(async () => {
-    if (!place?.id) return
+    if (!currentPlace?.id) return
 
     try {
       setIsLoadingLists(true)
       setListsError(null)
 
-      const response = await fetch(`/api/places/${place.id}/lists?t=${Date.now()}`)
+      const response = await fetch(`/api/places/${currentPlace.id}/lists?t=${Date.now()}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
@@ -222,7 +249,7 @@ export function PlaceDetailView({
     } finally {
       setIsLoadingLists(false)
     }
-  }, [place?.id, listId])
+  }, [currentPlace?.id, listId])
 
   useEffect(() => {
     fetchConnectedLists()
@@ -271,7 +298,7 @@ export function PlaceDetailView({
     setFilteredLists(filtered)
   }, [listSearchQuery, userLists])
 
-  if (!place) {
+  if (!currentPlace) {
     return (
       <div className="p-4 w-full h-full overflow-y-auto">
         <div className="flex items-center mb-4">
@@ -298,11 +325,11 @@ export function PlaceDetailView({
 
   // Check if user can edit/delete this place
   const canEdit =
-    dbUser && (dbUser.id === place.added_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
+    dbUser && (dbUser.id === currentPlace.added_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
 
   console.log("Place ownership check:", {
     dbUserId: dbUser?.id,
-    placeAddedBy: place.added_by,
+    placeAddedBy: currentPlace.added_by,
     currentListOwnerId: currentList?.owner_id,
     listOwnerIdProp: listOwnerId,
     canEdit,
@@ -313,11 +340,15 @@ export function PlaceDetailView({
   }
 
   const handlePlaceUpdated = (updatedPlace: any) => {
+    console.log("Place updated:", updatedPlace)
+    setCurrentPlace(updatedPlace)
+
     if (onPlaceUpdated) {
       onPlaceUpdated(updatedPlace)
     }
-    // Refresh the component data
-    window.location.reload()
+
+    // Refresh the place data from the API
+    fetchPlaceData()
   }
 
   const handlePlaceRemoved = (placeId: string) => {
@@ -328,8 +359,13 @@ export function PlaceDetailView({
   }
 
   const handleCenterMap = () => {
-    if (place.coordinates && onCenterMap) {
-      onCenterMap(place.coordinates)
+    if (currentPlace.coordinates && onCenterMap) {
+      onCenterMap(currentPlace.coordinates)
+    } else if (currentPlace.lat && currentPlace.lng && onCenterMap) {
+      onCenterMap({
+        lat: Number.parseFloat(currentPlace.lat),
+        lng: Number.parseFloat(currentPlace.lng),
+      })
     }
   }
 
@@ -353,7 +389,7 @@ export function PlaceDetailView({
         },
         body: JSON.stringify({
           list_id: listId,
-          place_id: place.id,
+          place_id: currentPlace.id,
           added_by: dbUser.id,
         }),
       })
@@ -384,7 +420,7 @@ export function PlaceDetailView({
 
       toast({
         title: "Added to list",
-        description: `"${place.name}" has been added to the list.`,
+        description: `"${currentPlace.name}" has been added to the list.`,
       })
 
       setShowAddToListDialog(false)
@@ -432,7 +468,7 @@ export function PlaceDetailView({
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-serif text-xl truncate">{place.name}</h2>
+            <h2 className="font-serif text-xl truncate">{currentPlace.name}</h2>
           </div>
           {/* Debug button - only in development */}
           {process.env.NODE_ENV === "development" && (
@@ -463,7 +499,7 @@ export function PlaceDetailView({
         <div
           className="w-full h-48 bg-gray-100"
           style={{
-            backgroundImage: place.image ? `url(${place.image})` : undefined,
+            backgroundImage: currentPlace.image ? `url(${currentPlace.image})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -508,23 +544,23 @@ export function PlaceDetailView({
           )}
         </div>
 
-        {place.address && (
+        {currentPlace.address && (
           <div className="flex items-start mb-3">
             <MapPin size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-            <p className="text-sm text-black/80">{place.address}</p>
+            <p className="text-sm text-black/80">{currentPlace.address}</p>
           </div>
         )}
 
-        {place.website_url && (
+        {currentPlace.website_url && (
           <div className="flex items-start mb-3">
             <Globe size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
             <a
-              href={place.website_url}
+              href={currentPlace.website_url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline flex items-center"
             >
-              {place.website_url.replace(/^https?:\/\//, "")}
+              {currentPlace.website_url.replace(/^https?:\/\//, "")}
               <ExternalLink size={12} className="ml-1" />
             </a>
           </div>
@@ -561,12 +597,12 @@ export function PlaceDetailView({
           </Alert>
         )}
 
-        {place.notes && (
+        {currentPlace.notes && (
           <>
             <Separator className="my-4" />
             <div className="mb-4">
               <h3 className="font-medium mb-2">Notes</h3>
-              <p className="text-sm text-black/80 whitespace-pre-wrap">{place.notes}</p>
+              <p className="text-sm text-black/80 whitespace-pre-wrap">{currentPlace.notes}</p>
             </div>
           </>
         )}
@@ -624,7 +660,7 @@ export function PlaceDetailView({
         <EditPlaceModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
-          place={place}
+          place={currentPlace}
           listId={listId}
           onPlaceUpdated={handlePlaceUpdated}
           onPlaceRemoved={handlePlaceRemoved}
@@ -636,7 +672,7 @@ export function PlaceDetailView({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add to List</DialogTitle>
-            <DialogDescription>Add "{place.name}" to another one of your lists.</DialogDescription>
+            <DialogDescription>Add "{currentPlace.name}" to another one of your lists.</DialogDescription>
           </DialogHeader>
 
           <div className="mb-3">

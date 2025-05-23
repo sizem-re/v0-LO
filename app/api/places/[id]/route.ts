@@ -1,69 +1,123 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-client"
+import { supabase } from "@/lib/supabase-client"
 
+// GET /api/places/[id] - Get a specific place
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
 
-    const { data, error } = await supabaseAdmin.from("places").select("*").eq("id", id).single()
+    console.log(`Fetching place: ${id}`)
+
+    const { data, error } = await supabase.from("places").select("*").eq("id", id).maybeSingle()
 
     if (error) {
-      console.error(`Error fetching place ${id}:`, error)
+      console.error("Error fetching place:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     if (!data) {
+      console.log(`Place not found: ${id}`)
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
     }
 
+    console.log(`Successfully fetched place: ${data.name}`, data)
     return NextResponse.json(data)
   } catch (error) {
-    console.error(`Error in GET /api/places/${params.id}:`, error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error in GET /api/places/[id]:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "An unexpected error occurred" },
+      { status: 500 },
+    )
   }
 }
 
+// PATCH /api/places/[id] - Update a place
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
-    const body = await request.json()
+    const updates = await request.json()
 
-    // Extract fields that might be updated
-    const { name, address, lat, lng, type, description, website_url } = body
+    console.log("PATCH /api/places/[id] - Received updates:", updates)
 
-    // Log the update attempt
-    console.log(`Updating place ${id}:`, {
-      name,
-      address,
-      lat,
-      lng,
-      type,
-      description,
-      website_url,
-    })
+    // Validate required fields
+    if (!updates || Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No update data provided" }, { status: 400 })
+    }
 
-    // Build the update object with only provided fields
-    const updateData: Record<string, any> = {}
-    if (name !== undefined) updateData.name = name
-    if (address !== undefined) updateData.address = address
-    if (lat !== undefined) updateData.lat = lat.toString()
-    if (lng !== undefined) updateData.lng = lng.toString()
-    if (type !== undefined) updateData.type = type
-    if (description !== undefined) updateData.description = description
-    if (website_url !== undefined) updateData.website_url = website_url
+    // Check if place exists first
+    const { data: existingPlace, error: checkError } = await supabase
+      .from("places")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle()
 
-    // Update the place
-    const { data, error } = await supabaseAdmin.from("places").update(updateData).eq("id", id).select().single()
+    if (checkError) {
+      console.error("Error checking place existence:", checkError)
+      return NextResponse.json({ error: checkError.message }, { status: 500 })
+    }
+
+    if (!existingPlace) {
+      console.log(`Place not found for update: ${id}`)
+      return NextResponse.json({ error: "Place not found" }, { status: 404 })
+    }
+
+    // Only allow specific fields to be updated
+    const allowedFields = ["name", "address", "lat", "lng", "website_url"]
+    const filteredUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => allowedFields.includes(key)))
+
+    console.log("PATCH /api/places/[id] - Filtered updates:", filteredUpdates)
+
+    // Add updated_at timestamp
+    filteredUpdates.updated_at = new Date().toISOString()
+
+    const { data, error } = await supabase.from("places").update(filteredUpdates).eq("id", id).select().single()
 
     if (error) {
-      console.error(`Error updating place ${id}:`, error)
+      console.error("Error updating place:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log(`Place ${id} updated successfully:`, data)
+    console.log("PATCH /api/places/[id] - Updated place:", data)
     return NextResponse.json(data)
   } catch (error) {
-    console.error(`Error in PATCH /api/places/${params.id}:`, error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error in PATCH /api/places/[id]:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "An unexpected error occurred" },
+      { status: 500 },
+    )
+  }
+}
+
+// DELETE /api/places/[id] - Delete a place
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    console.log(`Deleting place: ${id}`)
+
+    // First, delete all list_places entries for this place
+    const { error: listPlacesError } = await supabase.from("list_places").delete().eq("place_id", id)
+
+    if (listPlacesError) {
+      console.error("Error deleting list_places entries:", listPlacesError)
+      return NextResponse.json({ error: listPlacesError.message }, { status: 500 })
+    }
+
+    // Then delete the place itself
+    const { error } = await supabase.from("places").delete().eq("id", id)
+
+    if (error) {
+      console.error("Error deleting place:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    console.log(`Successfully deleted place: ${id}`)
+    return NextResponse.json({ success: true, message: "Place deleted successfully" })
+  } catch (error) {
+    console.error("Error in DELETE /api/places/[id]:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "An unexpected error occurred" },
+      { status: 500 },
+    )
   }
 }
