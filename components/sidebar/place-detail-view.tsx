@@ -172,7 +172,18 @@ export function PlaceDetailView({
           setIsLoadingCreatedBy(false)
         } else {
           // If user data is missing or generic, try to fetch it properly
-          const userId = debugData.listPlace?.added_by || debugData.listPlace?.creator_id || debugData.userId
+          // Check multiple possible sources for user ID
+          const userId = 
+            debugData.listPlace?.added_by || 
+            debugData.listPlace?.creator_id || 
+            debugData.userId ||
+            currentPlace.addedBy || // This field exists in your place data
+            currentPlace.created_by ||
+            debugData.place?.created_by ||
+            debugData.place?.addedBy
+            
+          console.log("Trying user ID:", userId)
+          
           if (userId) {
             try {
               const userResponse = await fetch(`/api/users/${userId}`)
@@ -187,6 +198,7 @@ export function PlaceDetailView({
                   setCreatedByUser({ farcaster_display_name: "Unknown User" })
                 }
               } else {
+                console.log("User API call failed:", userResponse.status)
                 setCreatedByUser({ farcaster_display_name: "Unknown User" })
               }
             } catch (error) {
@@ -194,6 +206,7 @@ export function PlaceDetailView({
               setCreatedByUser({ farcaster_display_name: "Unknown User" })
             }
           } else {
+            console.log("No user ID found in any field")
             setCreatedByUser({ farcaster_display_name: "Unknown User" })
           }
           setIsLoadingCreatedBy(false)
