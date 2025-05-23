@@ -365,7 +365,6 @@ export function EditPlaceModal({
   const handleRemovePlace = async () => {
     try {
       setIsDeleting(true)
-      const listPlaceId = place.listPlaceId || place.list_place_id
 
       console.log(`Removing place with list_places ID: ${listPlaceId}`)
 

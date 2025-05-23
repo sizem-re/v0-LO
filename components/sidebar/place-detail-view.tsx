@@ -72,8 +72,6 @@ export function PlaceDetailView({
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
-  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
-  const [isRemoving, setIsRemoving] = useState(false)
   const [listPlaceId, setListPlaceId] = useState<string | null>(null)
 
   // Debug function
