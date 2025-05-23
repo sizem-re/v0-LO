@@ -101,6 +101,7 @@ export function PlaceDetailView({
       const userId = place?.addedBy || place?.added_by
       if (!userId) {
         console.log("No user ID found for place:", place)
+        setAddedByUser({ display_name: "Unknown User" })
         return
       }
 
@@ -109,26 +110,27 @@ export function PlaceDetailView({
         setUserError(null)
         console.log("Fetching user with ID:", userId)
 
-        const response = await fetch(`/api/users/${userId}`)
+        // Add cache-busting query parameter to prevent stale data
+        const response = await fetch(`/api/users/${userId}?t=${Date.now()}`)
 
         if (!response.ok) {
-          if (response.status === 404) {
-            console.log("User not found:", userId)
-            setAddedByUser({ display_name: "Unknown user" })
-            return
-          }
-
           const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
           throw new Error(errorData.error || `Failed to fetch user: ${response.status}`)
         }
 
         const userData = await response.json()
         console.log("Fetched user data:", userData)
-        setAddedByUser(userData)
+
+        // Only set as "Unknown User" if the API explicitly returned that
+        if (userData.display_name === "Unknown User" && userData.username === "unknown") {
+          console.log("API returned fallback user data")
+          setAddedByUser({ display_name: "Unknown User" })
+        } else {
+          setAddedByUser(userData)
+        }
       } catch (error) {
         console.error("Error fetching user who added the place:", error)
-        // Set a fallback user object
-        setAddedByUser({ display_name: "Unknown user" })
+        setAddedByUser({ display_name: "Unknown User" })
         setUserError(error instanceof Error ? error.message : "Failed to load user data")
       } finally {
         setIsLoadingAddedBy(false)
@@ -529,7 +531,14 @@ export function PlaceDetailView({
           ) : connectedLists.length > 0 ? (
             <div className="space-y-2">
               {connectedLists.map((list) => (
-                <Card key={list.id} className="overflow-hidden">
+                <Card
+                  key={list.id}
+                  className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    // Navigate to the list
+                    window.location.href = `/lists/${list.id}`
+                  }}
+                >
                   <CardContent className="p-3 flex items-center justify-between">
                     <div className="flex items-center">
                       <ListIcon size={16} className="mr-2 text-black/60" />

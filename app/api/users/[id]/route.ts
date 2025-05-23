@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         .select(
           "id, username, display_name, avatar_url, fid, farcaster_username, farcaster_display_name, farcaster_pfp_url",
         )
-        .or(`username.eq.${userId},farcaster_username.eq.${userId}`)
+        .eq("username", userId)
         .maybeSingle()
 
       if (!usernameError && userByUsername) {
@@ -54,13 +54,33 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       }
     }
 
+    // Try one more time with farcaster_username
+    if (!user && !error) {
+      console.log(`User not found by username, trying farcaster_username: ${userId}`)
+      const { data: userByFarcasterUsername, error: farcasterUsernameError } = await supabase
+        .from("users")
+        .select(
+          "id, username, display_name, avatar_url, fid, farcaster_username, farcaster_display_name, farcaster_pfp_url",
+        )
+        .eq("farcaster_username", userId)
+        .maybeSingle()
+
+      if (!farcasterUsernameError && userByFarcasterUsername) {
+        user = userByFarcasterUsername
+        error = null
+      }
+    }
+
+    // Log the raw user data for debugging
+    console.log("Raw user data from database:", user)
+
     if (error) {
       console.error("Error fetching user:", error)
       return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 })
     }
 
     if (!user) {
-      console.log(`User not found: ${userId}`)
+      console.log(`User not found with any method: ${userId}`)
       // Return a fallback user object instead of 404
       return NextResponse.json({
         id: userId,
