@@ -386,12 +386,16 @@ export function EditPlaceModal({
         description: `"${placeName}" has been removed from the list.`,
       })
 
+      // Close the confirmation dialog
+      setShowDeleteConfirm(false)
+      
+      // Close the modal
+      onClose()
+
+      // Call the callback to update the parent component
       if (onPlaceRemoved) {
         onPlaceRemoved(place.id)
       }
-
-      setShowDeleteConfirm(false)
-      onClose()
     } catch (err) {
       console.error("Error removing place:", err)
       toast({
@@ -430,10 +434,15 @@ export function EditPlaceModal({
                 <Label>
                   Address <span className="text-red-500">*</span>
                 </Label>
-                <button
+                <Button
                   type="button"
-                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                  onClick={() => setIsEditingAddress(!isEditingAddress)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center h-auto p-1"
+                  onClick={() => {
+                    console.log("Address edit toggle clicked, current state:", isEditingAddress)
+                    setIsEditingAddress(!isEditingAddress)
+                  }}
                 >
                   {isEditingAddress ? (
                     <>
@@ -446,7 +455,7 @@ export function EditPlaceModal({
                       Edit
                     </>
                   )}
-                </button>
+                </Button>
               </div>
 
               {isEditingAddress ? (
