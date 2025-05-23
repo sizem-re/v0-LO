@@ -6,7 +6,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params
 
-    const { data, error } = await supabase.from("places").select("*").eq("id", id).single()
+    console.log(`Fetching place: ${id}`)
+
+    const { data, error } = await supabase.from("places").select("*").eq("id", id).maybeSingle()
 
     if (error) {
       console.error("Error fetching place:", error)
@@ -14,9 +16,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     if (!data) {
+      console.log(`Place not found: ${id}`)
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
     }
 
+    console.log(`Successfully fetched place: ${data.name}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/places/[id]:", error)
@@ -49,6 +53,23 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Add updated_at timestamp
     filteredUpdates.updated_at = new Date().toISOString()
 
+    // Check if place exists first
+    const { data: existingPlace, error: checkError } = await supabase
+      .from("places")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error("Error checking place existence:", checkError)
+      return NextResponse.json({ error: checkError.message }, { status: 500 })
+    }
+
+    if (!existingPlace) {
+      console.log(`Place not found for update: ${id}`)
+      return NextResponse.json({ error: "Place not found" }, { status: 404 })
+    }
+
     const { data, error } = await supabase.from("places").update(filteredUpdates).eq("id", id).select().single()
 
     if (error) {
@@ -56,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("PATCH /api/places/[id] - Updated place:", data)
+    console.log("PATCH /api/places/[id] - Updated place:", data.name)
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in PATCH /api/places/[id]:", error)
@@ -71,6 +92,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
+
+    console.log(`Deleting place: ${id}`)
 
     // First, delete all list_places entries for this place
     const { error: listPlacesError } = await supabase.from("list_places").delete().eq("place_id", id)
@@ -88,6 +111,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log(`Successfully deleted place: ${id}`)
     return NextResponse.json({ success: true, message: "Place deleted successfully" })
   } catch (error) {
     console.error("Error in DELETE /api/places/[id]:", error)

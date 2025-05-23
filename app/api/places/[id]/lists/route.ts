@@ -9,19 +9,20 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Place ID is required" }, { status: 400 })
     }
 
-    // Get all lists that contain this place
+    console.log(`Fetching lists for place: ${placeId}`)
+
+    // Get all lists that contain this place with proper joins
     const { data, error } = await supabase
       .from("list_places")
       .select(`
         list_id,
-        list:lists(
+        lists!inner(
           id,
           title,
           description,
           visibility,
           owner_id,
-          created_at,
-          place_count
+          created_at
         )
       `)
       .eq("place_id", placeId)
@@ -31,21 +32,35 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform the data to a more usable format
-    const lists =
-      data
-        ?.map((item) => ({
-          id: item.list?.id,
-          title: item.list?.title,
-          description: item.list?.description,
-          visibility: item.list?.visibility,
-          owner_id: item.list?.owner_id,
-          created_at: item.list?.created_at,
-          place_count: item.list?.place_count || 0,
-        }))
-        .filter((list) => list.id) || [] // Filter out any null lists
+    // Transform the data and get place counts for each list
+    const listsWithCounts = await Promise.all(
+      (data || []).map(async (item) => {
+        const list = item.lists
 
-    return NextResponse.json(lists)
+        // Get the actual place count for this list
+        const { count, error: countError } = await supabase
+          .from("list_places")
+          .select("*", { count: "exact", head: true })
+          .eq("list_id", list.id)
+
+        if (countError) {
+          console.error(`Error getting count for list ${list.id}:`, countError)
+        }
+
+        return {
+          id: list.id,
+          title: list.title,
+          description: list.description,
+          visibility: list.visibility,
+          owner_id: list.owner_id,
+          created_at: list.created_at,
+          place_count: count || 0,
+        }
+      }),
+    )
+
+    console.log(`Found ${listsWithCounts.length} lists for place ${placeId}`)
+    return NextResponse.json(listsWithCounts)
   } catch (error) {
     console.error("Error in GET /api/places/[id]/lists:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
