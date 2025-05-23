@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-client"
+import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 
 // GET /api/places/[id] - Get a specific place
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -9,16 +9,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log(`Fetching place: ${id} (type: ${typeof id})`)
 
     // Try both string and number formats for the ID
-    const query = supabaseAdmin.from("places").select(`
-      *,
-      users!created_by(
-        id,
-        farcaster_id,
-        farcaster_username,
-        farcaster_display_name,
-        farcaster_pfp_url
-      )
-    `)
+    const query = supabase.from("places").select("*")
 
     // First try as string
     let { data, error } = await query.eq("id", id).maybeSingle()
@@ -26,20 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // If no result and id looks like a number, try as number
     if (!data && !error && /^\d+$/.test(id)) {
       console.log(`Trying ID as number: ${Number(id)}`)
-      const result = await supabaseAdmin
-        .from("places")
-        .select(`
-          *,
-          users!created_by(
-            id,
-            farcaster_id,
-            farcaster_username,
-            farcaster_display_name,
-            farcaster_pfp_url
-          )
-        `)
-        .eq("id", Number(id))
-        .maybeSingle()
+      const result = await supabase.from("places").select("*").eq("id", Number(id)).maybeSingle()
       data = result.data
       error = result.error
     }
@@ -54,14 +32,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
     }
 
-    // Transform the data to include creator information
-    const transformedData = {
-      ...data,
-      creator: data.users || null,
-    }
-
-    console.log(`Successfully fetched place: ${transformedData.name}`, transformedData)
-    return NextResponse.json(transformedData)
+    console.log(`Successfully fetched place: ${data.name}`, data)
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/places/[id]:", error)
     return NextResponse.json(

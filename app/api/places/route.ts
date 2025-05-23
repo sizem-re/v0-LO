@@ -7,26 +7,17 @@ export async function GET(request: NextRequest) {
     const lat = searchParams.get("lat")
     const lng = searchParams.get("lng")
     const name = searchParams.get("name")
-    const type = searchParams.get("type")
-    const search = searchParams.get("search")
-    const limit = searchParams.get("limit") || "50"
-    const offset = searchParams.get("offset") || "0"
+    const search = searchParams.get("search") // New search parameter
+    const limit = searchParams.get("limit") || "100"
 
-    let query = supabaseAdmin.from("places").select(`
-        *,
-        users!created_by(
-          id,
-          farcaster_id,
-          farcaster_username,
-          farcaster_display_name,
-          farcaster_pfp_url
-        )
-      `)
+    let query = supabaseAdmin.from("places").select("*").order("created_at", { ascending: false })
 
-    // Filter by coordinates if provided (for map-based queries)
+    // Filter by coordinates if provided
     if (lat && lng) {
-      const latRadius = 0.0001
-      const lngRadius = 0.0001
+      // Use a small radius to find places at almost the same location
+      const latRadius = 0.0001 // Approximately 11 meters
+      const lngRadius = 0.0001 // Varies by latitude
+
       const minLat = Number.parseFloat(lat) - latRadius
       const maxLat = Number.parseFloat(lat) + latRadius
       const minLng = Number.parseFloat(lng) - lngRadius
@@ -39,45 +30,29 @@ export async function GET(request: NextRequest) {
         .lte("lng", maxLng.toString())
     }
 
-    // General search across name, address, and type
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,type.ilike.%${search}%`)
-    }
-
-    // Filter by specific name
-    if (name && !search) {
+    // Filter by name if provided (legacy support)
+    if (name) {
       query = query.ilike("name", `%${name}%`)
     }
 
-    // Filter by type
-    if (type) {
-      query = query.eq("type", type)
+    // Filter by search term across multiple fields
+    if (search) {
+      query = query.or(
+        `name.ilike.%${search}%,address.ilike.%${search}%,type.ilike.%${search}%,description.ilike.%${search}%`,
+      )
     }
 
-    // Apply pagination
-    query = query
-      .range(Number.parseInt(offset), Number.parseInt(offset) + Number.parseInt(limit) - 1)
-      .order("created_at", { ascending: false })
+    // Apply limit
+    query = query.limit(Number.parseInt(limit))
 
-    const { data, error, count } = await query
+    const { data, error } = await query
 
     if (error) {
       console.error("Error fetching places:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform the data to include creator information
-    const transformedData =
-      data?.map((place) => ({
-        ...place,
-        creator: place.users || null,
-      })) || []
-
-    return NextResponse.json({
-      places: transformedData,
-      total: count,
-      hasMore: Number.parseInt(offset) + Number.parseInt(limit) < (count || 0),
-    })
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/places:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -87,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, address, lat, lng, type, description, website_url, created_by } = body
+    const { name, address, lat, lng, type, description, website_url } = body
 
     // Validate required fields
     if (!name) {
@@ -98,10 +73,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Coordinates are required" }, { status: 400 })
     }
 
-    if (!created_by) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
-
     console.log(`Creating new place: ${name}`, {
       name,
       address,
@@ -110,7 +81,6 @@ export async function POST(request: NextRequest) {
       type,
       description,
       website_url,
-      created_by,
     })
 
     // Create the place
@@ -125,7 +95,6 @@ export async function POST(request: NextRequest) {
         description: description || "",
         website_url: website_url || "",
         created_at: new Date().toISOString(),
-        created_by,
       })
       .select()
       .single()

@@ -64,6 +64,9 @@ export function PlaceDetailView({
   const [filteredLists, setFilteredLists] = useState<any[]>([])
   const [isAddingToList, setIsAddingToList] = useState(false)
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
+  const [addedByUser, setAddedByUser] = useState<any>(null)
+  const [isLoadingAddedBy, setIsLoadingAddedBy] = useState(false)
+  const [userError, setUserError] = useState<string | null>(null)
   const [currentList, setCurrentList] = useState<any>(null)
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
@@ -134,6 +137,86 @@ export function PlaceDetailView({
 
     fetchCurrentList()
   }, [listId])
+
+  // Improved user lookup with better error handling and multiple sources
+  const fetchAddedByUser = useCallback(async () => {
+    try {
+      setIsLoadingAddedBy(true)
+      setUserError(null)
+
+      // Try to get user ID from multiple sources
+      let userId = currentPlace?.added_by
+
+      // If no user ID in place, try to get it from the list_places relationship
+      if (!userId) {
+        try {
+          const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+          if (listPlaceResponse.ok) {
+            const debugData = await listPlaceResponse.json()
+            userId = debugData.listPlace?.added_by || debugData.place?.added_by
+            console.log("Found user ID from list_places:", userId)
+          }
+        } catch (error) {
+          console.error("Error fetching list_places data:", error)
+        }
+      }
+
+      if (!userId) {
+        console.log("No user ID found for place:", currentPlace)
+        setAddedByUser({ farcaster_display_name: "Unknown User" })
+        return
+      }
+
+      console.log("Fetching user with ID:", userId)
+
+      // First, try to get user data from our API
+      const userResponse = await fetch(`/api/users/${userId}?t=${Date.now()}`)
+
+      if (!userResponse.ok) {
+        throw new Error(`Failed to fetch user: ${userResponse.status}`)
+      }
+
+      const userData = await userResponse.json()
+      console.log("Fetched user data:", userData)
+
+      // If we got a fallback user and the ID looks like an FID, try Neynar directly
+      if (userData.farcaster_display_name === "Unknown User" && /^\d+$/.test(userId)) {
+        console.log("Trying Neynar API directly for FID:", userId)
+
+        try {
+          const neynarResponse = await fetch(`/api/debug/neynar-user?fid=${userId}`)
+          if (neynarResponse.ok) {
+            const neynarData = await neynarResponse.json()
+            console.log("Neynar debug response:", neynarData)
+
+            if (neynarData.userData) {
+              setAddedByUser({
+                farcaster_display_name:
+                  neynarData.userData.display_name || neynarData.userData.username || "Unknown User",
+                farcaster_username: neynarData.userData.username || "unknown",
+                farcaster_pfp_url: neynarData.userData.pfp_url || "",
+              })
+              return
+            }
+          }
+        } catch (neynarError) {
+          console.error("Error fetching from Neynar:", neynarError)
+        }
+      }
+
+      setAddedByUser(userData)
+    } catch (error) {
+      console.error("Error fetching user who added the place:", error)
+      setAddedByUser({ farcaster_display_name: "Unknown User" })
+      setUserError(error instanceof Error ? error.message : "Failed to load user data")
+    } finally {
+      setIsLoadingAddedBy(false)
+    }
+  }, [currentPlace, listId])
+
+  useEffect(() => {
+    fetchAddedByUser()
+  }, [fetchAddedByUser])
 
   // Fetch lists that contain this place
   const fetchConnectedLists = useCallback(async () => {
@@ -253,16 +336,11 @@ export function PlaceDetailView({
 
   // Check if user can edit/delete this place
   const canEdit =
-    dbUser &&
-    (dbUser.id === currentPlace.created_by ||
-      dbUser.id === currentPlace.creator?.id ||
-      dbUser.id === currentList?.owner_id ||
-      dbUser.id === listOwnerId)
+    dbUser && (dbUser.id === currentPlace.added_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
 
   console.log("Place ownership check:", {
     dbUserId: dbUser?.id,
-    placeCreatedBy: currentPlace.created_by,
-    placeCreator: currentPlace.creator?.id,
+    placeAddedBy: currentPlace.added_by,
     currentListOwnerId: currentList?.owner_id,
     listOwnerIdProp: listOwnerId,
     canEdit,
@@ -371,6 +449,11 @@ export function PlaceDetailView({
     fetchConnectedLists()
   }
 
+  const handleRetryUser = () => {
+    setUserError(null)
+    fetchAddedByUser()
+  }
+
   const handleListClick = (listId: string) => {
     if (onNavigateToList) {
       onNavigateToList(listId)
@@ -475,33 +558,51 @@ export function PlaceDetailView({
           </div>
         )}
 
-        {(currentPlace.website_url || currentPlace.website) && (
+        {currentPlace.website_url && (
           <div className="flex items-start mb-3">
             <Globe size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
             <a
-              href={currentPlace.website_url || currentPlace.website}
+              href={currentPlace.website_url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline flex items-center"
             >
-              {(currentPlace.website_url || currentPlace.website).replace(/^https?:\/\//, "")}
+              {currentPlace.website_url.replace(/^https?:\/\//, "")}
               <ExternalLink size={12} className="ml-1" />
             </a>
           </div>
         )}
 
-        {/* Added By field - now using creator information */}
+        {/* Added By field */}
         <div className="flex items-start mb-3">
           <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-          {currentPlace.creator ? (
-            <p className="text-sm text-black/70">
-              Added by{" "}
-              {currentPlace.creator.farcaster_display_name || currentPlace.creator.farcaster_username || "User"}
-            </p>
+          {isLoadingAddedBy ? (
+            <Skeleton className="h-4 w-24" />
+          ) : addedByUser ? (
+            <div className="flex items-center">
+              <p className="text-sm text-black/70">Added by {addedByUser.farcaster_display_name || "Unknown user"}</p>
+              {addedByUser.farcaster_display_name === "Unknown User" && (
+                <Button variant="ghost" size="sm" onClick={handleRetryUser} className="h-6 px-2 ml-2 text-xs">
+                  Retry
+                </Button>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-black/70">Added by a user</p>
           )}
         </div>
+
+        {userError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-col">
+              <span>Error loading user data: {userError}</span>
+              <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryUser}>
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {currentPlace.notes && (
           <>

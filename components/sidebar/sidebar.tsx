@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, MapPin, ListIcon, Plus, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
+import { Search, MapPin, ListIcon, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { CreateListModal } from "@/components/create-list-modal"
 import { UserListsDisplay } from "@/components/user-lists-display"
 import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
+import { PlacesListView } from "./places-list-view"
 
 export function Sidebar() {
   // Get miniapp context
@@ -395,19 +396,21 @@ export function Sidebar() {
                     </button>
                   </div>
 
-                  {/* Search bar */}
-                  <div className="px-4 pt-3 pb-2">
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-                        placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                      <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+                  {/* Search bar - only show for discover and mylists tabs */}
+                  {(activeTab === "discover" || activeTab === "mylists") && (
+                    <div className="px-4 pt-3 pb-2">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                          placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Content based on active tab */}
                   <div className="flex-1 overflow-y-auto p-4">
@@ -435,14 +438,15 @@ export function Sidebar() {
                     )}
 
                     {activeTab === "places" && (
-                      <div className="text-center py-8">
-                        <p className="mb-4">Explore places on the map</p>
-                        {userIsAuthenticated && (
-                          <Button className="bg-black text-white hover:bg-black/80">
-                            <Plus size={16} className="mr-1" /> Add Place
-                          </Button>
-                        )}
-                      </div>
+                      <PlacesListView
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onPlaceClick={handlePlaceClick}
+                        onAddPlace={() => {
+                          // TODO: Implement add place functionality
+                          console.log("Add place clicked")
+                        }}
+                      />
                     )}
                   </div>
                 </>
