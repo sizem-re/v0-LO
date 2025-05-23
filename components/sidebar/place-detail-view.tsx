@@ -426,59 +426,6 @@ export function PlaceDetailView({
     }
   }
 
-  const handleRemoveFromList = async () => {
-    if (!listPlaceId) {
-      toast({
-        title: "Error",
-        description: "Could not find the list-place relationship ID",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setIsRemoving(true)
-      console.log(`Removing place from list with list_places ID: ${listPlaceId}`)
-
-      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        throw new Error(errorData.error || `Failed to remove place from list: ${response.status}`)
-      }
-
-      toast({
-        title: "Removed from list",
-        description: `"${currentPlace.name}" has been removed from the list.`,
-      })
-
-      // If we're viewing the place from the list we just removed it from, go back
-      if (listId) {
-        onBack()
-      } else {
-        // Otherwise, just update the connected lists
-        fetchConnectedLists()
-      }
-    } catch (err) {
-      console.error("Error removing place from list:", err)
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to remove place from list",
-        variant: "destructive",
-      })
-    } finally {
-      setIsRemoving(false)
-      setShowRemoveDialog(false)
-    }
-  }
-
-  const handleRetryLists = () => {
-    setListsError(null)
-    fetchConnectedLists()
-  }
-
   const handleListClick = (listId: string) => {
     if (onNavigateToList) {
       onNavigateToList(listId)
@@ -574,19 +521,6 @@ export function PlaceDetailView({
               <Plus size={14} /> Add to list
             </Button>
           )}
-
-          {/* Remove button - only show if we have the necessary data and permissions */}
-          {canEdit && listId && listPlaceId && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1 text-red-600 hover:bg-red-50"
-              onClick={() => setShowRemoveDialog(true)}
-              title="Remove from this list"
-            >
-              <Trash2 size={14} /> Remove
-            </Button>
-          )}
         </div>
 
         {currentPlace.address && (
@@ -647,7 +581,7 @@ export function PlaceDetailView({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex flex-col">
                 <span>Error loading lists: {listsError}</span>
-                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryLists}>
+                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={fetchConnectedLists}>
                   Retry
                 </Button>
               </AlertDescription>
@@ -750,30 +684,6 @@ export function PlaceDetailView({
               Cancel
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Remove from List Dialog */}
-      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Remove from List</DialogTitle>
-            <DialogDescription>Are you sure you want to remove "{currentPlace.name}" from this list?</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              onClick={handleRemoveFromList}
-              disabled={isRemoving}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Remove
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

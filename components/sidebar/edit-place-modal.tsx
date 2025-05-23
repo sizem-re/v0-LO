@@ -627,7 +627,7 @@ export function EditPlaceModal({
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto text-red-600 hover:bg-red-50"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Remove from List
