@@ -2,26 +2,22 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
-import { Loader2, Camera, Check, Trash2, Link } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
-import { useAuth } from "@/lib/auth-context"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface EditPlaceModalProps {
   isOpen: boolean
@@ -40,219 +36,115 @@ export function EditPlaceModal({
   onPlaceUpdated,
   onPlaceRemoved,
 }: EditPlaceModalProps) {
-  const { dbUser } = useAuth()
-
-  // Place details state
-  const [placeName, setPlaceName] = useState(place?.name || "")
+  const [name, setName] = useState(place?.name || "")
   const [address, setAddress] = useState(place?.address || "")
-  const [website, setWebsite] = useState(place?.website || "")
+  const [websiteUrl, setWebsiteUrl] = useState(place?.website_url || "")
   const [notes, setNotes] = useState(place?.notes || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [websiteSupported, setWebsiteSupported] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Photo placeholder state
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(place?.image || null)
-
-  // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Update state when place changes
   useEffect(() => {
     if (place) {
-      setPlaceName(place.name || "")
+      setName(place.name || "")
       setAddress(place.address || "")
-      setWebsite(place.website || "")
+      setWebsiteUrl(place.website_url || "")
       setNotes(place.notes || "")
-      setPhotoPreview(place.image || null)
-
-      // Check if website is supported in the database schema
-      // If place was fetched and doesn't have a website property, assume it's not supported
-      setWebsiteSupported("website" in place)
     }
   }, [place])
 
-  // Validate form
-  const validateForm = () => {
-    if (!placeName.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please provide a name for the place.",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    if (websiteSupported && website && !isValidUrl(website)) {
-      toast({
-        title: "Invalid website",
-        description: "Please enter a valid URL (e.g., https://example.com)",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    return true
-  }
-
-  const isValidUrl = (url: string) => {
-    if (!url) return true
-    try {
-      // Add https:// if no protocol is specified
-      const urlWithProtocol = url.match(/^https?:\/\//) ? url : `https://${url}`
-      new URL(urlWithProtocol)
-      return true
-    } catch (e) {
-      return false
-    }
-  }
-
-  // Handle photo selection
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setPhotoFile(file)
-
-      // Create a preview URL
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  // Trigger file input click
-  const handlePhotoButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
-    }
-  }
-
-  // Update the place
-  const handleUpdatePlace = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm() || !dbUser) {
+    if (!name.trim()) {
+      setError("Place name is required")
       return
     }
 
     try {
       setIsSubmitting(true)
+      setError(null)
 
-      // Format website URL if needed
-      let formattedWebsite = website
-      if (websiteSupported && website && !website.match(/^https?:\/\//)) {
-        formattedWebsite = `https://${website}`
+      // Prepare the update data
+      const updateData: Record<string, any> = {
+        name,
+        address,
+        notes,
       }
 
-      console.log("Updating place:", {
-        name: placeName,
-        address,
-        ...(websiteSupported ? { website: formattedWebsite } : {}),
-        notes,
+      // Only include website_url if it's not empty
+      if (websiteUrl.trim()) {
+        updateData.website_url = websiteUrl
+      }
+
+      console.log("Updating place with data:", updateData)
+
+      const response = await fetch(`/api/places/${place.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
       })
 
-      // First, update the place details if needed
-      const updateData: Record<string, any> = {
-        name: placeName,
-        address,
-      }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+        console.error("Error updating place:", errorData)
 
-      // Only include website if it's supported in the database
-      if (websiteSupported) {
-        updateData.website = formattedWebsite
-      }
+        // If there's an issue with the website_url field, try again without it
+        if (errorData.message?.includes("website") || errorData.message?.includes("website_url")) {
+          console.log("Retrying update without website_url field")
 
-      if (
-        placeName !== place.name ||
-        address !== place.address ||
-        (websiteSupported && formattedWebsite !== place.website)
-      ) {
-        const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        })
+          // Remove website_url from the update data
+          delete updateData.website_url
 
-        if (!placeUpdateResponse.ok) {
-          const errorData = await placeUpdateResponse.json()
+          const retryResponse = await fetch(`/api/places/${place.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updateData),
+          })
 
-          // Special handling for website column not found error
-          if (errorData.error && errorData.error.includes("website")) {
-            console.warn("Website column not found in database, disabling website field")
-            setWebsiteSupported(false)
-
-            // Try again without the website field
-            delete updateData.website
-            const retryResponse = await fetch(`/api/places/${place.id}`, {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(updateData),
-            })
-
-            if (!retryResponse.ok) {
-              const retryErrorData = await retryResponse.json()
-              throw new Error(retryErrorData.error || "Failed to update place")
-            }
-          } else {
-            throw new Error(errorData.error || "Failed to update place")
+          if (!retryResponse.ok) {
+            const retryErrorData = await retryResponse.json().catch(() => ({ error: "Failed to parse error response" }))
+            throw new Error(retryErrorData.error || retryErrorData.message || "Failed to update place")
           }
+
+          const updatedPlace = await retryResponse.json()
+
+          if (onPlaceUpdated) {
+            onPlaceUpdated(updatedPlace)
+          }
+
+          toast({
+            title: "Place updated",
+            description: "The place has been updated successfully (without website URL).",
+          })
+
+          onClose()
+          return
         }
+
+        throw new Error(errorData.error || errorData.message || "Failed to update place")
       }
 
-      // Then, update the list-place relationship (notes)
-      const listPlaceId = place.listPlaceId || place.list_place_id
+      const updatedPlace = await response.json()
 
-      if (listPlaceId) {
-        const listPlaceUpdateResponse = await fetch(`/api/list-places`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: listPlaceId,
-            note: notes,
-          }),
-        })
-
-        if (!listPlaceUpdateResponse.ok) {
-          const errorData = await listPlaceUpdateResponse.json()
-          throw new Error(errorData.error || "Failed to update place notes")
-        }
-      }
-
-      // TODO: Handle photo upload when backend is ready
-      if (photoFile) {
-        console.log("Photo will be uploaded in a future update:", photoFile.name)
+      if (onPlaceUpdated) {
+        onPlaceUpdated(updatedPlace)
       }
 
       toast({
         title: "Place updated",
-        description: `${placeName} has been updated successfully.`,
+        description: "The place has been updated successfully.",
       })
-
-      // Call the callback with the updated place
-      if (onPlaceUpdated) {
-        onPlaceUpdated({
-          ...place,
-          name: placeName,
-          address,
-          ...(websiteSupported ? { website: formattedWebsite } : {}),
-          notes,
-          // image: photoPreview, // Will be added when photo upload is implemented
-        })
-      }
 
       onClose()
     } catch (err) {
-      console.error("Error updating place:", err)
+      console.error("Error in handleSubmit:", err)
+      setError(err instanceof Error ? err.message : "Failed to update place")
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to update place",
@@ -263,37 +155,40 @@ export function EditPlaceModal({
     }
   }
 
-  // Handle place removal
-  const handleRemovePlace = async () => {
+  const handleDelete = async () => {
     try {
       setIsDeleting(true)
-      const listPlaceId = place.listPlaceId || place.list_place_id
+      setError(null)
 
-      console.log(`Removing place with list_places ID: ${listPlaceId}`)
-
-      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
+      const response = await fetch(`/api/list-places`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          list_id: listId,
+          place_id: place.id,
+        }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to remove place")
+        throw new Error(errorData.error || "Failed to remove place from list")
       }
-
-      console.log("Place removed successfully")
-      toast({
-        title: "Place removed",
-        description: `"${placeName}" has been removed from the list.`,
-      })
 
       if (onPlaceRemoved) {
         onPlaceRemoved(place.id)
       }
 
-      setShowDeleteConfirm(false)
+      toast({
+        title: "Place removed",
+        description: "The place has been removed from the list.",
+      })
+
       onClose()
     } catch (err) {
-      console.error("Error removing place:", err)
+      console.error("Error in handleDelete:", err)
+      setError(err instanceof Error ? err.message : "Failed to remove place")
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to remove place",
@@ -301,168 +196,110 @@ export function EditPlaceModal({
       })
     } finally {
       setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Place</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdatePlace} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="placeName">Name *</Label>
-              <Input
-                id="placeName"
-                value={placeName}
-                onChange={(e) => setPlaceName(e.target.value)}
-                placeholder="Place name"
-                className="w-full"
-              />
-            </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit Place</DialogTitle>
+          <DialogDescription>Update the details for this place.</DialogDescription>
+        </DialogHeader>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Address"
-                className="w-full"
-              />
-            </div>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-            {websiteSupported && (
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <div className="relative w-full">
-                  <Input
-                    id="website"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="https://example.com"
-                    className="pl-8 w-full"
-                  />
-                  <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" required />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add your notes about this place..."
-                rows={3}
-                className="w-full resize-none"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" />
+          </div>
 
-            <div className="space-y-2">
-              <Label>Photo (coming soon)</Label>
-              <div
-                className={cn(
-                  "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
-                  photoPreview ? "border-gray-300" : "border-gray-200",
-                )}
-                onClick={handlePhotoButtonClick}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePhotoSelect}
-                  accept="image/*"
-                  className="hidden"
-                />
+          <div className="space-y-2">
+            <Label htmlFor="website">Website URL</Label>
+            <Input
+              id="website"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://example.com"
+              type="url"
+            />
+          </div>
 
-                {photoPreview ? (
-                  <div className="relative">
-                    <img
-                      src={photoPreview || "/placeholder.svg"}
-                      alt="Place preview"
-                      className="mx-auto max-h-40 rounded-md"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
-                      <Camera className="h-8 w-8 text-white" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-4">
-                    <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">
-                      Click to add a photo
-                      <span className="block text-xs mt-1">(Photo uploads will be available soon)</span>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any notes about this place"
+              className="min-h-[100px]"
+            />
+          </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto"
+                disabled={isSubmitting || isDeleting}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove from List
-              </Button>
-              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
+                Remove from list
               </Button>
             </div>
-          </form>
+            <Button type="submit" disabled={isSubmitting || isDeleting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Remove Place</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove this place from the list? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
+            <Button type="button" variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this place?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove "{placeName}" from this list. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleRemovePlace}
-              disabled={isDeleting}
-            >
-              {isDeleting ? "Removing..." : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    </Dialog>
   )
 }

@@ -115,7 +115,7 @@ export function PlaceDetailView({
   // Fetch user who added this place - improved logic with retry
   const fetchAddedByUser = useCallback(async () => {
     // Try multiple sources for the user ID
-    let userId = place?.addedBy || place?.added_by
+    let userId = place?.added_by
 
     // If no user ID in place, try to get it from the list_places relationship
     if (!userId) {
@@ -133,7 +133,7 @@ export function PlaceDetailView({
 
     if (!userId) {
       console.log("No user ID found for place:", place)
-      setAddedByUser({ display_name: "Unknown User" })
+      setAddedByUser({ farcaster_display_name: "Unknown User" })
       return
     }
 
@@ -153,7 +153,7 @@ export function PlaceDetailView({
       const userData = await response.json()
       console.log("Fetched user data:", userData)
 
-      if (userData.display_name === "Unknown User" && userData.farcaster_username === "unknown") {
+      if (userData.farcaster_display_name === "Unknown User" && userData.farcaster_username === "unknown") {
         console.log("API returned fallback user data")
 
         // If we got a fallback user and have retries left, try again
@@ -163,13 +163,13 @@ export function PlaceDetailView({
           return
         }
 
-        setAddedByUser({ display_name: "Unknown User" })
+        setAddedByUser({ farcaster_display_name: "Unknown User" })
       } else {
         setAddedByUser(userData)
       }
     } catch (error) {
       console.error("Error fetching user who added the place:", error)
-      setAddedByUser({ display_name: "Unknown User" })
+      setAddedByUser({ farcaster_display_name: "Unknown User" })
       setUserError(error instanceof Error ? error.message : "Failed to load user data")
     } finally {
       setIsLoadingAddedBy(false)
@@ -298,16 +298,11 @@ export function PlaceDetailView({
 
   // Check if user can edit/delete this place
   const canEdit =
-    dbUser &&
-    (dbUser.id === place.addedBy ||
-      dbUser.id === place.added_by ||
-      dbUser.id === currentList?.owner_id ||
-      dbUser.id === listOwnerId)
+    dbUser && (dbUser.id === place.added_by || dbUser.id === currentList?.owner_id || dbUser.id === listOwnerId)
 
   console.log("Place ownership check:", {
     dbUserId: dbUser?.id,
-    placeAddedBy: place.addedBy,
-    placeAddedByAlt: place.added_by,
+    placeAddedBy: place.added_by,
     currentListOwnerId: currentList?.owner_id,
     listOwnerIdProp: listOwnerId,
     canEdit,
@@ -520,16 +515,16 @@ export function PlaceDetailView({
           </div>
         )}
 
-        {place.website && (
+        {place.website_url && (
           <div className="flex items-start mb-3">
             <Globe size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
             <a
-              href={place.website}
+              href={place.website_url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline flex items-center"
             >
-              {place.website.replace(/^https?:\/\//, "")}
+              {place.website_url.replace(/^https?:\/\//, "")}
               <ExternalLink size={12} className="ml-1" />
             </a>
           </div>
@@ -542,10 +537,8 @@ export function PlaceDetailView({
             <Skeleton className="h-4 w-24" />
           ) : addedByUser ? (
             <div className="flex items-center">
-              <p className="text-sm text-black/70">
-                Added by {addedByUser.farcaster_display_name || addedByUser.display_name || "Unknown user"}
-              </p>
-              {addedByUser.display_name === "Unknown User" && (
+              <p className="text-sm text-black/70">Added by {addedByUser.farcaster_display_name || "Unknown user"}</p>
+              {addedByUser.farcaster_display_name === "Unknown User" && (
                 <Button variant="ghost" size="sm" onClick={handleRetryUser} className="h-6 px-2 ml-2 text-xs">
                   Retry
                 </Button>

@@ -40,11 +40,10 @@ async function createUserFromFid(fid: string) {
 
     console.log(`Found Neynar user data:`, userData)
 
-    // Create user in Supabase
+    // Create user in Supabase - using exact column names from the database
     const newUser = {
       id: uuidv4(),
-      fid: Number.parseInt(fid), // Store as integer
-      farcaster_id: fid, // Keep as string for compatibility
+      farcaster_id: fid, // This is the correct column name
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
@@ -83,18 +82,13 @@ async function findUserById(userId: string) {
     return userCache.get(cacheKey)
   }
 
-  // Try multiple search strategies
+  // Try multiple search strategies - using exact column names from the database
   const searchStrategies = [
     // Search by UUID
     () => supabase.from("users").select("*").eq("id", userId).maybeSingle(),
     // Search by farcaster_id as string
     () => supabase.from("users").select("*").eq("farcaster_id", userId).maybeSingle(),
-    // Search by fid as integer (if userId is numeric)
-    () =>
-      /^\d+$/.test(userId)
-        ? supabase.from("users").select("*").eq("fid", Number.parseInt(userId)).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-    // Search by username
+    // Search by farcaster_username
     () => supabase.from("users").select("*").eq("farcaster_username", userId).maybeSingle(),
   ]
 
@@ -111,7 +105,6 @@ async function findUserById(userId: string) {
         // Add to cache
         userCache.set(cacheKey, user)
         if (user.farcaster_id) userCache.set(`fid:${user.farcaster_id}`, user)
-        if (user.fid) userCache.set(`fid:${user.fid}`, user)
 
         return user
       }
@@ -173,14 +166,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
     }
 
-    // Normalize the response format
+    // Normalize the response format - using exact column names from the database
     const responseUser = {
       id: user.id,
       farcaster_username: user.farcaster_username || "unknown",
       farcaster_display_name: user.farcaster_display_name || user.farcaster_username || "Unknown User",
       farcaster_pfp_url: user.farcaster_pfp_url || "",
-      farcaster_id: user.farcaster_id || user.fid?.toString(),
-      fid: user.fid,
+      farcaster_id: user.farcaster_id,
     }
 
     console.log(`Returning user data:`, responseUser)
