@@ -1,179 +1,184 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Search, MapPin, Plus, AlertCircle, RefreshCw } from "lucide-react"
+import { Search, MapPin, Plus, ExternalLink, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAuth } from "@/lib/auth-context"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { formatDistanceToNow } from "date-fns"
 
-interface PlacesListViewProps {
-  onPlaceSelect: (place: any) => void
-  onAddPlace?: () => void
+interface Place {
+  id: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  type?: string
+  description?: string
+  website_url?: string
+  created_at: string
+  created_by?: string
 }
 
-export function PlacesListView({ onPlaceSelect, onAddPlace }: PlacesListViewProps) {
-  const { dbUser } = useAuth()
-  const [places, setPlaces] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+interface PlacesListViewProps {
+  searchQuery: string
+  onSearchChange: (query: string) => void
+  onPlaceClick: (place: Place) => void
+  onAddPlace: () => void
+}
+
+export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace }: PlacesListViewProps) {
+  const [places, setPlaces] = useState<Place[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
 
-  // Fetch places
   useEffect(() => {
-    const fetchPlaces = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const response = await fetch(`/api/places?t=${Date.now()}`)
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch places: ${response.status}`)
-        }
-
-        const data = await response.json()
-        setPlaces(data)
-      } catch (err) {
-        console.error("Error fetching places:", err)
-        setError(err instanceof Error ? err.message : "Failed to load places")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchPlaces()
   }, [])
 
-  // Filter places based on search query
-  const filteredPlaces = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return places
+  const fetchPlaces = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch("/api/places")
+      if (!response.ok) {
+        throw new Error("Failed to fetch places")
+      }
+
+      const data = await response.json()
+      setPlaces(data.places || [])
+    } catch (err) {
+      console.error("Error fetching places:", err)
+      setError("Failed to load places")
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const filteredPlaces = useMemo(() => {
+    if (!searchQuery.trim()) return places
 
     const query = searchQuery.toLowerCase()
     return places.filter(
       (place) =>
-        place.name?.toLowerCase().includes(query) ||
-        place.address?.toLowerCase().includes(query) ||
+        place.name.toLowerCase().includes(query) ||
+        place.address.toLowerCase().includes(query) ||
         place.type?.toLowerCase().includes(query) ||
         place.description?.toLowerCase().includes(query),
     )
   }, [places, searchQuery])
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
-    } catch (e) {
-      return "Unknown date"
-    }
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMs = now.getTime() - date.getTime()
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+    if (diffInDays === 0) return "Today"
+    if (diffInDays === 1) return "Yesterday"
+    if (diffInDays < 7) return `${diffInDays} days ago`
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`
+    if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`
+    return `${Math.floor(diffInDays / 365)} years ago`
   }
 
-  const handleRetry = () => {
-    setError(null)
-    setIsLoading(true)
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {/* Search bar */}
+        <div className="relative">
+          <Input
+            type="text"
+            className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+            placeholder="Search places..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+          <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+        </div>
 
-    fetch(`/api/places?t=${Date.now()}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch places: ${response.status}`)
-        }
-        return response.json()
-      })
-      .then((data) => {
-        setPlaces(data)
-        setIsLoading(false)
-      })
-      .catch((err) => {
-        console.error("Error retrying places fetch:", err)
-        setError(err instanceof Error ? err.message : "Failed to load places")
-        setIsLoading(false)
-      })
+        {/* Loading skeletons */}
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="p-3 border border-black/10 rounded-lg">
+            <Skeleton className="h-4 w-3/4 mb-2" />
+            <Skeleton className="h-3 w-full mb-1" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600 mb-4">{error}</p>
+        <Button onClick={fetchPlaces} variant="outline" className="border-black/20">
+          Try Again
+        </Button>
+      </div>
+    )
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-black/10">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search places..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-full"
-          />
+    <div className="space-y-4">
+      {/* Search bar */}
+      <div className="relative">
+        <Input
+          type="text"
+          className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+          placeholder="Search places..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+      </div>
+
+      {/* Add place button */}
+      <Button onClick={onAddPlace} className="w-full bg-black text-white hover:bg-black/80">
+        <Plus size={16} className="mr-2" />
+        Add Place
+      </Button>
+
+      {/* Results summary */}
+      <div className="text-sm text-black/60">
+        {searchQuery ? <span>{filteredPlaces.length} places found</span> : <span>{places.length} total places</span>}
+      </div>
+
+      {/* Places list */}
+      {filteredPlaces.length === 0 ? (
+        <div className="text-center py-8">
+          {searchQuery ? <p>No places found matching "{searchQuery}"</p> : <p>No places yet. Add the first one!</p>}
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="p-4 space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-start space-x-3">
-                <Skeleton className="h-10 w-10 rounded-md flex-shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="p-4">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex flex-col">
-                <span>Error loading places: {error}</span>
-                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetry}>
-                  <RefreshCw className="h-3 w-3 mr-2" />
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : filteredPlaces.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            {searchQuery ? <p>No places match your search</p> : <p>No places found. Add your first place!</p>}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {searchQuery && (
-              <div className="px-4 py-2 text-xs text-gray-500">
-                Found {filteredPlaces.length} {filteredPlaces.length === 1 ? "place" : "places"}
-              </div>
-            )}
-
-            {filteredPlaces.map((place) => (
-              <button
-                key={place.id}
-                className="w-full text-left p-3 hover:bg-gray-50 transition-colors flex items-start"
-                onClick={() => onPlaceSelect(place)}
-              >
-                <div className="h-10 w-10 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0 mr-3">
-                  <MapPin className="h-5 w-5 text-gray-500" />
-                </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredPlaces.map((place) => (
+            <div
+              key={place.id}
+              className="p-3 border border-black/10 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+              onClick={() => onPlaceClick(place)}
+            >
+              <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{place.name}</h3>
-                  <p className="text-xs text-gray-500 truncate">{place.address}</p>
-                  {place.created_at && (
-                    <p className="text-xs text-gray-400 mt-1">Added {formatDate(place.created_at)}</p>
+                  <h3 className="font-serif font-medium text-sm mb-1 truncate">{place.name}</h3>
+                  <p className="text-xs text-black/60 mb-1 truncate">{place.address}</p>
+                  {place.type && (
+                    <span className="inline-block px-2 py-1 bg-black/5 text-xs rounded text-black/70 mb-1">
+                      {place.type}
+                    </span>
                   )}
+                  <div className="flex items-center text-xs text-black/50 mt-2">
+                    <Clock size={12} className="mr-1" />
+                    <span>{formatTimeAgo(place.created_at)}</span>
+                  </div>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {dbUser && (
-        <div className="p-4 border-t border-black/10">
-          <Button className="w-full bg-black text-white hover:bg-black/80" onClick={onAddPlace}>
-            <Plus size={16} className="mr-1" /> Add Place
-          </Button>
+                <div className="flex flex-col items-end gap-1 ml-2">
+                  <MapPin size={16} className="text-black/40" />
+                  {place.website_url && <ExternalLink size={12} className="text-black/40" />}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

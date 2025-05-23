@@ -1,60 +1,58 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import { X, ListIcon, MapPin, User, Search, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Search, MapPin, ListIcon, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
+import { useMiniApp } from "@/hooks/use-mini-app"
 import { UserProfileView } from "./user-profile-view"
 import { CreateListModal } from "@/components/create-list-modal"
+import { UserListsDisplay } from "@/components/user-lists-display"
 import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
 import { PlacesListView } from "./places-list-view"
-import { SidebarSearch } from "./sidebar-search"
-import { AddPlaceModal } from "./add-place-modal"
-import { cn } from "@/lib/utils"
 
-interface SidebarProps {
-  isOpen: boolean
-  onToggle: () => void
-  onCenterMap?: (coordinates: { lat: number; lng: number }) => void
-  initialView?: "lists" | "places" | "profile" | "search"
-  initialListId?: string
-  initialPlaceId?: string
-}
+export function Sidebar() {
+  // Get miniapp context
+  const { isMiniApp } = useMiniApp()
 
-export function Sidebar({ isOpen, onToggle, onCenterMap, initialView, initialListId, initialPlaceId }: SidebarProps) {
-  const { isAuthenticated } = useAuth()
-  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
-  const router = useRouter()
-  const pathname = usePathname()
+  // Detect mobile devices
+  const [isMobile, setIsMobile] = useState(false)
 
-  const userIsAuthenticated = isAuthenticated || neynarAuthenticated
+  // State for sidebar visibility
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isHidden, setIsHidden] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<"lists" | "places" | "profile" | "search">(initialView || "lists")
-  const [activeView, setActiveView] = useState<"list" | "lists" | "place" | "places" | "profile" | "search" | "login">(
-    initialView || "lists",
-  )
-  const [selectedListId, setSelectedListId] = useState<string | null>(initialListId || null)
-  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
+  // Sidebar content state
+  const [activeTab, setActiveTab] = useState("discover")
+  const [searchQuery, setSearchQuery] = useState("")
   const [showLogin, setShowLogin] = useState(false)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
   const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
-  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [addPlaceListId, setAddPlaceListId] = useState<string | null>(null)
+  const [selectedListId, setSelectedListId] = useState<string | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
+  // Auth context
+  const { isAuthenticated } = useAuth()
+  const { isAuthenticated: neynarAuthenticated, user } = useNeynarContext()
+
+  const userIsAuthenticated = isAuthenticated || neynarAuthenticated
+
+  // Ref for the sidebar element
   const sidebarRef = useRef<HTMLDivElement>(null)
 
+  // Detect mobile devices and set initial sidebar state
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768
-      // setIsMobile(mobile)
+      setIsMobile(mobile)
 
       // Only auto-collapse on initial load, not on resize
       if (!sidebarRef.current) {
-        // setIsCollapsed(mobile || isMiniApp)
+        setIsCollapsed(mobile || isMiniApp)
       }
     }
 
@@ -63,42 +61,30 @@ export function Sidebar({ isOpen, onToggle, onCenterMap, initialView, initialLis
     window.addEventListener("resize", checkMobile)
 
     return () => window.removeEventListener("resize", checkMobile)
-  }, [initialListId, initialPlaceId, initialView, userIsAuthenticated])
+  }, [isMiniApp])
 
+  // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
-    if (initialListId) {
-      setActiveView("list")
-      setSelectedListId(initialListId)
-    } else if (initialPlaceId) {
-      // Fetch place details and set selected place
-      fetch(`/api/places/${initialPlaceId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setSelectedPlace(data)
-          setActiveView("place")
-        })
-        .catch((err) => console.error("Error fetching place:", err))
-    } else if (initialView) {
-      setActiveTab(initialView)
-
-      if (initialView === "profile" && !userIsAuthenticated) {
-        setActiveView("login")
-      } else {
-        setActiveView(initialView === "places" ? "places" : "lists")
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile && !isCollapsed && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsCollapsed(true)
       }
     }
-  }, [initialListId, initialPlaceId, initialView, userIsAuthenticated])
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isMobile, isCollapsed])
 
   const handleProfileClick = () => {
     if (!userIsAuthenticated) {
       setShowLogin(true)
-      // setIsCollapsed(false) // Always expand sidebar when showing login
+      setIsCollapsed(false) // Always expand sidebar when showing login
     } else {
       // If user is authenticated, toggle profile view or navigate to profile
       setActiveTab("profile")
       setSelectedListId(null) // Clear any selected list
       setSelectedPlace(null) // Clear any selected place
-      // setIsCollapsed(false)
+      setIsCollapsed(false)
     }
   }
 
@@ -107,7 +93,7 @@ export function Sidebar({ isOpen, onToggle, onCenterMap, initialView, initialLis
     setShowLogin(false)
     setSelectedListId(null) // Clear any selected list
     setSelectedPlace(null) // Clear any selected place
-    // setIsCollapsed(false) // Always expand sidebar when changing tabs
+    setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
   const handleCreateList = () => {
@@ -188,203 +174,286 @@ export function Sidebar({ isOpen, onToggle, onCenterMap, initialView, initialLis
     setSelectedPlace(null) // Clear any selected place when navigating to a list
   }
 
-  const handleTabChange = (tab: "lists" | "places" | "profile" | "search") => {
-    setActiveTab(tab)
-
-    if (tab === "profile" && !userIsAuthenticated) {
-      setActiveView("login")
-    } else if (tab === "search") {
-      setActiveView("search")
-    } else {
-      setActiveView(tab === "places" ? "places" : "lists")
-    }
+  // For very small screens, we can completely hide the sidebar
+  if (isHidden) {
+    return (
+      <button
+        className="absolute top-2 left-2 z-50 bg-white p-2 rounded-full shadow-md"
+        onClick={() => setIsHidden(false)}
+        aria-label="Show sidebar"
+      >
+        <Menu size={20} />
+      </button>
+    )
   }
 
-  const handleListSelect = (listId: string) => {
-    setSelectedListId(listId)
-    setActiveView("list")
+  // Collapsed sidebar view
+  if (isCollapsed) {
+    return (
+      <div
+        className="bg-white h-full border-r border-black/10 flex flex-col items-center py-4 transition-all duration-300 ease-in-out"
+        style={{ width: isMobile || isMiniApp ? "40px" : "48px" }}
+      >
+        {/* LO Logotype */}
+        <div className="mb-2 flex flex-col items-center">
+          <h1 className="font-serif text-xl font-bold">LO</h1>
+          <button
+            className="mt-2 p-1 hover:bg-gray-100 rounded-full"
+            onClick={() => setIsCollapsed(false)}
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
 
-    // Update URL without full navigation
-    router.push(`/lists/${listId}`, { scroll: false })
+        <div className="w-full h-px bg-black/10 my-2"></div>
+
+        <button
+          className={`p-2 rounded-full mb-2 ${activeTab === "discover" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
+          onClick={() => handleTabClick("discover")}
+          aria-label="Discover"
+        >
+          <Home size={20} />
+        </button>
+        <button
+          className={`p-2 rounded-full mb-2 ${activeTab === "mylists" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
+          onClick={() => handleTabClick("mylists")}
+          aria-label="My Lists"
+        >
+          <ListIcon size={20} />
+        </button>
+        <button
+          className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
+          onClick={() => handleTabClick("places")}
+          aria-label="Places"
+        >
+          <MapPin size={20} />
+        </button>
+        <div className="flex-grow"></div>
+        {userIsAuthenticated ? (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              className={`p-2 rounded-full ${activeTab === "profile" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
+              onClick={handleProfileClick}
+              aria-label="Profile"
+            >
+              {user?.pfp_url ? (
+                <img
+                  src={user.pfp_url || "/placeholder.svg"}
+                  alt="Profile"
+                  className="w-6 h-6 rounded-full border border-black/10"
+                />
+              ) : (
+                <User size={20} />
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            className="p-2 rounded-full text-black hover:bg-gray-100"
+            onClick={() => {
+              setShowLogin(true)
+              setIsCollapsed(false)
+            }}
+            aria-label="Sign In"
+          >
+            <User size={20} />
+          </button>
+        )}
+
+        {/* Hide button for very small screens */}
+        {(isMobile || isMiniApp) && (
+          <button
+            className="mt-2 p-2 rounded-full text-black hover:bg-gray-100"
+            onClick={() => setIsHidden(true)}
+            aria-label="Hide sidebar"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
+      </div>
+    )
   }
 
-  const handlePlaceSelect = (place: any) => {
-    setSelectedPlace(place)
-    setActiveView("place")
-
-    // Update URL without full navigation
-    if (place.id) {
-      router.push(`/places/${place.id}`, { scroll: false })
-    }
-  }
-
-  const handleBack = () => {
-    if (activeView === "list") {
-      setActiveView("lists")
-      router.push("/lists", { scroll: false })
-    } else if (activeView === "place") {
-      setActiveView(activeTab === "places" ? "places" : "lists")
-      router.push(activeTab === "places" ? "/places" : "/lists", { scroll: false })
-    } else if (activeView === "login") {
-      setActiveView("lists")
-      setActiveTab("lists")
-    }
-  }
-
-  const handleAddPlaceModal = (listId?: string) => {
-    setAddPlaceListId(listId || null)
-    setShowAddPlaceModal(true)
-  }
-
-  const handlePlaceAdded = (place: any) => {
-    // If we're in the places tab, refresh the places list
-    if (activeTab === "places") {
-      // This would ideally update the places list without a full reload
-      setActiveView("places")
-    }
-
-    // If a list ID was provided, navigate to that list
-    if (addPlaceListId) {
-      setSelectedListId(addPlaceListId)
-      setActiveView("list")
-    }
-
-    setShowAddPlaceModal(false)
-  }
-
+  // Expanded sidebar view
   return (
     <>
       <div
         ref={sidebarRef}
-        className={cn(
-          "fixed inset-y-0 left-0 z-20 w-full max-w-sm bg-white shadow-lg transition-transform duration-300 ease-in-out sm:border-r sm:border-black/10",
-          isOpen ? "translate-x-0" : "-translate-x-full",
-        )}
+        className="bg-white h-full border-r border-black/10 flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        style={{
+          width: isMobile || isMiniApp ? "85vw" : "320px",
+          maxWidth: "320px",
+        }}
       >
-        {/* Sidebar Header */}
-        <div className="flex h-14 items-center justify-between border-b border-black/10 px-4">
-          <div className="flex items-center">
-            <span className="font-serif text-xl">LO</span>
-          </div>
-          <div className="flex items-center space-x-2">
+        {/* Header with collapse button and profile button */}
+        <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
+          <h1 className="font-serif text-xl">LO</h1>
+          <div className="flex items-center gap-2">
+            {/* Profile button in header */}
+            {userIsAuthenticated ? (
+              <button
+                className={`p-1 hover:bg-gray-100 rounded-full ${activeTab === "profile" ? "bg-gray-100" : ""}`}
+                onClick={handleProfileClick}
+                aria-label="Profile"
+              >
+                {user?.pfp_url ? (
+                  <img
+                    src={user.pfp_url || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-6 h-6 rounded-full border border-black/10"
+                  />
+                ) : (
+                  <User size={18} />
+                )}
+              </button>
+            ) : (
+              <button
+                className="p-1 hover:bg-gray-100 rounded-full"
+                onClick={() => setShowLogin(true)}
+                aria-label="Sign In"
+              >
+                <User size={18} />
+              </button>
+            )}
             <button
-              onClick={onToggle}
-              className="rounded-full p-2 text-black hover:bg-black/5"
-              aria-label="Close sidebar"
+              className="p-1 hover:bg-gray-100 rounded-full"
+              onClick={() => setIsCollapsed(true)}
+              aria-label="Collapse sidebar"
             >
-              <X size={20} />
+              <ChevronLeft size={18} />
             </button>
           </div>
         </div>
 
-        {/* Sidebar Content */}
-        <div className="flex h-[calc(100%-3.5rem)] flex-col">
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto">
-            {/* Lists View */}
-            {activeView === "lists" && (
-              <div className="p-4">
-                <h2 className="mb-4 text-lg font-medium">Your Lists</h2>
-                {/* Lists content would go here */}
-                <div className="text-center py-8">
-                  <p className="mb-4">Create and manage your lists of places</p>
-                  {userIsAuthenticated && (
-                    <Button className="bg-black text-white hover:bg-black/80">
-                      <Plus size={16} className="mr-1" /> Create List
-                    </Button>
-                  )}
+        {/* Content based on what's being viewed */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {showLogin ? (
+            <div className="flex-1 overflow-y-auto">
+              <LoginView
+                onBack={() => setShowLogin(false)}
+                onLoginSuccess={() => {
+                  setShowLogin(false)
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {activeTab === "profile" ? (
+                <div className="flex-1 overflow-y-auto">
+                  <UserProfileView
+                    onClose={() => setActiveTab("discover")}
+                    expanded={true}
+                    onCreateList={handleCreateList}
+                    onSelectList={handleSelectList}
+                    key={listsKey}
+                  />
                 </div>
-              </div>
-            )}
+              ) : selectedPlace ? (
+                <div className="flex-1 overflow-y-auto">
+                  <PlaceDetailView
+                    place={selectedPlace}
+                    listId={selectedListId || ""}
+                    onBack={handleBackFromPlace}
+                    onPlaceUpdated={handlePlaceUpdated}
+                    onPlaceDeleted={handlePlaceDeleted}
+                    onCenterMap={handleCenterMap}
+                    onNavigateToList={handleNavigateToList}
+                  />
+                </div>
+              ) : selectedListId ? (
+                <div className="flex-1 overflow-y-auto">
+                  <ListDetailView
+                    listId={selectedListId}
+                    onBack={handleBackFromList}
+                    onPlaceClick={handlePlaceClick}
+                    onEditList={handleEditList}
+                    onDeleteList={handleDeleteList}
+                    onAddPlace={handleAddPlace}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Tabs */}
+                  <div className="flex border-b border-black/10">
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("discover")}
+                    >
+                      Discover
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("mylists")}
+                    >
+                      My Lists
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("places")}
+                    >
+                      Places
+                    </button>
+                  </div>
 
-            {/* Places View */}
-            {activeView === "places" && (
-              <PlacesListView onPlaceSelect={handlePlaceSelect} onAddPlace={() => handleAddPlaceModal()} />
-            )}
+                  {/* Search bar - only show for discover and mylists tabs */}
+                  {(activeTab === "discover" || activeTab === "mylists") && (
+                    <div className="px-4 pt-3 pb-2">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                          placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
+                      </div>
+                    </div>
+                  )}
 
-            {/* List Detail View */}
-            {activeView === "list" && selectedListId && (
-              <ListDetailView
-                listId={selectedListId}
-                onBack={handleBack}
-                onPlaceSelect={handlePlaceSelect}
-                onAddPlace={() => handleAddPlaceModal(selectedListId)}
-                onCenterMap={handleCenterMap}
-              />
-            )}
+                  {/* Content based on active tab */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {activeTab === "discover" && (
+                      <div className="text-center py-8">
+                        <p>Discover places and lists from the community.</p>
+                        {!userIsAuthenticated && (
+                          <Button
+                            className="mt-4 bg-black text-white hover:bg-black/80"
+                            onClick={() => setShowLogin(true)}
+                          >
+                            Connect to get started
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
-            {/* Place Detail View */}
-            {activeView === "place" && selectedPlace && (
-              <PlaceDetailView
-                place={selectedPlace}
-                listId={selectedListId || ""}
-                onBack={handleBack}
-                onPlaceUpdated={handlePlaceUpdated}
-                onCenterMap={handleCenterMap}
-                onNavigateToList={handleListSelect}
-              />
-            )}
+                    {activeTab === "mylists" && (
+                      <UserListsDisplay
+                        compact={true}
+                        onCreateList={handleCreateList}
+                        onSelectList={handleSelectList}
+                        key={listsKey}
+                      />
+                    )}
 
-            {/* Profile View */}
-            {activeView === "profile" && userIsAuthenticated && <UserProfileView />}
-
-            {/* Login View */}
-            {activeView === "login" && <LoginView onBack={handleBack} />}
-
-            {/* Search View */}
-            {activeView === "search" && (
-              <SidebarSearch onPlaceSelect={handlePlaceSelect} onListSelect={handleListSelect} />
-            )}
-          </div>
-
-          {/* Bottom Navigation */}
-          <div className="flex h-14 shrink-0 items-center justify-around border-t border-black/10">
-            <button
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center py-2",
-                activeTab === "lists" ? "text-black" : "text-black/60 hover:text-black",
+                    {activeTab === "places" && (
+                      <PlacesListView
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onPlaceClick={handlePlaceClick}
+                        onAddPlace={() => {
+                          console.log("Add place clicked")
+                        }}
+                      />
+                    )}
+                  </div>
+                </>
               )}
-              onClick={() => handleTabChange("lists")}
-            >
-              <ListIcon size={20} />
-              <span className="mt-1 text-xs">Lists</span>
-            </button>
-            <button
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center py-2",
-                activeTab === "places" ? "text-black" : "text-black/60 hover:text-black",
-              )}
-              onClick={() => handleTabChange("places")}
-            >
-              <MapPin size={20} />
-              <span className="mt-1 text-xs">Places</span>
-            </button>
-            <button
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center py-2",
-                activeTab === "search" ? "text-black" : "text-black/60 hover:text-black",
-              )}
-              onClick={() => handleTabChange("search")}
-            >
-              <Search size={20} />
-              <span className="mt-1 text-xs">Search</span>
-            </button>
-            <button
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center py-2",
-                activeTab === "profile" ? "text-black" : "text-black/60 hover:text-black",
-              )}
-              onClick={() => handleTabChange("profile")}
-            >
-              <User size={20} />
-              <span className="mt-1 text-xs">Profile</span>
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </div>
-
-      {/* Backdrop for mobile */}
-      {isOpen && <div className="fixed inset-0 z-10 bg-black/20 sm:hidden" onClick={onToggle} aria-hidden="true" />}
 
       {/* Create List Modal */}
       <CreateListModal
@@ -392,15 +461,6 @@ export function Sidebar({ isOpen, onToggle, onCenterMap, initialView, initialLis
         onClose={() => setShowCreateListModal(false)}
         onListCreated={handleListCreated}
       />
-
-      {/* Add Place Modal */}
-      {showAddPlaceModal && (
-        <AddPlaceModal
-          listId={addPlaceListId || ""}
-          onClose={() => setShowAddPlaceModal(false)}
-          onPlaceAdded={handlePlaceAdded}
-        />
-      )}
     </>
   )
 }
