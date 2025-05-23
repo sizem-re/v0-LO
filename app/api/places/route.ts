@@ -14,18 +14,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin.from("places").select(`
         *,
-        list_places!inner(
+        users!created_by(
           id,
-          list_id,
-          added_by,
-          added_at,
-          notes,
-          lists!inner(
-            id,
-            title,
-            type,
-            created_by
-          )
+          farcaster_id,
+          farcaster_username,
+          farcaster_display_name,
+          farcaster_pfp_url
         )
       `)
 
@@ -72,13 +66,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform the data to include list information
+    // Transform the data to include creator information
     const transformedData =
       data?.map((place) => ({
         ...place,
-        lists: place.list_places?.map((lp) => lp.lists) || [],
-        addedAt: place.list_places?.[0]?.added_at || place.created_at,
-        notes: place.list_places?.[0]?.notes || place.description,
+        creator: place.users || null,
       })) || []
 
     return NextResponse.json({
@@ -95,7 +87,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, address, lat, lng, type, description, website_url } = body
+    const { name, address, lat, lng, type, description, website_url, created_by } = body
 
     // Validate required fields
     if (!name) {
@@ -106,6 +98,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Coordinates are required" }, { status: 400 })
     }
 
+    if (!created_by) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    }
+
     console.log(`Creating new place: ${name}`, {
       name,
       address,
@@ -114,6 +110,7 @@ export async function POST(request: NextRequest) {
       type,
       description,
       website_url,
+      created_by,
     })
 
     // Create the place
@@ -128,6 +125,7 @@ export async function POST(request: NextRequest) {
         description: description || "",
         website_url: website_url || "",
         created_at: new Date().toISOString(),
+        created_by,
       })
       .select()
       .single()
