@@ -11,6 +11,7 @@ import { Edit, Share2, Plus, Loader2 } from "lucide-react"
 import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { redirect } from "next/navigation"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -142,6 +143,9 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
   const handleAddPlace = () => {
     router.push(`/lists/${params.id}/add-place`)
   }
+
+  // Redirect to the map view with the list ID in the query params
+  redirect(`/map?list=${params.id}`)
 
   if (loading) {
     return (

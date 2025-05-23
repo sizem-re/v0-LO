@@ -2,10 +2,20 @@ import { type NextRequest, NextResponse } from "next/server"
 import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 import { v4 as uuidv4 } from "uuid"
 
+// Cache for user data to reduce duplicate lookups
+const userCache = new Map<string, any>()
+
 // Helper function to create user from FID using Neynar
 async function createUserFromFid(fid: string) {
   try {
     console.log(`Creating user from FID: ${fid}`)
+
+    // Check cache first
+    const cacheKey = `fid:${fid}`
+    if (userCache.has(cacheKey)) {
+      console.log(`Using cached user for FID: ${fid}`)
+      return userCache.get(cacheKey)
+    }
 
     // Fetch user data from Neynar
     const neynarResponse = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
@@ -50,6 +60,11 @@ async function createUserFromFid(fid: string) {
     }
 
     console.log(`Created user in Supabase:`, createdUser)
+
+    // Add to cache
+    userCache.set(cacheKey, createdUser)
+    userCache.set(`id:${createdUser.id}`, createdUser)
+
     return createdUser
   } catch (error) {
     console.error("Error in createUserFromFid:", error)
@@ -60,6 +75,13 @@ async function createUserFromFid(fid: string) {
 // Helper function to find user by ID with multiple search strategies
 async function findUserById(userId: string) {
   console.log(`Searching for user with ID: ${userId}`)
+
+  // Check cache first
+  const cacheKey = `id:${userId}`
+  if (userCache.has(cacheKey)) {
+    console.log(`Using cached user for ID: ${userId}`)
+    return userCache.get(cacheKey)
+  }
 
   // Try multiple search strategies
   const searchStrategies = [
@@ -85,12 +107,35 @@ async function findUserById(userId: string) {
       }
       if (user) {
         console.log(`Found user with strategy ${index + 1}:`, user)
+
+        // Add to cache
+        userCache.set(cacheKey, user)
+        if (user.farcaster_id) userCache.set(`fid:${user.farcaster_id}`, user)
+        if (user.fid) userCache.set(`fid:${user.fid}`, user)
+
         return user
       }
     } catch (error) {
       console.log(`Search strategy ${index + 1} threw error:`, error)
       continue
     }
+  }
+
+  // If we get here, try a direct query to debug
+  try {
+    console.log(`Attempting direct debug query for user ID: ${userId}`)
+    const { data: allUsers, error } = await supabase.from("users").select("*").limit(10)
+
+    if (error) {
+      console.error("Error fetching users for debug:", error)
+    } else {
+      console.log(`Debug: Found ${allUsers?.length || 0} users in database`)
+      if (allUsers && allUsers.length > 0) {
+        console.log("Sample user data:", allUsers[0])
+      }
+    }
+  } catch (error) {
+    console.error("Error in debug query:", error)
   }
 
   console.log(`No user found with any strategy for ID: ${userId}`)
@@ -100,7 +145,8 @@ async function findUserById(userId: string) {
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const userId = params.id
-    console.log(`GET /api/users/${userId}`)
+    const timestamp = Date.now() // For cache busting
+    console.log(`GET /api/users/${userId} (${timestamp})`)
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
@@ -120,7 +166,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       // Return a fallback user object instead of 404
       return NextResponse.json({
         id: userId,
-        farcaster_username: "Unknown User",
+        farcaster_username: "unknown",
         farcaster_display_name: "Unknown User",
         farcaster_pfp_url: "",
         farcaster_id: userId,
@@ -130,7 +176,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Normalize the response format
     const responseUser = {
       id: user.id,
-      farcaster_username: user.farcaster_username || "Unknown User",
+      farcaster_username: user.farcaster_username || "unknown",
       farcaster_display_name: user.farcaster_display_name || user.farcaster_username || "Unknown User",
       farcaster_pfp_url: user.farcaster_pfp_url || "",
       farcaster_id: user.farcaster_id || user.fid?.toString(),

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ChevronLeft,
   MapPin,
@@ -70,6 +70,7 @@ export function PlaceDetailView({
   const [currentList, setCurrentList] = useState<any>(null)
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Debug function
   const fetchDebugData = async () => {
@@ -98,7 +99,7 @@ export function PlaceDetailView({
       if (!listId) return
 
       try {
-        const response = await fetch(`/api/lists/${listId}`)
+        const response = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
         if (response.ok) {
           const listData = await response.json()
           setCurrentList(listData)
@@ -111,107 +112,121 @@ export function PlaceDetailView({
     fetchCurrentList()
   }, [listId])
 
-  // Fetch user who added this place - improved logic
-  useEffect(() => {
-    const fetchAddedByUser = async () => {
-      // Try multiple sources for the user ID
-      let userId = place?.addedBy || place?.added_by
+  // Fetch user who added this place - improved logic with retry
+  const fetchAddedByUser = useCallback(async () => {
+    // Try multiple sources for the user ID
+    let userId = place?.addedBy || place?.added_by
 
-      // If no user ID in place, try to get it from the list_places relationship
-      if (!userId) {
-        try {
-          const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${place.id}&listId=${listId}`)
-          if (listPlaceResponse.ok) {
-            const debugData = await listPlaceResponse.json()
-            userId = debugData.listPlace?.added_by || debugData.place?.added_by
-            console.log("Found user ID from list_places:", userId)
-          }
-        } catch (error) {
-          console.error("Error fetching list_places data:", error)
-        }
-      }
-
-      if (!userId) {
-        console.log("No user ID found for place:", place)
-        setAddedByUser({ display_name: "Unknown User" })
-        return
-      }
-
+    // If no user ID in place, try to get it from the list_places relationship
+    if (!userId) {
       try {
-        setIsLoadingAddedBy(true)
-        setUserError(null)
-        console.log("Fetching user with ID:", userId)
-
-        const response = await fetch(`/api/users/${userId}?t=${Date.now()}`)
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
-          throw new Error(errorData.error || `Failed to fetch user: ${response.status}`)
-        }
-
-        const userData = await response.json()
-        console.log("Fetched user data:", userData)
-
-        if (userData.display_name === "Unknown User" && userData.username === "unknown") {
-          console.log("API returned fallback user data")
-          setAddedByUser({ display_name: "Unknown User" })
-        } else {
-          setAddedByUser(userData)
+        const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${place.id}&listId=${listId}`)
+        if (listPlaceResponse.ok) {
+          const debugData = await listPlaceResponse.json()
+          userId = debugData.listPlace?.added_by || debugData.place?.added_by
+          console.log("Found user ID from list_places:", userId)
         }
       } catch (error) {
-        console.error("Error fetching user who added the place:", error)
-        setAddedByUser({ display_name: "Unknown User" })
-        setUserError(error instanceof Error ? error.message : "Failed to load user data")
-      } finally {
-        setIsLoadingAddedBy(false)
+        console.error("Error fetching list_places data:", error)
       }
     }
 
-    fetchAddedByUser()
-  }, [place, listId])
+    if (!userId) {
+      console.log("No user ID found for place:", place)
+      setAddedByUser({ display_name: "Unknown User" })
+      return
+    }
 
-  // Fetch lists that contain this place
-  useEffect(() => {
-    const fetchConnectedLists = async () => {
-      if (!place?.id) return
+    try {
+      setIsLoadingAddedBy(true)
+      setUserError(null)
+      console.log("Fetching user with ID:", userId)
 
-      try {
-        setIsLoadingLists(true)
-        setListsError(null)
+      // Add cache busting and retry count to URL
+      const response = await fetch(`/api/users/${userId}?t=${Date.now()}&retry=${retryCount}`)
 
-        const response = await fetch(`/api/places/${place.id}/lists`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+        throw new Error(errorData.error || `Failed to fetch user: ${response.status}`)
+      }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
-          throw new Error(errorData.error || `Failed to fetch lists: ${response.status}`)
+      const userData = await response.json()
+      console.log("Fetched user data:", userData)
+
+      if (userData.display_name === "Unknown User" && userData.farcaster_username === "unknown") {
+        console.log("API returned fallback user data")
+
+        // If we got a fallback user and have retries left, try again
+        if (retryCount < 2) {
+          console.log(`Retry attempt ${retryCount + 1} for user ${userId}`)
+          setRetryCount(retryCount + 1)
+          return
         }
 
-        const lists = await response.json()
+        setAddedByUser({ display_name: "Unknown User" })
+      } else {
+        setAddedByUser(userData)
+      }
+    } catch (error) {
+      console.error("Error fetching user who added the place:", error)
+      setAddedByUser({ display_name: "Unknown User" })
+      setUserError(error instanceof Error ? error.message : "Failed to load user data")
+    } finally {
+      setIsLoadingAddedBy(false)
+    }
+  }, [place, listId, retryCount])
 
-        if (!lists.some((list: any) => list.id === listId)) {
-          const currentListResponse = await fetch(`/api/lists/${listId}`)
+  useEffect(() => {
+    fetchAddedByUser()
+  }, [fetchAddedByUser])
+
+  // Fetch lists that contain this place
+  const fetchConnectedLists = useCallback(async () => {
+    if (!place?.id) return
+
+    try {
+      setIsLoadingLists(true)
+      setListsError(null)
+
+      const response = await fetch(`/api/places/${place.id}/lists?t=${Date.now()}`)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to parse error response" }))
+        throw new Error(errorData.error || `Failed to fetch lists: ${response.status}`)
+      }
+
+      const lists = await response.json()
+
+      // Make sure current list is included
+      if (!lists.some((list: any) => list.id === listId)) {
+        try {
+          const currentListResponse = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
           if (currentListResponse.ok) {
             const currentList = await currentListResponse.json()
             lists.push(currentList)
           }
+        } catch (error) {
+          console.error("Error fetching current list:", error)
         }
-
-        setConnectedLists(lists)
-      } catch (error) {
-        console.error("Error fetching connected lists:", error)
-        setListsError(error instanceof Error ? error.message : "Failed to load lists data")
-        toast({
-          title: "Error",
-          description: "Failed to load lists containing this place",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoadingLists(false)
       }
-    }
 
-    fetchConnectedLists()
+      setConnectedLists(lists)
+    } catch (error) {
+      console.error("Error fetching connected lists:", error)
+      setListsError(error instanceof Error ? error.message : "Failed to load lists data")
+      toast({
+        title: "Error",
+        description: "Failed to load lists containing this place",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingLists(false)
+    }
   }, [place?.id, listId])
+
+  useEffect(() => {
+    fetchConnectedLists()
+  }, [fetchConnectedLists])
 
   // Fetch user's lists for adding the place to a new list
   useEffect(() => {
@@ -220,7 +235,7 @@ export function PlaceDetailView({
 
       try {
         setIsLoadingUserLists(true)
-        const response = await fetch(`/api/lists?userId=${dbUser.id}`)
+        const response = await fetch(`/api/lists?userId=${dbUser.id}&t=${Date.now()}`)
 
         if (!response.ok) {
           throw new Error(`Failed to fetch user lists: ${response.status}`)
@@ -392,13 +407,13 @@ export function PlaceDetailView({
 
   const handleRetryLists = () => {
     setListsError(null)
-    const placeId = place?.id
-    if (placeId) {
-      const updatedPlace = { ...place, id: placeId }
-      if (onPlaceUpdated) {
-        onPlaceUpdated(updatedPlace)
-      }
-    }
+    fetchConnectedLists()
+  }
+
+  const handleRetryUser = () => {
+    setUserError(null)
+    setRetryCount(0)
+    fetchAddedByUser()
   }
 
   const handleListClick = (listId: string) => {
@@ -424,7 +439,7 @@ export function PlaceDetailView({
             </button>
             <h2 className="font-serif text-xl truncate">{place.name}</h2>
           </div>
-          {/* Debug button - remove in production */}
+          {/* Debug button - only in development */}
           {process.env.NODE_ENV === "development" && (
             <Button
               variant="ghost"
@@ -441,8 +456,8 @@ export function PlaceDetailView({
         </div>
       </div>
 
-      {/* Debug info - remove in production */}
-      {showDebug && debugData && (
+      {/* Debug info - only in development */}
+      {showDebug && debugData && process.env.NODE_ENV === "development" && (
         <div className="p-4 bg-yellow-50 border-b text-xs">
           <pre className="whitespace-pre-wrap overflow-auto max-h-40">{JSON.stringify(debugData, null, 2)}</pre>
         </div>
@@ -526,9 +541,16 @@ export function PlaceDetailView({
           {isLoadingAddedBy ? (
             <Skeleton className="h-4 w-24" />
           ) : addedByUser ? (
-            <p className="text-sm text-black/70">
-              Added by {addedByUser.display_name || addedByUser.username || "Unknown user"}
-            </p>
+            <div className="flex items-center">
+              <p className="text-sm text-black/70">
+                Added by {addedByUser.farcaster_display_name || addedByUser.display_name || "Unknown user"}
+              </p>
+              {addedByUser.display_name === "Unknown User" && (
+                <Button variant="ghost" size="sm" onClick={handleRetryUser} className="h-6 px-2 ml-2 text-xs">
+                  Retry
+                </Button>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-black/70">Added by a user</p>
           )}
@@ -537,7 +559,12 @@ export function PlaceDetailView({
         {userError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Error loading user data: {userError}</AlertDescription>
+            <AlertDescription className="flex flex-col">
+              <span>Error loading user data: {userError}</span>
+              <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryUser}>
+                Retry
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
 
