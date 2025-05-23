@@ -405,7 +405,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             body: JSON.stringify({
               name: placeName,
               address: fullAddress,
-              website: formattedWebsite,
+              website_url: formattedWebsite, // Use website_url instead of website
               lat: coordinates.lat,
               lng: coordinates.lng,
               created_by: dbUser.id,
@@ -531,7 +531,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             id: placeId,
             name: placeName,
             address: fullAddress,
-            website: formattedWebsite,
+            website_url: formattedWebsite, // Use website_url instead of website
             coordinates,
             listPlaceId: successfulAdds[0].id, // Use the first result for the original list
           })

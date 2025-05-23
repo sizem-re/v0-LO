@@ -65,7 +65,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Coordinates are required" }, { status: 400 })
     }
 
-    console.log(`Creating new place: ${name}`)
+    console.log(`Creating new place: ${name}`, {
+      name,
+      address,
+      lat,
+      lng,
+      type,
+      description,
+      website_url,
+    })
 
     // Create the place
     const { data: place, error } = await supabaseAdmin
