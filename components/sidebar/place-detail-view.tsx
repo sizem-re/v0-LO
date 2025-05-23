@@ -13,6 +13,7 @@ import {
   ListIcon,
   AlertCircle,
   Bug,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -72,6 +73,7 @@ export function PlaceDetailView({
   const [showDebug, setShowDebug] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Debug function
   const fetchDebugData = async () => {
@@ -92,14 +94,21 @@ export function PlaceDetailView({
     if (!place?.id) return
 
     try {
-      const response = await fetch(`/api/places/${place.id}?t=${Date.now()}`)
+      setIsRefreshing(true)
+      const timestamp = Date.now()
+      const response = await fetch(`/api/places/${place.id}?t=${timestamp}`)
+
       if (response.ok) {
         const placeData = await response.json()
         console.log("Fetched updated place data:", placeData)
         setCurrentPlace(placeData)
+      } else {
+        console.error("Error fetching place data:", response.status)
       }
     } catch (error) {
       console.error("Error fetching place data:", error)
+    } finally {
+      setIsRefreshing(false)
     }
   }, [place?.id])
 
@@ -455,6 +464,10 @@ export function PlaceDetailView({
     }
   }
 
+  const handleRefresh = () => {
+    fetchPlaceData()
+  }
+
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
@@ -470,20 +483,34 @@ export function PlaceDetailView({
             </button>
             <h2 className="font-serif text-xl truncate">{currentPlace.name}</h2>
           </div>
-          {/* Debug button - only in development */}
-          {process.env.NODE_ENV === "development" && (
+          <div className="flex items-center gap-1">
+            {/* Refresh button */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                fetchDebugData()
-                setShowDebug(!showDebug)
-              }}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
               className="text-xs"
+              title="Refresh place data"
             >
-              <Bug size={12} />
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
             </Button>
-          )}
+
+            {/* Debug button - only in development */}
+            {process.env.NODE_ENV === "development" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  fetchDebugData()
+                  setShowDebug(!showDebug)
+                }}
+                className="text-xs"
+              >
+                <Bug size={12} />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -491,6 +518,9 @@ export function PlaceDetailView({
       {showDebug && debugData && process.env.NODE_ENV === "development" && (
         <div className="p-4 bg-yellow-50 border-b text-xs">
           <pre className="whitespace-pre-wrap overflow-auto max-h-40">{JSON.stringify(debugData, null, 2)}</pre>
+          <pre className="whitespace-pre-wrap overflow-auto max-h-40 mt-2 pt-2 border-t">
+            Current place: {JSON.stringify(currentPlace, null, 2)}
+          </pre>
         </div>
       )}
 

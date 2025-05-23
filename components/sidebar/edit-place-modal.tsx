@@ -254,56 +254,31 @@ export function EditPlaceModal({
         updateData.lng = coordinates.lng.toString()
       }
 
-      if (
-        placeName !== place.name ||
-        finalAddress !== place.address ||
-        formattedWebsite !== place.website_url ||
-        (coordinates &&
-          (coordinates.lat !== Number.parseFloat(place.lat || "0") ||
-            coordinates.lng !== Number.parseFloat(place.lng || "0")))
-      ) {
-        const placeUpdateResponse = await fetch(`/api/places/${place.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        })
+      // Add a timestamp to prevent caching
+      const timestamp = Date.now()
 
-        if (!placeUpdateResponse.ok) {
-          const errorData = await placeUpdateResponse.json()
+      // Always update the place to ensure website_url is saved
+      const placeUpdateResponse = await fetch(`/api/places/${place.id}?t=${timestamp}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      })
 
-          // Special handling for website column not found error
-          if (errorData.error && errorData.error.includes("website")) {
-            console.warn("Website column not found in database, trying with website_url")
-
-            // Try again with website_url instead of website
-            delete updateData.website
-            updateData.website_url = formattedWebsite
-
-            const retryResponse = await fetch(`/api/places/${place.id}`, {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(updateData),
-            })
-
-            if (!retryResponse.ok) {
-              const retryErrorData = await retryResponse.json()
-              throw new Error(retryErrorData.error || "Failed to update place")
-            }
-          } else {
-            throw new Error(errorData.error || "Failed to update place")
-          }
-        }
+      if (!placeUpdateResponse.ok) {
+        const errorData = await placeUpdateResponse.json()
+        throw new Error(errorData.error || "Failed to update place")
       }
+
+      const updatedPlaceData = await placeUpdateResponse.json()
+      console.log("Place updated successfully:", updatedPlaceData)
 
       // Then, update the list-place relationship (notes)
       const listPlaceId = place.listPlaceId || place.list_place_id
 
       if (listPlaceId && notes !== place.notes) {
-        const listPlaceUpdateResponse = await fetch(`/api/list-places`, {
+        const listPlaceUpdateResponse = await fetch(`/api/list-places?t=${timestamp}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -333,15 +308,8 @@ export function EditPlaceModal({
       // Create an updated place object with the new values
       const updatedPlace = {
         ...place,
-        name: placeName,
-        address: finalAddress,
-        website_url: formattedWebsite,
-        notes,
-      }
-
-      if (coordinates) {
-        updatedPlace.lat = coordinates.lat.toString()
-        updatedPlace.lng = coordinates.lng.toString()
+        ...updatedPlaceData, // Use the data returned from the API
+        notes, // Add notes which might not be in the API response
       }
 
       // Call the callback with the updated place

@@ -5,8 +5,9 @@ import { supabase } from "@/lib/supabase-client"
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
+    const timestamp = request.nextUrl.searchParams.get("t") || Date.now()
 
-    console.log(`Fetching place: ${id}`)
+    console.log(`Fetching place: ${id} (timestamp: ${timestamp})`)
 
     const { data, error } = await supabase.from("places").select("*").eq("id", id).maybeSingle()
 
@@ -20,7 +21,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
     }
 
-    console.log(`Successfully fetched place: ${data.name}`, data)
+    console.log(`Successfully fetched place: ${data.name}`, {
+      id: data.id,
+      name: data.name,
+      website_url: data.website_url,
+      address: data.address,
+    })
+
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in GET /api/places/[id]:", error)
@@ -36,8 +43,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const { id } = params
     const updates = await request.json()
+    const timestamp = request.nextUrl.searchParams.get("t") || Date.now()
 
-    console.log("PATCH /api/places/[id] - Received updates:", updates)
+    console.log(`PATCH /api/places/${id} - Received updates (timestamp: ${timestamp}):`, updates)
 
     // Validate required fields
     if (!updates || Object.keys(updates).length === 0) {
@@ -61,6 +69,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Place not found" }, { status: 404 })
     }
 
+    console.log("Existing place data:", {
+      id: existingPlace.id,
+      name: existingPlace.name,
+      website_url: existingPlace.website_url,
+      address: existingPlace.address,
+    })
+
     // Only allow specific fields to be updated
     const allowedFields = ["name", "address", "lat", "lng", "website_url"]
     const filteredUpdates = Object.fromEntries(Object.entries(updates).filter(([key]) => allowedFields.includes(key)))
@@ -70,6 +85,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Add updated_at timestamp
     filteredUpdates.updated_at = new Date().toISOString()
 
+    // Perform the update
     const { data, error } = await supabase.from("places").update(filteredUpdates).eq("id", id).select().single()
 
     if (error) {
@@ -77,7 +93,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("PATCH /api/places/[id] - Updated place:", data)
+    console.log("PATCH /api/places/[id] - Updated place:", {
+      id: data.id,
+      name: data.name,
+      website_url: data.website_url,
+      address: data.address,
+    })
+
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error in PATCH /api/places/[id]:", error)
