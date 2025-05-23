@@ -381,21 +381,21 @@ export function EditPlaceModal({
       }
 
       console.log("Place removed successfully")
+      
+      // Call the callback to update the parent component FIRST
+      if (onPlaceRemoved) {
+        onPlaceRemoved(place.id)
+      }
+
+      // Then show the toast
       toast({
         title: "Place removed",
         description: `"${placeName}" has been removed from the list.`,
       })
 
-      // Close the confirmation dialog
+      // Finally close all dialogs
       setShowDeleteConfirm(false)
-      
-      // Close the modal
       onClose()
-
-      // Call the callback to update the parent component
-      if (onPlaceRemoved) {
-        onPlaceRemoved(place.id)
-      }
     } catch (err) {
       console.error("Error removing place:", err)
       toast({
