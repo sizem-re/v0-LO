@@ -35,16 +35,40 @@ export async function GET(request: NextRequest) {
     // Get the list data
     const { data: listData, error: listError } = await supabase.from("lists").select("*").eq("id", listId).maybeSingle()
 
-    // Get user data if we have an added_by field
+    // Try to get user data using multiple strategies
     let userData = null
-    const userId = listPlaceData?.added_by || placeData?.added_by
-    if (userId) {
+    let userLookupDetails = []
+    
+    const possibleUserIds = [
+      listPlaceData?.added_by,
+      listPlaceData?.creator_id,
+      placeData?.added_by,
+      placeData?.created_by,
+      listData?.owner_id
+    ].filter(Boolean)
+
+    console.log("Possible user IDs found:", possibleUserIds)
+
+    for (const userId of possibleUserIds) {
+      console.log(`Trying to fetch user with ID: ${userId}`)
+      
       const { data: userResult, error: userError } = await supabase
         .from("users")
         .select("*")
         .eq("id", userId)
         .maybeSingle()
-      userData = userResult
+
+      userLookupDetails.push({
+        userId,
+        found: !!userResult,
+        error: userError?.message,
+        userData: userResult
+      })
+
+      if (userResult && !userData) {
+        userData = userResult
+        console.log(`Found user data:`, userResult)
+      }
     }
 
     return NextResponse.json({
@@ -53,11 +77,14 @@ export async function GET(request: NextRequest) {
       allListPlaces,
       list: listData,
       user: userData,
-      userId,
+      userLookupDetails,
       debug: {
         placeAddedBy: placeData?.added_by,
+        placeCreatedBy: placeData?.created_by,
         listPlaceAddedBy: listPlaceData?.added_by,
+        listPlaceCreatorId: listPlaceData?.creator_id,
         listOwnerId: listData?.owner_id,
+        possibleUserIds,
       },
     })
   } catch (error) {
