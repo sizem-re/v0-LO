@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { NeynarProviderWrapper } from "@/components/neynar-provider-wrapper"
+import { WelcomeModal } from "@/components/welcome-modal"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,7 +55,10 @@ export default function RootLayout({
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NeynarProviderWrapper>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              {children}
+              <WelcomeModal />
+            </AuthProvider>
           </NeynarProviderWrapper>
         </ThemeProvider>
       </body>
