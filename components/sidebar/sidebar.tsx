@@ -15,6 +15,7 @@ import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
 import { PlacesListView } from "./places-list-view"
 import { AddPlaceModal } from "./add-place-modal"
+import { DiscoverView } from "./discover-view"
 
 export function Sidebar() {
   // Get miniapp context
@@ -427,17 +428,12 @@ export function Sidebar() {
                   {/* Content based on active tab */}
                   <div className="flex-1 overflow-y-auto p-4">
                     {activeTab === "discover" && (
-                      <div className="text-center py-8">
-                        <p>Discover places and lists from the community.</p>
-                        {!userIsAuthenticated && (
-                          <Button
-                            className="mt-4 bg-black text-white hover:bg-black/80"
-                            onClick={() => setShowLogin(true)}
-                          >
-                            Connect to get started
-                          </Button>
-                        )}
-                      </div>
+                      <DiscoverView
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onSelectList={handleSelectList}
+                        onLogin={() => setShowLogin(true)}
+                      />
                     )}
 
                     {activeTab === "mylists" && (
