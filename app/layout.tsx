@@ -39,6 +39,25 @@ export const metadata: Metadata = {
   description: "Discover and share curated lists of locations",
   manifest: "/manifest.json",
   generator: "v0.dev",
+  openGraph: {
+    title: "LO - Discover Places",
+    description: "Discover and share curated lists of locations",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "LO - Places picked by people, not algorithms"
+      }
+    ],
+    type: "website"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LO - Discover Places",
+    description: "Discover and share curated lists of locations",
+    images: ["/og-image.png"]
+  }
 }
 
 export default function RootLayout({
