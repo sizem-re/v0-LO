@@ -414,7 +414,7 @@ export function EditPlaceModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
           </DialogHeader>
@@ -471,11 +471,11 @@ export function EditPlaceModal({
                       placeholder="Street address"
                       value={addressComponents.street}
                       onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
-                      className="mt-1"
+                      className="mt-1 w-full"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
+                    <div className="w-full">
                       <Label htmlFor="city" className="text-xs">
                         City
                       </Label>
@@ -485,10 +485,10 @@ export function EditPlaceModal({
                         placeholder="City"
                         value={addressComponents.city}
                         onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
-                        className="mt-1"
+                        className="mt-1 w-full"
                       />
                     </div>
-                    <div>
+                    <div className="w-full">
                       <Label htmlFor="state" className="text-xs">
                         State/Province
                       </Label>
@@ -498,12 +498,12 @@ export function EditPlaceModal({
                         placeholder="State/Province"
                         value={addressComponents.state}
                         onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
-                        className="mt-1"
+                        className="mt-1 w-full"
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
+                    <div className="w-full">
                       <Label htmlFor="postalCode" className="text-xs">
                         Postal Code
                       </Label>
@@ -513,10 +513,10 @@ export function EditPlaceModal({
                         placeholder="Postal/ZIP code"
                         value={addressComponents.postalCode}
                         onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
-                        className="mt-1"
+                        className="mt-1 w-full"
                       />
                     </div>
-                    <div>
+                    <div className="w-full">
                       <Label htmlFor="country" className="text-xs">
                         Country
                       </Label>
@@ -526,7 +526,7 @@ export function EditPlaceModal({
                         placeholder="Country"
                         value={addressComponents.country}
                         onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
-                        className="mt-1"
+                        className="mt-1 w-full"
                       />
                     </div>
                   </div>
@@ -558,7 +558,7 @@ export function EditPlaceModal({
                 />
                 <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
               </div>
-              <div className="text-xs text-gray-500">Current value: "{websiteUrl}"</div>
+              <div className="text-xs text-gray-500 break-all">Current value: "{websiteUrl}"</div>
             </div>
 
             <div className="space-y-2">
