@@ -62,22 +62,56 @@ export function Sidebar() {
 
     // Check on mount and window resize
     checkMobile()
-    window.addEventListener("resize", checkMobile)
-
-    return () => window.removeEventListener("resize", checkMobile)
+    
+    // Add debounce to resize handler to prevent rapid state changes
+    let resizeTimer: NodeJS.Timeout
+    const handleResize = () => {
+      clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(checkMobile, 100)
+    }
+    
+    window.addEventListener("resize", handleResize)
+    return () => {
+      window.removeEventListener("resize", handleResize)
+      clearTimeout(resizeTimer)
+    }
   }, [isMiniApp])
 
   // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (isMobile && !isCollapsed && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setIsCollapsed(true)
+      // Only handle click-outside if:
+      // 1. We're on mobile
+      // 2. The sidebar is expanded
+      // 3. The click is not within the sidebar
+      // 4. The click is not on a modal or dialog (they usually have role="dialog")
+      // 5. We're not in the middle of an interaction (like adding a place)
+      if (
+        isMobile && 
+        !isCollapsed && 
+        sidebarRef.current && 
+        !sidebarRef.current.contains(event.target as Node)
+      ) {
+        const clickedElement = event.target as HTMLElement
+        const isModalClick = clickedElement.closest('[role="dialog"]') !== null
+        const isInInteraction = showCreateListModal || showAddPlaceModal || showLogin
+        
+        if (!isModalClick && !isInInteraction) {
+          setIsCollapsed(true)
+        }
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [isMobile, isCollapsed])
+  }, [isMobile, isCollapsed, showCreateListModal, showAddPlaceModal, showLogin])
+
+  // Prevent sidebar collapse during certain interactions
+  useEffect(() => {
+    if (showCreateListModal || showAddPlaceModal || showLogin) {
+      setIsCollapsed(false)
+    }
+  }, [showCreateListModal, showAddPlaceModal, showLogin])
 
   const handleProfileClick = () => {
     if (!userIsAuthenticated) {
