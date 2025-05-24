@@ -142,79 +142,81 @@ export function PlaceDetailView({
 
   // Consolidated data fetching to reduce API calls
   const fetchAllData = useCallback(async () => {
-    if (!currentPlace?.id || !listId) return
+    if (!currentPlace?.id) return
 
     try {
       setIsLoadingLists(true)
       setIsLoadingCreatedBy(true)
       setListsError(null)
 
-      // Fetch debug data first (includes list-place relationship and should include user)
-      const debugResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+      // Only fetch debug data if we have a specific list context
       let debugData = null
-      
-      if (debugResponse.ok) {
-        debugData = await debugResponse.json()
-        console.log("Debug data:", debugData)
+      if (listId) {
+        const debugResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
         
-        // Set list place ID for remove functionality
-        if (debugData.listPlace?.id) {
-          setListPlaceId(debugData.listPlace.id)
-        }
-        
-        // Handle user data from debug response
-        if (debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
-          const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
-          setCreatedByUser({
-            ...debugData.user,
-            farcaster_display_name: displayName
-          })
-          setIsLoadingCreatedBy(false)
-        } else {
-          // If user data is missing or generic, try to fetch it properly
-          // Check multiple possible sources for user ID
-          const userId = 
-            debugData.listPlace?.added_by || 
-            debugData.listPlace?.creator_id || 
-            debugData.userId ||
-            currentPlace.addedBy || // This field exists in your place data
-            currentPlace.created_by ||
-            debugData.place?.created_by ||
-            debugData.place?.addedBy
-            
-          console.log("Trying user ID:", userId)
+        if (debugResponse.ok) {
+          debugData = await debugResponse.json()
+          console.log("Debug data:", debugData)
           
-          if (userId) {
-            try {
-              const userResponse = await fetch(`/api/users/${userId}`)
-              if (userResponse.ok) {
-                const userData = await userResponse.json()
-                console.log("Fetched user data:", userData)
-                
-                if (userData.farcaster_display_name && userData.farcaster_display_name !== "Unknown User") {
-                  setCreatedByUser(userData)
-                } else {
-                  // User exists but has no Farcaster data, show as "Unknown User"
-                  setCreatedByUser({ farcaster_display_name: "Unknown User" })
-                }
+          // Set list place ID for remove functionality
+          if (debugData.listPlace?.id) {
+            setListPlaceId(debugData.listPlace.id)
+          }
+        }
+      }
+      
+      // Handle user data - try multiple sources
+      let userHandled = false
+      
+      if (debugData && debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
+        const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
+        setCreatedByUser({
+          ...debugData.user,
+          farcaster_display_name: displayName
+        })
+        userHandled = true
+      }
+      
+      if (!userHandled) {
+        // Try to get user ID from various sources
+        const userId = 
+          debugData?.listPlace?.added_by || 
+          debugData?.listPlace?.creator_id || 
+          debugData?.userId ||
+          currentPlace.addedBy ||
+          currentPlace.created_by ||
+          debugData?.place?.created_by ||
+          debugData?.place?.addedBy
+          
+        console.log("Trying user ID:", userId)
+        
+        if (userId) {
+          try {
+            const userResponse = await fetch(`/api/users/${userId}`)
+            if (userResponse.ok) {
+              const userData = await userResponse.json()
+              console.log("Fetched user data:", userData)
+              
+              if (userData.farcaster_display_name && userData.farcaster_display_name !== "Unknown User") {
+                setCreatedByUser(userData)
               } else {
-                console.log("User API call failed:", userResponse.status)
                 setCreatedByUser({ farcaster_display_name: "Unknown User" })
               }
-            } catch (error) {
-              console.error("Error fetching user separately:", error)
+            } else {
+              console.log("User API call failed:", userResponse.status)
               setCreatedByUser({ farcaster_display_name: "Unknown User" })
             }
-          } else {
-            console.log("No user ID found in any field")
+          } catch (error) {
+            console.error("Error fetching user separately:", error)
             setCreatedByUser({ farcaster_display_name: "Unknown User" })
           }
-          setIsLoadingCreatedBy(false)
+        } else {
+          console.log("No user ID found in any field")
+          setCreatedByUser({ farcaster_display_name: "Unknown User" })
         }
-      } else {
-        setCreatedByUser({ farcaster_display_name: "Unknown User" })
-        setIsLoadingCreatedBy(false)
       }
+      
+      setIsLoadingCreatedBy(false)
 
       // Fetch lists containing this place
       const response = await fetch(`/api/places/${currentPlace.id}/lists?t=${Date.now()}`)
@@ -226,7 +228,7 @@ export function PlaceDetailView({
 
       const lists = await response.json()
 
-      // Make sure current list is included
+      // If we have a specific list context, make sure it's included
       if (listId && !lists.some((list: any) => list.id === listId)) {
         try {
           const currentListResponse = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
@@ -245,11 +247,6 @@ export function PlaceDetailView({
       setListsError(error instanceof Error ? error.message : "Failed to load data")
       setCreatedByUser({ farcaster_display_name: "Unknown User" })
       setIsLoadingCreatedBy(false)
-      toast({
-        title: "Error",
-        description: "Failed to load place data",
-        variant: "destructive",
-      })
     } finally {
       setIsLoadingLists(false)
     }

@@ -10,7 +10,13 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
     const limit = searchParams.get("limit") || "100"
 
-    let query = supabaseAdmin.from("places").select("*").order("created_at", { ascending: false })
+    let query = supabaseAdmin
+      .from("places")
+      .select(`
+        *,
+        list_count:list_places(count)
+      `)
+      .order("created_at", { ascending: false })
 
     // Filter by coordinates if provided
     if (lat && lng) {

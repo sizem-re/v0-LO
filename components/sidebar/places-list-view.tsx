@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Search, MapPin, Plus, ExternalLink, Clock } from "lucide-react"
+import { Search, MapPin, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +17,7 @@ interface Place {
   website_url?: string
   created_at: string
   created_by?: string
+  list_count?: { count: number }[]
 }
 
 interface PlacesListViewProps {
@@ -75,35 +76,9 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
     )
   }, [places, searchQuery])
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInMs = now.getTime() - date.getTime()
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
-
-    if (diffInDays === 0) return "Today"
-    if (diffInDays === 1) return "Yesterday"
-    if (diffInDays < 7) return `${diffInDays} days ago`
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`
-    if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`
-    return `${Math.floor(diffInDays / 365)} years ago`
-  }
-
   if (loading) {
     return (
       <div className="space-y-4">
-        {/* Search bar */}
-        <div className="relative">
-          <Input
-            type="text"
-            className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-            placeholder="Search places..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
-        </div>
-
         {/* Loading skeletons */}
         {[...Array(5)].map((_, i) => (
           <div key={i} className="p-3 border border-black/10 rounded-lg">
@@ -129,18 +104,6 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
 
   return (
     <div className="space-y-4">
-      {/* Search bar */}
-      <div className="relative">
-        <Input
-          type="text"
-          className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-          placeholder="Search places..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-        <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
-      </div>
-
       {/* Add place button */}
       <Button onClick={onAddPlace} className="w-full bg-black text-white hover:bg-black/80">
         <Plus size={16} className="mr-2" />
@@ -169,14 +132,10 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
                 <div className="flex-1 min-w-0">
                   <h3 className="font-serif font-medium text-sm mb-1 truncate">{place.name}</h3>
                   <p className="text-xs text-black/60 mb-1 truncate">{place.address}</p>
-                  {place.type && (
-                    <span className="inline-block px-2 py-1 bg-black/5 text-xs rounded text-black/70 mb-1">
-                      {place.type}
-                    </span>
-                  )}
                   <div className="flex items-center text-xs text-black/50 mt-2">
-                    <Clock size={12} className="mr-1" />
-                    <span>{formatTimeAgo(place.created_at)}</span>
+                    <span>
+                      In {place.list_count?.[0]?.count || 0} list{(place.list_count?.[0]?.count || 0) !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 ml-2">
