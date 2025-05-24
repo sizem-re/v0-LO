@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase-client"
+import { supabase, supabaseAdmin } from "@/lib/supabase-client"
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     for (const userId of possibleUserIds) {
       console.log(`Trying to fetch user with ID: ${userId}`)
       
-      const { data: userResult, error: userError } = await supabase
+      const { data: userResult, error: userError } = await supabaseAdmin
         .from("users")
         .select("*")
         .eq("id", userId)
