@@ -44,19 +44,21 @@ export const metadata: Metadata = {
     description: "Discover and share curated lists of locations",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://llllllo.com/og-image.png",
         width: 1200,
         height: 630,
         alt: "LO - Places picked by people, not algorithms"
       }
     ],
-    type: "website"
+    type: "website",
+    url: "https://llllllo.com"
   },
   twitter: {
     card: "summary_large_image",
     title: "LO - Discover Places",
     description: "Discover and share curated lists of locations",
-    images: ["/og-image.png"]
+    images: ["https://llllllo.com/og-image.png"],
+    site: "@llllllo"
   }
 }
 
@@ -70,6 +72,10 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
         <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
+        <meta property="og:image" content="https://llllllo.com/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:image" content="https://llllllo.com/og-image.png" />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
