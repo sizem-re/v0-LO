@@ -223,21 +223,30 @@ export function Sidebar() {
 
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "discover" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => handleTabClick("discover")}
+          onClick={() => {
+            setIsCollapsed(false)
+            handleTabClick("discover")
+          }}
           aria-label="Discover"
         >
           <Home size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "mylists" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => handleTabClick("mylists")}
+          onClick={() => {
+            setIsCollapsed(false)
+            handleTabClick("mylists")
+          }}
           aria-label="My Lists"
         >
           <ListIcon size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => handleTabClick("places")}
+          onClick={() => {
+            setIsCollapsed(false)
+            handleTabClick("places")
+          }}
           aria-label="Places"
         >
           <MapPin size={20} />
