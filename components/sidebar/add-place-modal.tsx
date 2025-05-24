@@ -895,19 +895,19 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-[10vh]">
-        <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden">
-          <div className="p-4 border-b border-black/10 flex items-center justify-between">
+      <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center sm:pt-[10vh]">
+        <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="p-4 border-b border-black/10 flex items-center justify-between flex-shrink-0">
             <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
             <button onClick={onClose} className="p-1" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-4">
+          <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1">
             {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
 
-            <div className="flex justify-between gap-2 mt-6">
+            <div className="flex justify-between gap-2 mt-6 sticky bottom-0 bg-white pt-4 border-t border-black/10">
               {currentStep === "details" && (
                 <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
                   Back
