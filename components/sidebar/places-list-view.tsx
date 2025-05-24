@@ -24,9 +24,10 @@ interface PlacesListViewProps {
   onSearchChange: (query: string) => void
   onPlaceClick: (place: Place) => void
   onAddPlace: () => void
+  refreshTrigger?: number
 }
 
-export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace }: PlacesListViewProps) {
+export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace, refreshTrigger }: PlacesListViewProps) {
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +35,12 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
   useEffect(() => {
     fetchPlaces()
   }, [])
+
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      fetchPlaces()
+    }
+  }, [refreshTrigger])
 
   const fetchPlaces = async () => {
     try {
@@ -46,7 +53,7 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
       }
 
       const data = await response.json()
-      setPlaces(data.places || [])
+      setPlaces(data || [])
     } catch (err) {
       console.error("Error fetching places:", err)
       setError("Failed to load places")

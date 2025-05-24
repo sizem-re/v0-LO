@@ -14,6 +14,7 @@ import { UserListsDisplay } from "@/components/user-lists-display"
 import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
 import { PlacesListView } from "./places-list-view"
+import { AddPlaceModal } from "./add-place-modal"
 
 export function Sidebar() {
   // Get miniapp context
@@ -31,7 +32,9 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showLogin, setShowLogin] = useState(false)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
+  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
+  const [placesRefreshTrigger, setPlacesRefreshTrigger] = useState(0)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
@@ -90,10 +93,9 @@ export function Sidebar() {
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab)
-    setShowLogin(false)
-    setSelectedListId(null) // Clear any selected list
-    setSelectedPlace(null) // Clear any selected place
-    setIsCollapsed(false) // Always expand sidebar when changing tabs
+    setSearchQuery("") // Reset search when switching tabs
+    setSelectedListId(null)
+    setSelectedPlace(null)
   }
 
   const handleCreateList = () => {
@@ -172,6 +174,16 @@ export function Sidebar() {
     console.log("Navigate to list:", listId)
     setSelectedListId(listId)
     setSelectedPlace(null) // Clear any selected place when navigating to a list
+  }
+
+  const handleAddPlaceFromTab = () => {
+    setShowAddPlaceModal(true)
+  }
+
+  const handlePlaceAdded = (place: any) => {
+    console.log("Place added:", place)
+    setPlacesRefreshTrigger(prev => prev + 1) // Trigger places list refresh
+    setShowAddPlaceModal(false)
   }
 
   // For very small screens, we can completely hide the sidebar
@@ -396,8 +408,8 @@ export function Sidebar() {
                     </button>
                   </div>
 
-                  {/* Search bar - only show for discover and mylists tabs */}
-                  {(activeTab === "discover" || activeTab === "mylists") && (
+                  {/* Search bar - show for discover, mylists, and places tabs */}
+                  {(activeTab === "discover" || activeTab === "mylists" || activeTab === "places") && (
                     <div className="px-4 pt-3 pb-2">
                       <div className="relative">
                         <Input
@@ -442,9 +454,8 @@ export function Sidebar() {
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
                         onPlaceClick={handlePlaceClick}
-                        onAddPlace={() => {
-                          console.log("Add place clicked")
-                        }}
+                        onAddPlace={handleAddPlaceFromTab}
+                        refreshTrigger={placesRefreshTrigger}
                       />
                     )}
                   </div>
@@ -461,6 +472,18 @@ export function Sidebar() {
         onClose={() => setShowCreateListModal(false)}
         onListCreated={handleListCreated}
       />
+
+      {/* Add Place Modal */}
+      {showAddPlaceModal && (
+        <AddPlaceModal
+          listId=""
+          onClose={() => setShowAddPlaceModal(false)}
+          onPlaceAdded={handlePlaceAdded}
+          onRefreshList={() => {
+            setPlacesRefreshTrigger(prev => prev + 1)
+          }}
+        />
+      )}
     </>
   )
 }

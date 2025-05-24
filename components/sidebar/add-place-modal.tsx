@@ -102,7 +102,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
   // List selection state
-  const [selectedLists, setSelectedLists] = useState<string[]>([listId])
+  const [selectedLists, setSelectedLists] = useState<string[]>(listId ? [listId] : [])
   const [userLists, setUserLists] = useState<List[]>([])
   const [currentList, setCurrentList] = useState<List | null>(null)
   const [recentLists, setRecentLists] = useState<List[]>([])
@@ -155,7 +155,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
 
         // Set recent lists (excluding current list)
         // In a real app, you might want to track recently used lists in a separate API
-        const recent = lists.filter((list: List) => list.id !== listId).slice(0, 3)
+        const recent = lists.filter((list: List) => listId && list.id !== listId).slice(0, 3)
         setRecentLists(recent)
 
         // Initialize filtered lists
