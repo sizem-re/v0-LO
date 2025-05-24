@@ -414,163 +414,165 @@ export function EditPlaceModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdatePlace} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="placeName">Name *</Label>
-              <Input
-                id="placeName"
-                value={placeName}
-                onChange={(e) => setPlaceName(e.target.value)}
-                placeholder="Place name"
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>
-                  Address <span className="text-red-500">*</span>
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center h-auto p-1"
-                  onClick={() => {
-                    console.log("Address edit toggle clicked, current state:", isEditingAddress)
-                    setIsEditingAddress(!isEditingAddress)
-                  }}
-                >
-                  {isEditingAddress ? (
-                    <>
-                      <Check className="h-3 w-3 mr-1" />
-                      Done
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {isEditingAddress ? (
-                <div className="grid grid-cols-1 gap-3 mt-1">
-                  <div>
-                    <Label htmlFor="street" className="text-xs">
-                      Street
-                    </Label>
-                    <Input
-                      id="street"
-                      type="text"
-                      placeholder="Street address"
-                      value={addressComponents.street}
-                      onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
-                      className="mt-1 w-full"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="w-full">
-                      <Label htmlFor="city" className="text-xs">
-                        City
-                      </Label>
-                      <Input
-                        id="city"
-                        type="text"
-                        placeholder="City"
-                        value={addressComponents.city}
-                        onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
-                        className="mt-1 w-full"
-                      />
-                    </div>
-                    <div className="w-full">
-                      <Label htmlFor="state" className="text-xs">
-                        State/Province
-                      </Label>
-                      <Input
-                        id="state"
-                        type="text"
-                        placeholder="State/Province"
-                        value={addressComponents.state}
-                        onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
-                        className="mt-1 w-full"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="w-full">
-                      <Label htmlFor="postalCode" className="text-xs">
-                        Postal Code
-                      </Label>
-                      <Input
-                        id="postalCode"
-                        type="text"
-                        placeholder="Postal/ZIP code"
-                        value={addressComponents.postalCode}
-                        onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
-                        className="mt-1 w-full"
-                      />
-                    </div>
-                    <div className="w-full">
-                      <Label htmlFor="country" className="text-xs">
-                        Country
-                      </Label>
-                      <Input
-                        id="country"
-                        type="text"
-                        placeholder="Country"
-                        value={addressComponents.country}
-                        onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
-                        className="mt-1 w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-gray-50 rounded-md mt-1">
-                  {address || formatFullAddress() || "No address provided"}
-                  {coordinates && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
-              <div className="relative w-full">
+          <form onSubmit={handleUpdatePlace} className="space-y-4 w-full">
+            <div className="grid gap-4 w-full">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="placeName">Name *</Label>
                 <Input
-                  id="website"
-                  value={websiteUrl}
-                  onChange={(e) => {
-                    console.log("Website URL changed to:", e.target.value)
-                    setWebsiteUrl(e.target.value)
-                  }}
-                  placeholder="https://example.com"
-                  className="pl-8 w-full"
+                  id="placeName"
+                  value={placeName}
+                  onChange={(e) => setPlaceName(e.target.value)}
+                  placeholder="Place name"
+                  className="w-full"
                 />
-                <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
               </div>
-              <div className="text-xs text-gray-500 break-all">Current value: "{websiteUrl}"</div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add your notes about this place..."
-                rows={3}
-                className="w-full resize-none"
-              />
+              <div className="space-y-2 w-full">
+                <div className="flex items-center justify-between">
+                  <Label>
+                    Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center h-auto p-1"
+                    onClick={() => {
+                      console.log("Address edit toggle clicked, current state:", isEditingAddress)
+                      setIsEditingAddress(!isEditingAddress)
+                    }}
+                  >
+                    {isEditingAddress ? (
+                      <>
+                        <Check className="h-3 w-3 mr-1" />
+                        Done
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {isEditingAddress ? (
+                  <div className="grid gap-3 w-full">
+                    <div className="w-full">
+                      <Label htmlFor="street" className="text-xs">
+                        Street
+                      </Label>
+                      <Input
+                        id="street"
+                        type="text"
+                        placeholder="Street address"
+                        value={addressComponents.street}
+                        onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
+                        className="mt-1 w-full"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      <div className="w-full">
+                        <Label htmlFor="city" className="text-xs">
+                          City
+                        </Label>
+                        <Input
+                          id="city"
+                          type="text"
+                          placeholder="City"
+                          value={addressComponents.city}
+                          onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
+                          className="mt-1 w-full"
+                        />
+                      </div>
+                      <div className="w-full">
+                        <Label htmlFor="state" className="text-xs">
+                          State/Province
+                        </Label>
+                        <Input
+                          id="state"
+                          type="text"
+                          placeholder="State/Province"
+                          value={addressComponents.state}
+                          onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
+                          className="mt-1 w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      <div className="w-full">
+                        <Label htmlFor="postalCode" className="text-xs">
+                          Postal Code
+                        </Label>
+                        <Input
+                          id="postalCode"
+                          type="text"
+                          placeholder="Postal/ZIP code"
+                          value={addressComponents.postalCode}
+                          onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
+                          className="mt-1 w-full"
+                        />
+                      </div>
+                      <div className="w-full">
+                        <Label htmlFor="country" className="text-xs">
+                          Country
+                        </Label>
+                        <Input
+                          id="country"
+                          type="text"
+                          placeholder="Country"
+                          value={addressComponents.country}
+                          onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
+                          className="mt-1 w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-gray-50 rounded-md mt-1 w-full break-words">
+                    {address || formatFullAddress() || "No address provided"}
+                    {coordinates && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 w-full">
+                <Label htmlFor="website">Website</Label>
+                <div className="relative w-full">
+                  <Input
+                    id="website"
+                    value={websiteUrl}
+                    onChange={(e) => {
+                      console.log("Website URL changed to:", e.target.value)
+                      setWebsiteUrl(e.target.value)
+                    }}
+                    placeholder="https://example.com"
+                    className="pl-8 w-full"
+                  />
+                  <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
+                <div className="text-xs text-gray-500 break-all">Current value: "{websiteUrl}"</div>
+              </div>
+
+              <div className="space-y-2 w-full">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add your notes about this place..."
+                  rows={3}
+                  className="w-full resize-none"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
