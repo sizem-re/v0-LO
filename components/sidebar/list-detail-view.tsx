@@ -344,7 +344,10 @@ export function ListDetailView({
               <div
                 key={place.id}
                 className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
-                onClick={() => onPlaceClick(place)}
+                onClick={(e) => {
+                  e.stopPropagation() // Stop event from bubbling up
+                  onPlaceClick(place)
+                }}
               >
                 <div className="flex items-start">
                   <div className="flex-1 min-w-0">
