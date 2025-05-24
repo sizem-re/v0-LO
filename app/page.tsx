@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import { FarcasterReady } from "@/components/farcaster-ready"
 import type { Place } from "@/types/place"
+import { fetchPlaces } from "@/lib/place-utils"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -16,50 +17,63 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ),
 })
 
-// Mock data for places
-const MOCK_PLACES: Place[] = [
-  {
-    id: "p1",
-    name: "The Fish House Cafe",
-    type: "Restaurant",
-    address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
-    coordinates: { lat: 47.2529, lng: -122.4443 },
-    description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p2",
-    name: "Vien Dong",
-    type: "Vietnamese Restaurant",
-    address: "3801 Yakima Ave, Tacoma, WA 98418",
-    coordinates: { lat: 47.2209, lng: -122.4634 },
-    description: "Casual Vietnamese spot serving pho, rice plates & other traditional dishes in a simple setting.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p3",
-    name: "Burger Seoul",
-    type: "Korean Fusion",
-    address: "1750 S Prospect St, Tacoma, WA 98405",
-    coordinates: { lat: 47.241, lng: -122.4556 },
-    description: "Korean-inspired burgers and sides with unique flavors.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-]
-
 export default function MapPage() {
   const [places, setPlaces] = useState<Place[]>([])
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // In a real app, you would fetch places from an API
-    setPlaces(MOCK_PLACES)
-    setIsMounted(true)
+    const loadPlaces = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const placesData = await fetchPlaces()
+        console.log(`Loaded ${placesData.length} places from database`)
+        setPlaces(placesData)
+      } catch (err) {
+        console.error("Error fetching places:", err)
+        setError(err instanceof Error ? err.message : "Failed to load places")
+      } finally {
+        setIsLoading(false)
+        setIsMounted(true)
+      }
+    }
+
+    loadPlaces()
   }, [])
 
   // Don't render until client-side to avoid hydration issues
   if (!isMounted) {
-    return null
+    return (
+      <div className="fixed inset-0 flex h-screen w-screen overflow-hidden">
+        <FarcasterReady />
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex h-screen w-screen overflow-hidden">
+        <FarcasterReady />
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <p className="text-red-500 mb-2">Error loading places</p>
+            <p className="text-gray-500 text-sm">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -69,7 +83,14 @@ export default function MapPage() {
 
       {/* Map container with lower z-index */}
       <div className="w-full h-full relative z-0">
-        <VanillaMap places={places} height="100%" />
+        <VanillaMap 
+          places={places} 
+          height="100%" 
+          onPlaceSelect={(place) => {
+            console.log("Selected place:", place)
+            // You can add additional functionality here like opening a place details modal
+          }}
+        />
       </div>
 
       {/* Sidebar with higher z-index */}

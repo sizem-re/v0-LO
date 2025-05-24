@@ -5,6 +5,7 @@ import type { Place } from "@/types/place"
 import { Sidebar } from "@/components/sidebar/sidebar"
 import { SearchDialog } from "@/components/search-dialog"
 import { useRouter } from "next/navigation"
+import { fetchPlaces } from "@/lib/place-utils"
 
 // Dynamically import the map component with no SSR
 const MapComponent = dynamic(() => import("@/components/map/map-component"), {
@@ -16,62 +17,14 @@ const MapComponent = dynamic(() => import("@/components/map/map-component"), {
   ),
 })
 
-// Mock data for places
-const MOCK_PLACES: Place[] = [
-  {
-    id: "p1",
-    name: "The Fish House Cafe",
-    type: "Restaurant",
-    address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
-    coordinates: { lat: 47.2529, lng: -122.4443 },
-    description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p2",
-    name: "Vien Dong",
-    type: "Vietnamese Restaurant",
-    address: "3801 Yakima Ave, Tacoma, WA 98418",
-    coordinates: { lat: 47.2209, lng: -122.4634 },
-    description: "Casual Vietnamese spot serving pho, rice plates & other traditional dishes in a simple setting.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p3",
-    name: "Burger Seoul",
-    type: "Korean Fusion",
-    address: "1750 S Prospect St, Tacoma, WA 98405",
-    coordinates: { lat: 47.241, lng: -122.4556 },
-    description: "Korean-inspired burgers and sides with unique flavors.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p4",
-    name: "Central Park",
-    type: "Park",
-    address: "Central Park, New York, NY",
-    coordinates: { lat: 40.7829, lng: -73.9654 },
-    description: "An urban park in Manhattan, New York City.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p5",
-    name: "Golden Gate Bridge",
-    type: "Landmark",
-    address: "Golden Gate Bridge, San Francisco, CA",
-    coordinates: { lat: 37.8199, lng: -122.4783 },
-    description:
-      "A suspension bridge spanning the Golden Gate, the one-mile-wide strait connecting San Francisco Bay and the Pacific Ocean.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-]
-
 export default function MapPage() {
   const [places, setPlaces] = useState<Place[]>([])
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([])
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   // Check if mobile on mount
@@ -89,9 +42,24 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => {
-    // In a real app, you would fetch places from an API
-    setPlaces(MOCK_PLACES)
-    setFilteredPlaces(MOCK_PLACES)
+    const loadPlaces = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const placesData = await fetchPlaces()
+        console.log(`Loaded ${placesData.length} places from database`)
+        setPlaces(placesData)
+        setFilteredPlaces(placesData)
+      } catch (err) {
+        console.error("Error fetching places:", err)
+        setError(err instanceof Error ? err.message : "Failed to load places")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadPlaces()
   }, [])
 
   const handlePlaceSelect = (place: Place) => {
@@ -99,10 +67,35 @@ export default function MapPage() {
   }
 
   useEffect(() => {
-    if (places.length === 0) {
+    if (!isLoading && places.length === 0 && !error) {
       router.replace("/")
     }
-  }, [places, router])
+  }, [places, isLoading, error, router])
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100">
+        <p className="text-gray-500">Loading places...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">Error loading places</p>
+          <p className="text-gray-500 text-sm">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 flex flex-row overflow-hidden">

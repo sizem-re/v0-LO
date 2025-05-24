@@ -1,38 +1,9 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import type { Place } from "@/types/place"
-
-// Mock data for places on the discover map
-const DISCOVER_PLACES: Place[] = [
-  {
-    id: "p1",
-    name: "The Fish House Cafe",
-    type: "Restaurant",
-    address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
-    coordinates: { lat: 47.2529, lng: -122.4443 },
-    description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p6",
-    name: "Pike Place Market",
-    type: "Market",
-    address: "85 Pike St, Seattle, WA 98101",
-    coordinates: { lat: 47.6097, lng: -122.3422 },
-    description: "Famous public market overlooking the Elliott Bay waterfront in Seattle.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "p7",
-    name: "Space Needle",
-    type: "Landmark",
-    address: "400 Broad St, Seattle, WA 98109",
-    coordinates: { lat: 47.6205, lng: -122.3493 },
-    description: "Iconic observation tower in Seattle.",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-]
+import { fetchPlaces } from "@/lib/place-utils"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -45,5 +16,54 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
 })
 
 export function DiscoverMap() {
-  return <VanillaMap places={DISCOVER_PLACES} height="600px" />
+  const [places, setPlaces] = useState<Place[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadPlaces = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const placesData = await fetchPlaces({ limit: 20 })
+        console.log(`Loaded ${placesData.length} places for discover map`)
+        setPlaces(placesData)
+      } catch (err) {
+        console.error("Error fetching places for discover map:", err)
+        setError(err instanceof Error ? err.message : "Failed to load places")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadPlaces()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="h-[600px] border border-black/10 flex items-center justify-center bg-gray-100">
+        <p className="text-gray-500">Loading places...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-[600px] border border-black/10 flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">Error loading places</p>
+          <p className="text-gray-500 text-sm">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-2 px-3 py-1 bg-black text-white text-sm rounded hover:bg-gray-800"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <VanillaMap places={places} height="600px" />
 }
