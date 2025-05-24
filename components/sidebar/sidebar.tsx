@@ -158,7 +158,7 @@ export function Sidebar() {
   const handlePlaceClick = (place: any) => {
     console.log("Place clicked:", place)
     setSelectedPlace(place)
-    // Don't collapse sidebar here to show the place details
+    setIsCollapsed(false) // Ensure sidebar stays expanded when viewing place details
   }
 
   const handleBackFromPlace = () => {
@@ -202,8 +202,8 @@ export function Sidebar() {
     // Dispatch event to center the map
     const event = new CustomEvent("centerMap", { detail: coordinates })
     window.dispatchEvent(event)
-    // Hide the sidebar
-    setIsHidden(true)
+    // Collapse the sidebar instead of hiding it
+    setIsCollapsed(true)
   }
 
   const handleNavigateToList = (listId: string) => {
@@ -226,8 +226,11 @@ export function Sidebar() {
   if (isHidden) {
     return (
       <button
-        className="absolute top-2 left-2 z-50 bg-white p-2 rounded-full shadow-md"
-        onClick={() => setIsHidden(false)}
+        className="absolute top-2 left-2 z-50 bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
+        onClick={() => {
+          setIsHidden(false)
+          setIsCollapsed(false) // Ensure sidebar expands when showing it again
+        }}
         aria-label="Show sidebar"
       >
         <Menu size={20} />
@@ -247,7 +250,13 @@ export function Sidebar() {
           <h1 className="font-serif text-xl font-bold">LO</h1>
           <button
             className="mt-2 p-1 hover:bg-gray-100 rounded-full"
-            onClick={() => setIsCollapsed(false)}
+            onClick={() => {
+              setIsCollapsed(false)
+              if (selectedPlace) {
+                // If there's a selected place, make sure it stays visible
+                setSelectedPlace(selectedPlace)
+              }
+            }}
             aria-label="Expand sidebar"
           >
             <ChevronRight size={16} />
