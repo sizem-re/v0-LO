@@ -360,11 +360,7 @@ export function PlaceDetailView({
   const handleCenterMap = () => {
     if (currentPlace.coordinates && onCenterMap) {
       onCenterMap(currentPlace.coordinates)
-    } else if (currentPlace.lat && currentPlace.lng && onCenterMap) {
-      onCenterMap({
-        lat: Number.parseFloat(currentPlace.lat),
-        lng: Number.parseFloat(currentPlace.lng),
-      })
+      onBack()
     }
   }
 

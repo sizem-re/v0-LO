@@ -199,10 +199,11 @@ export function Sidebar() {
   const handleCenterMap = (coordinates: { lat: number; lng: number }) => {
     // This function will be passed to the map component to center on a place
     console.log("Center map on:", coordinates)
-    // You would typically call a function on the map component to center the map
-    // For now, we'll just dispatch a custom event that the map can listen for
+    // Dispatch event to center the map
     const event = new CustomEvent("centerMap", { detail: coordinates })
     window.dispatchEvent(event)
+    // Hide the sidebar
+    setIsHidden(true)
   }
 
   const handleNavigateToList = (listId: string) => {
