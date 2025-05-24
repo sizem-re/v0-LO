@@ -15,10 +15,6 @@ import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
 import { PlacesListView } from "./places-list-view"
 import { AddPlaceModal } from "./add-place-modal"
-import { useLists } from "@/hooks/use-lists"
-import { usePlaces } from "@/hooks/use-places"
-import { ListCard } from "@/components/lists/list-card"
-import { PlaceCard } from "@/components/places/place-card"
 
 export function Sidebar() {
   // Get miniapp context
@@ -50,24 +46,6 @@ export function Sidebar() {
 
   // Ref for the sidebar element
   const sidebarRef = useRef<HTMLDivElement>(null)
-
-  // Add hooks for lists and places
-  const { lists: popularLists, isLoading: isLoadingLists } = useLists()
-  const { places, isLoading: isLoadingPlaces } = usePlaces()
-
-  // Filter lists and places based on search query
-  const filteredPopularLists = popularLists.filter(
-    (list) =>
-      list.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (list.description && list.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  const filteredPlaces = places.filter(
-    (place) =>
-      place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      place.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      place.type.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   // Detect mobile devices and set initial sidebar state
   useEffect(() => {
@@ -449,55 +427,16 @@ export function Sidebar() {
                   {/* Content based on active tab */}
                   <div className="flex-1 overflow-y-auto p-4">
                     {activeTab === "discover" && (
-                      <div className="flex-1 overflow-y-auto">
-                        <div className="p-4">
-                          <div className="flex justify-between items-center mb-3">
-                            <h2 className="font-serif text-lg">Popular Lists</h2>
-                          </div>
-
-                          {isLoadingLists ? (
-                            <div className="text-center py-4">
-                              <p className="text-black/60">Loading lists...</p>
-                            </div>
-                          ) : filteredPopularLists.length === 0 ? (
-                            <div className="text-center py-4">
-                              <p className="text-black/60">No lists found</p>
-                            </div>
-                          ) : (
-                            filteredPopularLists.map((list) => (
-                              <ListCard key={list.id} list={list} onClick={() => handleSelectList(list.id)} />
-                            ))
-                          )}
-
-                          <div className="mt-6 mb-3">
-                            <h2 className="font-serif text-lg">Popular Places</h2>
-                          </div>
-
-                          {isLoadingPlaces ? (
-                            <div className="text-center py-4">
-                              <p className="text-black/60">Loading places...</p>
-                            </div>
-                          ) : filteredPlaces.length === 0 ? (
-                            <div className="text-center py-4">
-                              <p className="text-black/60">No places found</p>
-                            </div>
-                          ) : (
-                            filteredPlaces.map((place) => (
-                              <PlaceCard key={place.id} place={place} onClick={handlePlaceClick} />
-                            ))
-                          )}
-
-                          {!userIsAuthenticated && (
-                            <div className="mt-6 text-center">
-                              <Button
-                                className="bg-black text-white hover:bg-black/80"
-                                onClick={() => setShowLogin(true)}
-                              >
-                                Connect to get started
-                              </Button>
-                            </div>
-                          )}
-                        </div>
+                      <div className="text-center py-8">
+                        <p>Discover places and lists from the community.</p>
+                        {!userIsAuthenticated && (
+                          <Button
+                            className="mt-4 bg-black text-white hover:bg-black/80"
+                            onClick={() => setShowLogin(true)}
+                          >
+                            Connect to get started
+                          </Button>
+                        )}
                       </div>
                     )}
 
