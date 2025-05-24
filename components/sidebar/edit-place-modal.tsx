@@ -414,24 +414,24 @@ export function EditPlaceModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
+        <DialogContent className="sm:max-w-[500px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdatePlace} className="space-y-4 w-full">
-            <div className="grid gap-4 w-full">
-              <div className="space-y-2 w-full">
+          <form onSubmit={handleUpdatePlace} className="space-y-4 py-2">
+            <div className="grid gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="placeName">Name *</Label>
                 <Input
                   id="placeName"
                   value={placeName}
                   onChange={(e) => setPlaceName(e.target.value)}
                   placeholder="Place name"
-                  className="w-full"
+                  className="w-full min-w-0"
                 />
               </div>
 
-              <div className="space-y-2 w-full">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>
                     Address <span className="text-red-500">*</span>
@@ -461,8 +461,8 @@ export function EditPlaceModal({
                 </div>
 
                 {isEditingAddress ? (
-                  <div className="grid gap-3 w-full">
-                    <div className="w-full">
+                  <div className="grid gap-3">
+                    <div>
                       <Label htmlFor="street" className="text-xs">
                         Street
                       </Label>
@@ -472,11 +472,11 @@ export function EditPlaceModal({
                         placeholder="Street address"
                         value={addressComponents.street}
                         onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
-                        className="mt-1 w-full"
+                        className="mt-1 w-full min-w-0"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2 w-full">
-                      <div className="w-full">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
                         <Label htmlFor="city" className="text-xs">
                           City
                         </Label>
@@ -486,10 +486,10 @@ export function EditPlaceModal({
                           placeholder="City"
                           value={addressComponents.city}
                           onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
-                          className="mt-1 w-full"
+                          className="mt-1 w-full min-w-0"
                         />
                       </div>
-                      <div className="w-full">
+                      <div>
                         <Label htmlFor="state" className="text-xs">
                           State/Province
                         </Label>
@@ -499,12 +499,12 @@ export function EditPlaceModal({
                           placeholder="State/Province"
                           value={addressComponents.state}
                           onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
-                          className="mt-1 w-full"
+                          className="mt-1 w-full min-w-0"
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 w-full">
-                      <div className="w-full">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
                         <Label htmlFor="postalCode" className="text-xs">
                           Postal Code
                         </Label>
@@ -514,10 +514,10 @@ export function EditPlaceModal({
                           placeholder="Postal/ZIP code"
                           value={addressComponents.postalCode}
                           onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
-                          className="mt-1 w-full"
+                          className="mt-1 w-full min-w-0"
                         />
                       </div>
-                      <div className="w-full">
+                      <div>
                         <Label htmlFor="country" className="text-xs">
                           Country
                         </Label>
@@ -527,13 +527,13 @@ export function EditPlaceModal({
                           placeholder="Country"
                           value={addressComponents.country}
                           onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
-                          className="mt-1 w-full"
+                          className="mt-1 w-full min-w-0"
                         />
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 bg-gray-50 rounded-md mt-1 w-full break-words">
+                  <div className="p-3 bg-gray-50 rounded-md mt-1 break-words">
                     {address || formatFullAddress() || "No address provided"}
                     {coordinates && (
                       <div className="text-xs text-gray-500 mt-1">
@@ -544,9 +544,9 @@ export function EditPlaceModal({
                 )}
               </div>
 
-              <div className="space-y-2 w-full">
+              <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
-                <div className="relative w-full">
+                <div className="relative">
                   <Input
                     id="website"
                     value={websiteUrl}
@@ -555,14 +555,14 @@ export function EditPlaceModal({
                       setWebsiteUrl(e.target.value)
                     }}
                     placeholder="https://example.com"
-                    className="pl-8 w-full"
+                    className="pl-8 w-full min-w-0"
                   />
                   <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                 </div>
                 <div className="text-xs text-gray-500 break-all">Current value: "{websiteUrl}"</div>
               </div>
 
-              <div className="space-y-2 w-full">
+              <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
@@ -570,7 +570,7 @@ export function EditPlaceModal({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add your notes about this place..."
                   rows={3}
-                  className="w-full resize-none"
+                  className="w-full min-w-0 resize-none"
                 />
               </div>
             </div>
