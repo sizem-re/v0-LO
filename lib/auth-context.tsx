@@ -66,6 +66,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Check for Farcaster Connect authentication
+    const farcasterAuth = localStorage.getItem('farcaster_auth')
+    if (farcasterAuth) {
+      try {
+        const authData = JSON.parse(farcasterAuth)
+        
+        // Verify the signature and get user data
+        const response = await fetch("/api/auth/verify-farcaster", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(authData),
+        })
+
+        if (response.ok) {
+          const { user: farcasterUser } = await response.json()
+          setIsAuthenticated(true)
+          setUser(farcasterUser)
+          setDbUser(farcasterUser)
+          setIsLoading(false)
+          return
+        } else {
+          // Invalid auth data, clear it
+          localStorage.removeItem('farcaster_auth')
+        }
+      } catch (error) {
+        console.error("Farcaster Connect auth error:", error)
+        localStorage.removeItem('farcaster_auth')
+      }
+    }
+
     // Fall back to regular Neynar authentication
     if (neynarAuthenticated && neynarUser) {
       setIsAuthenticated(true)

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { User, LogOut } from "lucide-react"
 import { useNeynarContext } from "@neynar/react"
-import { FarcasterAuth } from "@/components/farcaster-auth"
+import { FarcasterConnect } from "@/components/farcaster-connect"
 
 export function UserMenu() {
   const { isAuthenticated: authContextAuthenticated, user: authContextUser, logout } = useAuth()
@@ -33,9 +33,9 @@ export function UserMenu() {
   // If not authenticated or no user data, show the auth button
   if (!isAuthenticated || !user) {
     return (
-      <FarcasterAuth className="nav-link bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-md transition-colors">
+      <FarcasterConnect className="nav-link bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-md transition-colors">
         Sign in with Farcaster
-      </FarcasterAuth>
+      </FarcasterConnect>
     )
   }
 
