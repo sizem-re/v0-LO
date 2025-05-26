@@ -1,70 +1,111 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
+import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Suspense } from 'react'
 
 function CallbackHandler() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const { refreshAuth } = useAuth()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Check if we have authentication data from Neynar
-        const code = searchParams.get('code')
-        const error = searchParams.get('error')
-        const signerUuid = searchParams.get('signer_uuid')
-        const fid = searchParams.get('fid')
-        const username = searchParams.get('username')
+        console.log('Callback handler started')
+        console.log('Search params:', Object.fromEntries(searchParams.entries()))
 
+        // Check for errors first
+        const error = searchParams.get('error')
         if (error) {
+          // Send error message to parent window
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'SIWN_ERROR',
+              error: error
+            }, window.location.origin)
+            window.close()
+            return
+          }
           throw new Error(`Authentication error: ${error}`)
         }
 
-        // If we have signer data directly from Neynar
-        if (signerUuid && fid) {
-          const authData = {
+        // Check if we have an authorization code
+        const code = searchParams.get('code')
+        if (!code) {
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'SIWN_ERROR',
+              error: 'No authorization code received'
+            }, window.location.origin)
+            window.close()
+            return
+          }
+          throw new Error('No authorization code received')
+        }
+
+        console.log('Authorization code received:', code)
+
+        // For now, we'll simulate successful authentication
+        // In a real implementation, you would exchange the code for user data
+        // But since Neynar's OAuth flow might be different, we'll handle this differently
+        
+        // Check if we have direct user data in the URL (some OAuth providers do this)
+        const fid = searchParams.get('fid')
+        const username = searchParams.get('username')
+        const signerUuid = searchParams.get('signer_uuid')
+        
+        if (fid && username) {
+          // We have user data directly
+          const userData = {
             fid: parseInt(fid),
-            username: username || '',
+            username: username,
             displayName: searchParams.get('display_name') || '',
             pfpUrl: searchParams.get('pfp_url') || '',
             bio: searchParams.get('bio') || '',
             custodyAddress: searchParams.get('custody_address') || '',
             verifications: [],
-            followerCount: 0,
-            followingCount: 0,
-            signerUuid: signerUuid,
-            accessToken: searchParams.get('token') || '',
-            authenticatedAt: new Date().toISOString(),
+            followerCount: parseInt(searchParams.get('follower_count') || '0'),
+            followingCount: parseInt(searchParams.get('following_count') || '0'),
+            signerUuid: signerUuid || '',
+            accessToken: searchParams.get('access_token') || '',
           }
 
-          localStorage.setItem('farcaster_auth', JSON.stringify(authData))
-          await refreshAuth()
-          setStatus('success')
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'SIWN_SUCCESS',
+              ...userData
+            }, window.location.origin)
+            window.close()
+            return
+          }
           
+          // If not in popup, store locally and redirect
+          const authData = {
+            ...userData,
+            authenticatedAt: new Date().toISOString(),
+          }
+          localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          setStatus('success')
           setTimeout(() => {
-            router.push('/')
+            window.location.href = '/'
           }, 2000)
           return
         }
 
-        // If we just have a code, we need to exchange it
-        if (code) {
-          // For now, just store the code and redirect
-          // In a full implementation, you'd exchange this for user data
-          console.log('Received auth code:', code)
-          setError('Authentication code received but user data exchange not implemented')
-          setStatus('error')
+        // If we only have a code, we need to handle it differently
+        // For now, we'll show an error since we don't have the full OAuth implementation
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'SIWN_ERROR',
+            error: 'OAuth code exchange not yet implemented'
+          }, window.location.origin)
+          window.close()
           return
         }
-
-        throw new Error('No authentication data received')
+        
+        throw new Error('OAuth code exchange not yet implemented')
 
       } catch (err) {
         console.error('Callback error:', err)
@@ -74,7 +115,7 @@ function CallbackHandler() {
     }
 
     handleCallback()
-  }, [searchParams, refreshAuth, router])
+  }, [searchParams])
 
   if (status === 'loading') {
     return (
@@ -115,7 +156,7 @@ function CallbackHandler() {
         <h1 className="text-xl font-semibold text-red-600">Authentication failed</h1>
         <p className="text-gray-600">{error}</p>
         <button
-          onClick={() => router.push('/login')}
+          onClick={() => window.location.href = '/login'}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
           Try again

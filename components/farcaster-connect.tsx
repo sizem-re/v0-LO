@@ -15,102 +15,72 @@ interface FarcasterConnectProps {
 export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [scriptLoaded, setScriptLoaded] = useState(false)
   const { refreshAuth } = useAuth()
 
   useEffect(() => {
-    // Check if client ID is available
-    const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
-    console.log('Neynar Client ID:', clientId ? 'Present' : 'Missing')
-    
-    if (!clientId) {
-      setError('Neynar Client ID not configured')
-      return
-    }
+    // Listen for messages from the popup window
+    const handleMessage = async (event: MessageEvent) => {
+      // Make sure the message is from Neynar
+      if (event.origin !== 'https://app.neynar.com') {
+        return
+      }
 
-    // Load Neynar SIWN script
-    const script = document.createElement('script')
-    script.src = 'https://neynarxyz.github.io/siwn/raw/1.2.0/index.js'
-    script.async = true
-    
-    script.onload = () => {
-      console.log('Neynar SIWN script loaded successfully')
-      setScriptLoaded(true)
-    }
-    
-    script.onerror = () => {
-      console.error('Failed to load Neynar SIWN script')
-      setError('Failed to load authentication script')
-    }
-    
-    document.body.appendChild(script)
+      console.log('Received message from Neynar:', event.data)
 
-    // Define global callback function
-    ;(window as any).onSignInSuccess = async (data: any) => {
-      try {
-        console.log('SIWN success:', data)
-        setIsLoading(false)
-        
-        // Store the authentication data
-        const authData = {
-          fid: data.fid,
-          username: data.username,
-          displayName: data.displayName,
-          pfpUrl: data.pfpUrl,
-          bio: data.bio,
-          custodyAddress: data.custodyAddress,
-          verifications: data.verifications || [],
-          followerCount: data.followerCount,
-          followingCount: data.followingCount,
-          signerUuid: data.signerUuid,
-          accessToken: data.token,
-          authenticatedAt: new Date().toISOString(),
+      if (event.data.type === 'SIWN_SUCCESS') {
+        try {
+          setIsLoading(false)
+          
+          const authData = {
+            fid: event.data.fid,
+            username: event.data.username,
+            displayName: event.data.displayName || event.data.display_name || '',
+            pfpUrl: event.data.pfpUrl || event.data.pfp_url || '',
+            bio: event.data.bio || '',
+            custodyAddress: event.data.custodyAddress || event.data.custody_address || '',
+            verifications: event.data.verifications || [],
+            followerCount: event.data.followerCount || event.data.follower_count || 0,
+            followingCount: event.data.followingCount || event.data.following_count || 0,
+            signerUuid: event.data.signerUuid || event.data.signer_uuid || '',
+            accessToken: event.data.accessToken || event.data.access_token || '',
+            authenticatedAt: new Date().toISOString(),
+          }
+
+          localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          await refreshAuth()
+          
+          toast.success('Successfully connected with Farcaster!')
+          onSuccess?.()
+          
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+          
+        } catch (err) {
+          console.error('Error handling SIWN success:', err)
+          const errorMessage = err instanceof Error ? err.message : 'Failed to complete authentication'
+          setError(errorMessage)
+          onError?.(errorMessage)
+          toast.error(errorMessage)
+          setIsLoading(false)
         }
-
-        localStorage.setItem('farcaster_auth', JSON.stringify(authData))
-        
-        // Refresh auth context
-        await refreshAuth()
-        
-        toast.success('Successfully connected with Farcaster!')
-        onSuccess?.()
-        
-        // Refresh the page to ensure all components update
-        setTimeout(() => {
-          window.location.reload()
-        }, 1000)
-        
-      } catch (err) {
-        console.error('Error handling SIWN success:', err)
-        const errorMessage = err instanceof Error ? err.message : 'Failed to complete authentication'
-        setError(errorMessage)
-        onError?.(errorMessage)
-        toast.error(errorMessage)
+      } else if (event.data.type === 'SIWN_ERROR') {
+        console.error('SIWN error:', event.data.error)
+        setError('Authentication failed. Please try again.')
         setIsLoading(false)
+        toast.error('Authentication failed')
       }
     }
 
-    // Define global error callback
-    ;(window as any).onSignInError = (error: any) => {
-      console.error('SIWN error:', error)
-      setError('Authentication failed. Please try again.')
-      setIsLoading(false)
-      toast.error('Authentication failed')
-    }
-
+    window.addEventListener('message', handleMessage)
+    
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-      delete (window as any).onSignInSuccess
-      delete (window as any).onSignInError
+      window.removeEventListener('message', handleMessage)
     }
   }, [refreshAuth, onSuccess, onError])
 
   const handleConnect = () => {
     console.log('Connect button clicked')
-    console.log('Script loaded:', scriptLoaded)
-    console.log('Client ID:', process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID)
     
     setIsLoading(true)
     setError(null)
@@ -123,25 +93,42 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
       return
     }
     
-    // Try the script approach first
-    if (scriptLoaded) {
-      const siwn = document.querySelector('.neynar_signin') as HTMLElement
-      console.log('SIWN element found:', !!siwn)
-      
-      if (siwn) {
-        console.log('Triggering SIWN click')
-        siwn.click()
-        return
-      }
-    }
-    
-    // Fallback: Direct redirect to Neynar auth page
-    console.log('Using fallback redirect approach')
+    // Open Neynar auth in a popup window
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`)
     const authUrl = `https://app.neynar.com/login?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read+write`
     
-    console.log('Redirecting to:', authUrl)
-    window.location.href = authUrl
+    console.log('Opening auth popup:', authUrl)
+    
+    const popup = window.open(
+      authUrl,
+      'neynar-auth',
+      'width=500,height=600,scrollbars=yes,resizable=yes'
+    )
+    
+    if (!popup) {
+      setError('Popup blocked. Please allow popups for this site.')
+      setIsLoading(false)
+      return
+    }
+    
+    // Check if popup was closed manually
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed)
+        setIsLoading(false)
+        console.log('Popup was closed')
+      }
+    }, 1000)
+    
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      if (!popup.closed) {
+        popup.close()
+        clearInterval(checkClosed)
+        setIsLoading(false)
+        setError('Authentication timed out. Please try again.')
+      }
+    }, 300000)
   }
 
   const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
@@ -184,20 +171,8 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
         {process.env.NODE_ENV === 'development' && (
           <div className="p-2 text-xs bg-gray-100 rounded">
             <div>Client ID: {clientId ? 'Set' : 'Missing'}</div>
-            <div>Script Loaded: {scriptLoaded ? 'Yes' : 'No'}</div>
+            <div>Redirect URI: {`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}</div>
           </div>
-        )}
-        
-        {/* Hidden Neynar SIWN button */}
-        {clientId && (
-          <div 
-            className="neynar_signin" 
-            data-client_id={clientId}
-            data-success-callback="onSignInSuccess"
-            data-error-callback="onSignInError"
-            data-theme="light"
-            style={{ display: 'none' }}
-          />
         )}
         
         <Button
@@ -209,7 +184,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connecting...
+              Opening Neynar...
             </>
           ) : (
             <>
