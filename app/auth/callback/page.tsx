@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
@@ -112,5 +112,27 @@ export default function AuthCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-white">
+      <div className="max-w-md w-full text-center">
+        <div className="space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-black" />
+          <h1 className="text-xl font-serif">Loading...</h1>
+          <p className="text-black/70">Please wait while we process your authentication.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuthCallbackContent />
+    </Suspense>
   )
 } 
