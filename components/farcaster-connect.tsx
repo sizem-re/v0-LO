@@ -24,9 +24,60 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
       console.log('Message origin:', event.origin)
       console.log('Message data:', event.data)
 
-      // For now, accept messages from any origin to debug
-      // TODO: Restrict to Neynar domains in production
-      
+      // Handle Neynar authentication messages
+      if (event.origin === 'https://app.neynar.com' && event.data.is_authenticated) {
+        try {
+          console.log('Processing Neynar authentication success')
+          setIsLoading(false)
+          
+          const userData = event.data.user || {}
+          const authData = {
+            fid: parseInt(event.data.fid),
+            username: userData.username || '',
+            displayName: userData.display_name || userData.displayName || '',
+            pfpUrl: userData.pfp_url || userData.pfpUrl || '',
+            bio: userData.bio || '',
+            custodyAddress: userData.custody_address || userData.custodyAddress || '',
+            verifications: userData.verifications || [],
+            followerCount: userData.follower_count || userData.followerCount || 0,
+            followingCount: userData.following_count || userData.followingCount || 0,
+            signerUuid: event.data.signer_uuid || '',
+            accessToken: event.data.access_token || '',
+            signerPermissions: event.data.signer_permissions || [],
+            authenticatedAt: new Date().toISOString(),
+          }
+
+          console.log('Storing auth data:', authData)
+          localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          await refreshAuth()
+          
+          toast.success('Successfully connected with Farcaster!')
+          onSuccess?.()
+          
+          // Close any open popup
+          const popups = document.querySelectorAll('iframe, [data-popup]')
+          popups.forEach(popup => {
+            if (popup.parentNode) {
+              popup.parentNode.removeChild(popup)
+            }
+          })
+          
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+          
+        } catch (err) {
+          console.error('Error handling Neynar authentication:', err)
+          const errorMessage = err instanceof Error ? err.message : 'Failed to complete authentication'
+          setError(errorMessage)
+          onError?.(errorMessage)
+          toast.error(errorMessage)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      // Handle our custom message types (fallback)
       if (event.data.type === 'SIWN_SUCCESS') {
         try {
           console.log('Processing SIWN_SUCCESS')
@@ -88,8 +139,9 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
         setError(`Authentication failed: ${event.data.error}`)
         setIsLoading(false)
         toast.error('Authentication failed')
-      } else {
-        console.log('Unknown message type:', event.data.type)
+      } else if (event.origin !== 'https://llllllo.com' && event.data.target !== 'metamask-inpage') {
+        // Only log unknown messages that aren't from our own domain or MetaMask
+        console.log('Unknown message type:', event.data.type, 'from origin:', event.origin)
       }
     }
 
