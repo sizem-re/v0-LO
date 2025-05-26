@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { NeynarAuthButton } from "@neynar/react"
 import { useAuth } from "@/lib/auth-context"
 
@@ -10,8 +10,20 @@ interface FarcasterAuthProps {
   onSuccess?: () => void
 }
 
+// Detect if user is on mobile
+const isMobile = () => {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
 export function FarcasterAuth({ className, children, onSuccess }: FarcasterAuthProps) {
   const { refreshAuth } = useAuth()
+  const [showMobileInstructions, setShowMobileInstructions] = useState(false)
+  const [isMobileDevice, setIsMobileDevice] = useState(false)
+
+  useEffect(() => {
+    setIsMobileDevice(isMobile())
+  }, [])
 
   // Listen for auth success from redirects
   useEffect(() => {
@@ -24,22 +36,61 @@ export function FarcasterAuth({ className, children, onSuccess }: FarcasterAuthP
     }
 
     // Listen for storage events (in case auth happens in another tab)
-    window.addEventListener('storage', handleAuthSuccess)
-    
-    // Listen for focus events (when user returns from auth)
-    window.addEventListener('focus', handleAuthSuccess)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'neynar_auth_success') {
+        handleAuthSuccess()
+      }
+    }
+
+    // Listen for focus events (when user returns from Farcaster)
+    const handleFocus = () => {
+      // Small delay to allow auth state to update
+      setTimeout(() => {
+        refreshAuth()
+      }, 500)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleFocus)
 
     return () => {
-      window.removeEventListener('storage', handleAuthSuccess)
-      window.removeEventListener('focus', handleAuthSuccess)
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleFocus)
     }
   }, [refreshAuth, onSuccess])
 
+  const handleAuthClick = () => {
+    if (isMobileDevice) {
+      // Store current URL for return
+      sessionStorage.setItem('auth_return_url', window.location.pathname)
+      setShowMobileInstructions(true)
+      
+      // Hide instructions after a delay
+      setTimeout(() => {
+        setShowMobileInstructions(false)
+      }, 8000)
+    }
+  }
+
   return (
-    <NeynarAuthButton 
-      className={`bg-black text-white hover:bg-gray-800 rounded-none border border-black px-6 py-3 font-medium transition-colors ${className}`}
-    >
-      {children || "Sign in with Farcaster"}
-    </NeynarAuthButton>
+    <div className="relative">
+      <div onClick={handleAuthClick}>
+        <NeynarAuthButton
+          className={className}
+        />
+      </div>
+      
+      {showMobileInstructions && isMobileDevice && (
+        <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 z-50">
+          <div className="font-medium mb-1">📱 Mobile Instructions:</div>
+          <div className="text-xs">
+            1. Complete authentication in Farcaster<br/>
+            2. Tap "Return to Farcaster" when done<br/>
+            3. Return to this browser tab<br/>
+            4. You'll be automatically signed in!
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
