@@ -3,7 +3,7 @@
 import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useNeynarContext } from "@neynar/react"
 import { useAuth } from "@/lib/auth-context"
 import { UserListsDisplay } from "@/components/user-lists-display"
 
@@ -17,7 +17,7 @@ interface UserProfileViewProps {
 export function UserProfileView({ onClose, expanded = false, onCreateList, onSelectList }: UserProfileViewProps) {
   const router = useRouter()
   const { user: neynarUser } = useNeynarContext()
-  const { user: authUser, dbUser, isAuthenticated } = useAuth()
+  const { user: authUser, dbUser, isAuthenticated, logout } = useAuth()
 
   // Use authenticated user data (prioritize miniapp auth, fallback to Neynar)
   const user = authUser || neynarUser
@@ -85,11 +85,14 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
             <span>Create List</span>
           </button>
 
-          {/* Use NeynarAuthButton directly for sign out */}
-          <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
+          {/* Logout button */}
+          <button 
+            onClick={logout}
+            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
+          >
             <LogOut size={16} />
             <span>Sign Out</span>
-          </NeynarAuthButton>
+          </button>
         </div>
       </div>
     )
@@ -129,10 +132,13 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
 
       {/* Sign Out */}
       <div className="mt-6 pt-4 border-t border-black/10">
-        <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
+        <button 
+          onClick={logout}
+          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
+        >
           <LogOut size={16} />
           <span>Sign Out</span>
-        </NeynarAuthButton>
+        </button>
       </div>
     </div>
   )

@@ -4,7 +4,13 @@ import { useState, useEffect } from "react"
 import { NeynarAuthButton } from "@neynar/react"
 import { useAuth } from "@/lib/auth-context"
 
-export function FarcasterAuth() {
+interface FarcasterAuthProps {
+  className?: string
+  children?: React.ReactNode
+  onSuccess?: () => void
+}
+
+export function FarcasterAuth({ className, children, onSuccess }: FarcasterAuthProps) {
   const [isMobile, setIsMobile] = useState(false)
   const { refreshAuth } = useAuth()
 
@@ -27,6 +33,9 @@ export function FarcasterAuth() {
     const handleAuthSuccess = () => {
       console.log("Auth success detected, refreshing auth state")
       refreshAuth()
+      if (onSuccess) {
+        onSuccess()
+      }
     }
 
     // Listen for storage events (in case auth happens in another tab)
@@ -39,7 +48,7 @@ export function FarcasterAuth() {
       window.removeEventListener('storage', handleAuthSuccess)
       window.removeEventListener('focus', handleAuthSuccess)
     }
-  }, [refreshAuth])
+  }, [refreshAuth, onSuccess])
 
   const handleMobileAuth = async () => {
     try {
@@ -78,18 +87,18 @@ export function FarcasterAuth() {
     return (
       <button 
         onClick={handleMobileAuth}
-        className="bg-black text-white hover:bg-gray-800 rounded-none border border-black px-6 py-3 font-medium transition-colors"
+        className={`bg-black text-white hover:bg-gray-800 rounded-none border border-black px-6 py-3 font-medium transition-colors ${className}`}
       >
-        Sign in with Farcaster
+        {children || "Sign in with Farcaster"}
       </button>
     )
   }
 
   return (
     <NeynarAuthButton 
-      className="bg-black text-white hover:bg-gray-800 rounded-none border border-black px-6 py-3 font-medium transition-colors"
+      className={`bg-black text-white hover:bg-gray-800 rounded-none border border-black px-6 py-3 font-medium transition-colors ${className}`}
     >
-      Sign in with Farcaster
+      {children || "Sign in with Farcaster"}
     </NeynarAuthButton>
   )
 }

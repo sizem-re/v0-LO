@@ -1,7 +1,7 @@
 "use client"
 
 import { ChevronLeft } from "lucide-react"
-import { NeynarAuthButton } from "@neynar/react"
+import { FarcasterAuth } from "@/components/farcaster-auth"
 
 interface LoginViewProps {
   onBack: () => void
@@ -24,12 +24,12 @@ export function LoginView({ onBack, onLoginSuccess }: LoginViewProps) {
           <p className="text-black/70">Connect with Farcaster to create lists and save places</p>
         </div>
 
-        <NeynarAuthButton
+        <FarcasterAuth 
           className="bg-black text-white hover:bg-black/80 px-6 py-3 rounded-md"
           onSuccess={onLoginSuccess}
         >
           Connect with Farcaster
-        </NeynarAuthButton>
+        </FarcasterAuth>
       </div>
     </div>
   )

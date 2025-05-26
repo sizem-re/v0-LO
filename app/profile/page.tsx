@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useNeynarContext } from "@neynar/react"
 import { Button } from "@/components/ui/button"
 import { LogOut, List, MapPin, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading, user: authUser } = useAuth()
+  const { isAuthenticated, isLoading, user: authUser, logout } = useAuth()
   const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
@@ -67,10 +67,13 @@ export default function ProfilePage() {
         <button className="flex items-center text-black hover:bg-black/5 p-2 rounded" onClick={() => router.back()}>
           <ChevronLeft size={16} className="mr-1" /> Back
         </button>
-        {/* Use the Neynar button directly for sign out */}
-        <NeynarAuthButton className="flex items-center text-black/70 hover:text-black hover:bg-black/5 p-2 rounded">
+        {/* Logout button */}
+        <button 
+          onClick={logout}
+          className="flex items-center text-black/70 hover:text-black hover:bg-black/5 p-2 rounded"
+        >
           <LogOut size={16} className="mr-1" /> Logout
-        </NeynarAuthButton>
+        </button>
       </div>
 
       {/* Profile Info */}

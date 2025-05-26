@@ -7,7 +7,8 @@ import { Menu, X, Search, User, Map, List, Home } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { SearchDialog } from "@/components/search-dialog"
 import { UserMenu } from "@/components/user-menu"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useNeynarContext } from "@neynar/react"
+import { FarcasterAuth } from "@/components/farcaster-auth"
 
 export function MainNav() {
   const pathname = usePathname()
@@ -145,7 +146,9 @@ export function MainNav() {
               </>
             ) : (
               <div className="py-3 border-b border-black/10">
-                <NeynarAuthButton className="lo-button w-full text-center">CONNECT WITH FARCASTER</NeynarAuthButton>
+                <FarcasterAuth className="lo-button w-full text-center">
+                  CONNECT WITH FARCASTER
+                </FarcasterAuth>
               </div>
             )}
           </nav>

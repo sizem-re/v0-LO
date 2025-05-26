@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useNeynarContext } from "@neynar/react"
+import { FarcasterAuth } from "@/components/farcaster-auth"
 
 export default function TestFramePage() {
   const { isAuthenticated, user, dbUser } = useAuth()
@@ -106,7 +107,7 @@ export default function TestFramePage() {
               Test direct login using the Neynar authentication button:
             </p>
             <div className="flex justify-center">
-              <NeynarAuthButton className="py-2 px-4 bg-purple-600 text-white rounded" />
+              <FarcasterAuth />
             </div>
           </div>
         )}
