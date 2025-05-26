@@ -117,20 +117,13 @@ export async function POST(req: NextRequest) {
     // Redirect URL with auth token
     const redirectUrl = `https://llllllo.com?auth=${authToken}`
 
-    // Return redirect frame response (specific format required by Farcaster)
-    return new Response(
-      JSON.stringify({
-        version: "vNext",
-        image: "https://llllllo.com/og-image.png",
-        redirect: redirectUrl
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+    // Return a 302 redirect response
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': redirectUrl,
+      },
+    });
   } catch (error) {
     console.error("Frame auth error:", error)
     return new Response("Internal server error", { status: 500 })
