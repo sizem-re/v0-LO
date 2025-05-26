@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     const { domain, siweUri } = await req.json()
     
     // Create a channel with the official Farcaster Connect relay
-    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz
+    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz/v1/channel
     const response = await fetch('https://connect.farcaster.xyz/v1/channel', {
       method: 'POST',
       headers: {

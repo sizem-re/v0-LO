@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
     }
     
     // Poll the official Farcaster Connect relay for status
-    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz
-    const response = await fetch(`https://connect.farcaster.xyz/v1/channel/status?channelToken=${channelToken}`, {
+    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz/v1/channel/status
+    const response = await fetch(`https://connect.farcaster.xyz/v1/channel/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${channelToken}`,
       },
     })
 
