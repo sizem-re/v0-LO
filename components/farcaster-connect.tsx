@@ -15,6 +15,7 @@ interface FarcasterConnectProps {
 export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentPopup, setCurrentPopup] = useState<Window | null>(null)
   const { refreshAuth } = useAuth()
 
   useEffect(() => {
@@ -49,22 +50,24 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
 
           console.log('Storing auth data:', authData)
           localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          
+          // Close the popup
+          if (currentPopup && !currentPopup.closed) {
+            console.log('Closing popup')
+            currentPopup.close()
+            setCurrentPopup(null)
+          }
+          
+          // Refresh auth context
           await refreshAuth()
           
           toast.success('Successfully connected with Farcaster!')
           onSuccess?.()
           
-          // Close any open popup
-          const popups = document.querySelectorAll('iframe, [data-popup]')
-          popups.forEach(popup => {
-            if (popup.parentNode) {
-              popup.parentNode.removeChild(popup)
-            }
-          })
-          
+          // Don't refresh the page immediately - let the auth context update first
           setTimeout(() => {
             window.location.reload()
-          }, 1000)
+          }, 500)
           
         } catch (err) {
           console.error('Error handling Neynar authentication:', err)
@@ -73,6 +76,12 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           onError?.(errorMessage)
           toast.error(errorMessage)
           setIsLoading(false)
+          
+          // Close popup on error too
+          if (currentPopup && !currentPopup.closed) {
+            currentPopup.close()
+            setCurrentPopup(null)
+          }
         }
         return
       }
@@ -100,6 +109,13 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
 
           console.log('Storing auth data:', authData)
           localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          
+          // Close the popup
+          if (currentPopup && !currentPopup.closed) {
+            currentPopup.close()
+            setCurrentPopup(null)
+          }
+          
           await refreshAuth()
           
           toast.success('Successfully connected with Farcaster!')
@@ -107,7 +123,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           
           setTimeout(() => {
             window.location.reload()
-          }, 1000)
+          }, 500)
           
         } catch (err) {
           console.error('Error handling SIWN success:', err)
@@ -150,7 +166,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, [refreshAuth, onSuccess, onError])
+  }, [refreshAuth, onSuccess, onError, currentPopup])
 
   const handleConnect = () => {
     console.log('Connect button clicked')
@@ -184,12 +200,15 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
       return
     }
     
+    setCurrentPopup(popup)
+    
     // Check if popup was closed manually
     const checkClosed = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkClosed)
         setIsLoading(false)
-        console.log('Popup was closed')
+        setCurrentPopup(null)
+        console.log('Popup was closed manually')
       }
     }, 1000)
     
@@ -199,6 +218,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
         popup.close()
         clearInterval(checkClosed)
         setIsLoading(false)
+        setCurrentPopup(null)
         setError('Authentication timed out. Please try again.')
       }
     }, 300000)

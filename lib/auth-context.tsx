@@ -72,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const authData = JSON.parse(farcasterAuth)
         
-        // Verify the signature and get user data
-        const response = await fetch("/api/auth/verify-farcaster", {
+        // Verify the Neynar authentication and get user data
+        const response = await fetch("/api/auth/verify-neynar", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -82,18 +82,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
 
         if (response.ok) {
-          const { user: farcasterUser } = await response.json()
+          const { user: neynarUser } = await response.json()
           setIsAuthenticated(true)
-          setUser(farcasterUser)
-          setDbUser(farcasterUser)
+          setUser(neynarUser)
+          setDbUser(neynarUser)
           setIsLoading(false)
           return
         } else {
           // Invalid auth data, clear it
+          console.error("Neynar auth verification failed")
           localStorage.removeItem('farcaster_auth')
         }
       } catch (error) {
-        console.error("Farcaster Connect auth error:", error)
+        console.error("Neynar auth error:", error)
         localStorage.removeItem('farcaster_auth')
       }
     }
