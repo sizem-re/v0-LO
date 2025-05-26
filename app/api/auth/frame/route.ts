@@ -29,12 +29,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { trustedData } = body
     
+    console.log("Received Frame request:", { 
+      messageBytes: trustedData?.messageBytes?.slice(0, 32) + "..." // Log first 32 chars only
+    })
+    
     if (!trustedData?.messageBytes) {
       return new Response("Invalid frame data", { status: 400 })
     }
 
     // Verify the frame action with Neynar
-    const frameValidation = await neynarClient.validateFrameAction(trustedData.messageBytes)
+    console.log("Validating Frame action with Neynar...")
+    const frameValidation = await neynarClient.validateFrameAction({
+      messageBytesInHex: trustedData.messageBytes
+    })
+    
+    console.log("Frame validation result:", {
+      success: !!frameValidation?.action?.interactor,
+      fid: frameValidation?.action?.interactor?.fid
+    })
     
     if (!frameValidation?.action?.interactor) {
       return new Response("Invalid frame signature", { status: 401 })
