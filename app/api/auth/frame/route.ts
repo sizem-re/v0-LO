@@ -1,7 +1,23 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { NeynarAPIClient, Configuration } from "@neynar/nodejs-sdk"
 import { supabaseAdmin } from "@/lib/supabase-client"
 import { v4 as uuidv4 } from "uuid"
+
+// Define the user type for better type safety
+interface DbUser {
+  id: string;
+  farcaster_id: string;
+  farcaster_username?: string;
+  farcaster_display_name?: string;
+  farcaster_pfp_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Define a specific type for the frame response
+interface FrameRedirectResponse {
+  location: string;
+}
 
 const config = new Configuration({
   apiKey: process.env.NEYNAR_API_KEY!,
@@ -35,21 +51,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user exists in your database
-    const { data: existingUser, error: findError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("users")
       .select("*")
       .eq("farcaster_id", fid.toString())
       .maybeSingle()
 
-    if (findError && findError.code !== "PGRST116") {
-      console.error("Error checking for existing user:", findError)
+    if (error && error.code !== "PGRST116") {
+      console.error("Error checking for existing user:", error)
       return new Response("Database error", { status: 500 })
     }
 
-    let dbUser
-    if (existingUser) {
+    let userId = ""
+    
+    if (data) {
       // Update existing user
-      const { data: updatedUser, error: updateError } = await supabaseAdmin
+      userId = data.id as string
+      
+      await supabaseAdmin
         .from("users")
         .update({
           farcaster_username: user.username,
@@ -57,21 +76,16 @@ export async function POST(req: NextRequest) {
           farcaster_pfp_url: user.pfp_url,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existingUser.id)
-        .select()
-        .single()
-
-      if (updateError) {
-        console.error("Error updating user:", updateError)
-        return new Response("Database error", { status: 500 })
-      }
-      dbUser = updatedUser
+        .eq("id", userId)
     } else {
       // Create new user
-      const { data: newUser, error: createError } = await supabaseAdmin
+      const newUserId = uuidv4()
+      userId = newUserId
+      
+      await supabaseAdmin
         .from("users")
         .insert({
-          id: uuidv4(),
+          id: newUserId,
           farcaster_id: fid.toString(),
           farcaster_username: user.username,
           farcaster_display_name: user.display_name,
@@ -79,46 +93,28 @@ export async function POST(req: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .select()
-        .single()
-
-      if (createError) {
-        console.error("Error creating user:", createError)
-        return new Response("Database error", { status: 500 })
-      }
-      dbUser = newUser
     }
 
     // Return a Frame response that redirects to the app with auth token
     const authToken = Buffer.from(JSON.stringify({ 
-      userId: dbUser.id, 
+      userId, 
       fid: fid.toString(),
       timestamp: Date.now() 
     })).toString('base64')
 
-    // Return Frame HTML that redirects to the app
-    const frameHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta property="fc:frame" content="vNext" />
-          <meta property="fc:frame:image" content="https://llllllo.com/og-image.png" />
-          <meta property="fc:frame:button:1" content="Open LO App" />
-          <meta property="fc:frame:button:1:action" content="link" />
-          <meta property="fc:frame:button:1:target" content="https://llllllo.com?auth=${authToken}" />
-        </head>
-        <body>
-          <p>Authentication successful! Click the button to open LO.</p>
-        </body>
-      </html>
-    `
+    // Redirect URL with auth token
+    const redirectUrl = `https://llllllo.com?auth=${authToken}`
 
-    return new Response(frameHtml, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html",
-      },
-    })
+    // Return redirect frame response (specific format required by Farcaster)
+    return new Response(
+      JSON.stringify({ location: redirectUrl }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    )
   } catch (error) {
     console.error("Frame auth error:", error)
     return new Response("Internal server error", { status: 500 })
