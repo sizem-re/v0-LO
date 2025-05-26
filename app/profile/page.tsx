@@ -15,7 +15,11 @@ export default function ProfilePage() {
   const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
   const userIsAuthenticated = isAuthenticated || neynarAuthenticated
-  const user = neynarUser || authUser
+  const user = authUser || neynarUser
+
+  console.log("ProfilePage - authUser:", authUser)
+  console.log("ProfilePage - neynarUser:", neynarUser)
+  console.log("ProfilePage - final user:", user)
 
   useEffect(() => {
     // Redirect to home page - we're no longer using a separate profile page
@@ -38,15 +42,15 @@ export default function ProfilePage() {
   const displayUser = user
     ? {
         displayName:
-          typeof user.display_name === "string"
-            ? user.display_name
-            : typeof user.username === "string"
-              ? user.username
-              : "User",
-        username: typeof user.username === "string" ? user.username : "user",
-        pfp: user.pfp_url || "/placeholder.svg",
-        fid: user.fid?.toString() || "0",
-        bio: typeof user.profile?.bio === "string" ? user.profile.bio : "",
+          user.farcaster_display_name || 
+          user.display_name ||
+          user.farcaster_username ||
+          user.username ||
+          "User",
+        username: user.farcaster_username || user.username || "user",
+        pfp: user.farcaster_pfp_url || user.pfp_url || "/placeholder.svg",
+        fid: user.farcaster_id || user.fid?.toString() || "0",
+        bio: user.profile?.bio || "",
       }
     : {
         displayName: "Demo User",

@@ -34,7 +34,11 @@ export function FarcasterMiniappAuth({ onAuthSuccess, onError }: FarcasterMiniap
 
     setIsLoading(true)
     try {
+      console.log("Starting Quick Auth...")
       const { token } = await sdk.experimental.quickAuth()
+      console.log("Quick Auth token received:", token ? "present" : "missing")
+      console.log("Token length:", token?.length)
+      console.log("Token preview:", token?.substring(0, 50) + "...")
       onAuthSuccess(token)
     } catch (error) {
       console.error("Quick auth error:", error)

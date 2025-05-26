@@ -127,6 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       
+      console.log("Sending miniapp auth request with token...")
+      
       const response = await fetch("/api/auth/farcaster-miniapp", {
         method: "POST",
         headers: {
@@ -135,12 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ token }),
       })
 
+      console.log("Miniapp auth response status:", response.status)
+      
       if (response.ok) {
-        const { user: miniappUser } = await response.json()
+        const responseData = await response.json()
+        console.log("Miniapp auth response data:", responseData)
+        
+        const { user: miniappUser } = responseData
+        console.log("Setting user data:", miniappUser)
+        
         setIsAuthenticated(true)
         setUser(miniappUser)
         setDbUser(miniappUser)
       } else {
+        const errorData = await response.text()
+        console.error("Miniapp auth failed with status:", response.status, "Error:", errorData)
         throw new Error("Miniapp authentication failed")
       }
     } catch (error) {

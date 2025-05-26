@@ -4,6 +4,7 @@ import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
+import { useAuth } from "@/lib/auth-context"
 import { UserListsDisplay } from "@/components/user-lists-display"
 
 interface UserProfileViewProps {
@@ -15,21 +16,30 @@ interface UserProfileViewProps {
 
 export function UserProfileView({ onClose, expanded = false, onCreateList, onSelectList }: UserProfileViewProps) {
   const router = useRouter()
-  const { user } = useNeynarContext()
+  const { user: neynarUser } = useNeynarContext()
+  const { user: authUser, dbUser, isAuthenticated } = useAuth()
+
+  // Use authenticated user data (prioritize miniapp auth, fallback to Neynar)
+  const user = authUser || neynarUser
+
+  console.log("UserProfileView - authUser:", authUser)
+  console.log("UserProfileView - dbUser:", dbUser)
+  console.log("UserProfileView - neynarUser:", neynarUser)
+  console.log("UserProfileView - final user:", user)
 
   // Format user data
   const displayUser = user
     ? {
         displayName:
-          typeof user.display_name === "string"
-            ? user.display_name
-            : typeof user.username === "string"
-              ? user.username
-              : "User",
-        username: typeof user.username === "string" ? user.username : "user",
-        pfp: user.pfp_url || "/placeholder.svg",
-        fid: user.fid?.toString() || "0",
-        bio: typeof user.profile?.bio === "string" ? user.profile.bio : "",
+          user.farcaster_display_name || 
+          user.display_name ||
+          user.farcaster_username ||
+          user.username ||
+          "User",
+        username: user.farcaster_username || user.username || "user",
+        pfp: user.farcaster_pfp_url || user.pfp_url || "/placeholder.svg",
+        fid: user.farcaster_id || user.fid?.toString() || "0",
+        bio: user.profile?.bio || "",
       }
     : {
         displayName: "Demo User",
