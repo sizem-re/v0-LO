@@ -24,50 +24,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<any | null>(null)
   const [dbUser, setDbUser] = useState<any | null>(null)
-  const { isAuthenticated: neynarAuthenticated, user: neynarUser, signOut: neynarSignOut } = useNeynarContext()
+  const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
   useEffect(() => {
-    // Check if the user is authenticated with Neynar
-    if (neynarAuthenticated && neynarUser) {
-      setIsAuthenticated(true)
-      setUser(neynarUser)
-
-      // Create or update user in Supabase via server-side API
-      const createOrUpdateUser = async () => {
+    // Check for Frame authentication token in URL
+    const checkFrameAuth = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const authToken = urlParams.get('auth')
+      
+      if (authToken) {
         try {
-          // Use the server-side API to create/update user (bypasses RLS)
-          const response = await fetch("/api/auth/register", {
+          const response = await fetch("/api/auth/verify-token", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              farcaster_id: neynarUser.fid.toString(),
-              farcaster_username: neynarUser.username || "",
-              farcaster_display_name: neynarUser.display_name || "",
-              farcaster_pfp_url: neynarUser.pfp_url || "",
-            }),
+            body: JSON.stringify({ token: authToken }),
           })
 
           if (response.ok) {
-            const userData = await response.json()
-            setDbUser(userData)
-            console.log("User registered successfully:", userData)
+            const { user: frameUser } = await response.json()
+            setIsAuthenticated(true)
+            setUser(frameUser)
+            setDbUser(frameUser)
+            setIsLoading(false)
+            
+            // Clean up URL by removing the auth token
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete('auth')
+            window.history.replaceState({}, '', newUrl.toString())
+            return
           }
         } catch (error) {
-          console.error("Error in createOrUpdateUser:", error)
-        } finally {
-          setIsLoading(false)
+          console.error("Frame auth error:", error)
         }
       }
 
-      createOrUpdateUser()
-    } else {
-      setIsAuthenticated(false)
-      setUser(null)
-      setDbUser(null)
-      setIsLoading(false)
+      // Fall back to regular Neynar authentication
+      if (neynarAuthenticated && neynarUser) {
+        setIsAuthenticated(true)
+        setUser(neynarUser)
+
+        // Create or update user in Supabase via server-side API
+        const createOrUpdateUser = async () => {
+          try {
+            // Use the server-side API to create/update user (bypasses RLS)
+            const response = await fetch("/api/auth/register", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                farcaster_id: neynarUser.fid.toString(),
+                farcaster_username: neynarUser.username || "",
+                farcaster_display_name: neynarUser.display_name || "",
+                farcaster_pfp_url: neynarUser.pfp_url || "",
+              }),
+            })
+
+            if (response.ok) {
+              const userData = await response.json()
+              setDbUser(userData)
+              console.log("User registered successfully:", userData)
+            }
+          } catch (error) {
+            console.error("Error in createOrUpdateUser:", error)
+          } finally {
+            setIsLoading(false)
+          }
+        }
+
+        createOrUpdateUser()
+      } else {
+        setIsAuthenticated(false)
+        setUser(null)
+        setDbUser(null)
+        setIsLoading(false)
+      }
     }
+
+    checkFrameAuth()
   }, [neynarAuthenticated, neynarUser])
 
   const logout = async () => {
@@ -77,12 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setDbUser(null)
 
-      // Try to sign out from Neynar
-      if (typeof neynarSignOut === "function") {
-        await neynarSignOut()
-      }
-
-      // Reload the page to clear all state
+      // Reload the page to clear all state and trigger Neynar logout
       window.location.href = "/"
     } catch (error) {
       console.error("Error during logout:", error)
