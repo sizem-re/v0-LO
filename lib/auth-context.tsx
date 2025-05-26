@@ -10,6 +10,7 @@ interface AuthContextType {
   dbUser: any | null
   logout: () => Promise<void>
   authenticateWithMiniapp: (token: string) => Promise<void>
+  refreshAuth: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   dbUser: null,
   logout: async () => {},
   authenticateWithMiniapp: async () => {},
+  refreshAuth: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,84 +30,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [dbUser, setDbUser] = useState<any | null>(null)
   const { isAuthenticated: neynarAuthenticated, user: neynarUser } = useNeynarContext()
 
-  useEffect(() => {
+  // Function to refresh authentication state
+  const refreshAuth = async () => {
+    setIsLoading(true)
+    
     // Check for Frame authentication token in URL
-    const checkFrameAuth = async () => {
-      const urlParams = new URLSearchParams(window.location.search)
-      const authToken = urlParams.get('auth')
-      
-      if (authToken) {
-        try {
-          const response = await fetch("/api/auth/verify-token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token: authToken }),
-          })
+    const urlParams = new URLSearchParams(window.location.search)
+    const authToken = urlParams.get('auth')
+    
+    if (authToken) {
+      try {
+        const response = await fetch("/api/auth/verify-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token: authToken }),
+        })
 
-          if (response.ok) {
-            const { user: frameUser } = await response.json()
-            setIsAuthenticated(true)
-            setUser(frameUser)
-            setDbUser(frameUser)
-            setIsLoading(false)
-            
-            // Clean up URL by removing the auth token
-            const newUrl = new URL(window.location.href)
-            newUrl.searchParams.delete('auth')
-            window.history.replaceState({}, '', newUrl.toString())
-            return
-          }
-        } catch (error) {
-          console.error("Frame auth error:", error)
+        if (response.ok) {
+          const { user: frameUser } = await response.json()
+          setIsAuthenticated(true)
+          setUser(frameUser)
+          setDbUser(frameUser)
+          
+          // Clean up URL by removing the auth token
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('auth')
+          window.history.replaceState({}, '', newUrl.toString())
+          setIsLoading(false)
+          return
         }
-      }
-
-      // Fall back to regular Neynar authentication
-      if (neynarAuthenticated && neynarUser) {
-        setIsAuthenticated(true)
-        setUser(neynarUser)
-
-        // Create or update user in Supabase via server-side API
-        const createOrUpdateUser = async () => {
-          try {
-            // Use the server-side API to create/update user (bypasses RLS)
-            const response = await fetch("/api/auth/register", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                farcaster_id: neynarUser.fid.toString(),
-                farcaster_username: neynarUser.username || "",
-                farcaster_display_name: neynarUser.display_name || "",
-                farcaster_pfp_url: neynarUser.pfp_url || "",
-              }),
-            })
-
-            if (response.ok) {
-              const userData = await response.json()
-              setDbUser(userData)
-              console.log("User registered successfully:", userData)
-            }
-          } catch (error) {
-            console.error("Error in createOrUpdateUser:", error)
-          } finally {
-            setIsLoading(false)
-          }
-        }
-
-        createOrUpdateUser()
-      } else {
-        setIsAuthenticated(false)
-        setUser(null)
-        setDbUser(null)
-        setIsLoading(false)
+      } catch (error) {
+        console.error("Frame auth error:", error)
       }
     }
 
-    checkFrameAuth()
+    // Fall back to regular Neynar authentication
+    if (neynarAuthenticated && neynarUser) {
+      setIsAuthenticated(true)
+      setUser(neynarUser)
+
+      // Create or update user in Supabase via server-side API
+      try {
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            farcaster_id: neynarUser.fid.toString(),
+            farcaster_username: neynarUser.username || "",
+            farcaster_display_name: neynarUser.display_name || "",
+            farcaster_pfp_url: neynarUser.pfp_url || "",
+          }),
+        })
+
+        if (response.ok) {
+          const userData = await response.json()
+          setDbUser(userData)
+          console.log("User registered successfully:", userData)
+        }
+      } catch (error) {
+        console.error("Error in createOrUpdateUser:", error)
+      }
+    } else {
+      setIsAuthenticated(false)
+      setUser(null)
+      setDbUser(null)
+    }
+    
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    refreshAuth()
   }, [neynarAuthenticated, neynarUser])
 
   const logout = async () => {
@@ -114,6 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false)
       setUser(null)
       setDbUser(null)
+
+      // Clear any stored tokens
+      localStorage.clear()
+      sessionStorage.clear()
 
       // Reload the page to clear all state and trigger Neynar logout
       window.location.href = "/"
@@ -163,7 +166,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, dbUser, logout, authenticateWithMiniapp }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      isLoading, 
+      user, 
+      dbUser, 
+      logout, 
+      authenticateWithMiniapp,
+      refreshAuth 
+    }}>
+      {children}
+    </AuthContext.Provider>
   )
 }
 

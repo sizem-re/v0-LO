@@ -16,16 +16,17 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
         eventsCallbacks: {
           onAuthSuccess: () => {
             console.log("Authentication successful")
+            // Force a page refresh to ensure all components update their auth state
             setTimeout(() => {
-              router.refresh()
+              window.location.reload()
             }, 500)
           },
-          onSignout() {
+          onSignout: () => {
             console.log("Signed out successfully")
-            router.push("/")
-          },
-          onError: (error) => {
-            console.error("Neynar authentication error:", error)
+            // Clear any local storage and redirect to home
+            localStorage.clear()
+            sessionStorage.clear()
+            window.location.href = "/"
           },
         },
       }}
