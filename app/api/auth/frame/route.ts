@@ -107,7 +107,11 @@ export async function POST(req: NextRequest) {
 
     // Return redirect frame response (specific format required by Farcaster)
     return new Response(
-      JSON.stringify({ location: redirectUrl }),
+      JSON.stringify({
+        version: "vNext",
+        image: "https://llllllo.com/og-image.png",
+        redirect: redirectUrl
+      }),
       {
         status: 200,
         headers: {

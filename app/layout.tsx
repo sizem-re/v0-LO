@@ -18,22 +18,6 @@ const bizUDMincho = BIZ_UDMincho({
   variable: "--font-biz-udmincho",
 })
 
-// Create the Farcaster frame embed JSON
-const farcasterFrameEmbed = {
-  version: "next",
-  imageUrl: "https://llllllo.com/og-image.png", // Use the OG image
-  button: {
-    title: "🗺️ Explore Places",
-    action: {
-      type: "launch_frame",
-      name: "LO",
-      url: "https://llllllo.com",
-      splashImageUrl: "https://llllllo.com/splash.png", // Use the splash image
-      splashBackgroundColor: "#ffffff",
-    },
-  },
-}
-
 export const metadata: Metadata = {
   title: "LO - Discover Places",
   description: "Discover and share curated lists of locations",
@@ -71,7 +55,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
-        <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="https://llllllo.com/og-image.png" />
         <meta property="fc:frame:button:1" content="Login with Farcaster" />
