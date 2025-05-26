@@ -1,180 +1,29 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { QRCodeSVG } from "qrcode.react"
-import { useAuth } from "@/lib/auth-context"
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2, Smartphone, Monitor, RefreshCw } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
+import { toast } from 'sonner'
 
 interface FarcasterConnectProps {
-  className?: string
-  children?: React.ReactNode
   onSuccess?: () => void
+  onError?: (error: string) => void
 }
 
-interface ConnectResponse {
-  channelToken: string
-  url: string
-  connectUri: string
-}
-
-interface StatusResponse {
-  state: 'pending' | 'completed' | 'expired'
-  nonce?: string
-  message?: string
-  signature?: string
-  fid?: number
-  username?: string
-  bio?: string
-  displayName?: string
-  pfpUrl?: string
-}
-
-// Detect if user is on mobile
-const isMobile = () => {
-  if (typeof window === 'undefined') return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-}
-
-export function FarcasterConnect({ className, children, onSuccess }: FarcasterConnectProps) {
-  const { refreshAuth } = useAuth()
+export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [connectData, setConnectData] = useState<ConnectResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isMobileDevice, setIsMobileDevice] = useState(false)
-
-  useEffect(() => {
-    setIsMobileDevice(isMobile())
-  }, [])
-
-  // Poll for authentication status
-  useEffect(() => {
-    if (!connectData) return
-
-    const pollStatus = async () => {
-      try {
-        console.log('Polling status for channel:', connectData.channelToken)
-        const response = await fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
-        
-        if (!response.ok) {
-          console.error('Status polling failed:', response.status, response.statusText)
-          return
-        }
-        
-        const data: StatusResponse = await response.json()
-        console.log('Status response:', data)
-
-        if (data.state === 'completed' && data.signature) {
-          console.log('Farcaster authentication completed!')
-          
-          // Store auth data
-          localStorage.setItem('farcaster_auth', JSON.stringify({
-            fid: data.fid,
-            username: data.username,
-            displayName: data.displayName,
-            pfpUrl: data.pfpUrl,
-            signature: data.signature,
-            message: data.message
-          }))
-
-          // Refresh auth state
-          await refreshAuth()
-          
-          // Clear connect data
-          setConnectData(null)
-          
-          // Call success callback
-          if (onSuccess) {
-            onSuccess()
-          }
-          
-          // Force a page refresh to ensure all components update
-          setTimeout(() => {
-            window.location.reload()
-          }, 500)
-          
-        } else if (data.state === 'expired') {
-          console.log('Authentication request expired')
-          setError('Authentication request expired. Please try again.')
-          setConnectData(null)
-        } else {
-          console.log('Authentication still pending, state:', data.state)
-        }
-      } catch (error) {
-        console.error('Error polling status:', error)
-      }
-    }
-
-    // Initial poll
-    pollStatus()
-    
-    // Poll every 2 seconds
-    const interval = setInterval(pollStatus, 2000)
-
-    // Cleanup after 5 minutes
-    const timeout = setTimeout(() => {
-      clearInterval(interval)
-      setConnectData(null)
-      setError('Authentication request timed out.')
-    }, 5 * 60 * 1000)
-
-    return () => {
-      clearInterval(interval)
-      clearTimeout(timeout)
-    }
-  }, [connectData, refreshAuth, onSuccess])
-
-  // Listen for when user returns to the page (mobile)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && connectData) {
-        console.log('Page became visible, checking auth status immediately')
-        // Check status immediately when page becomes visible
-        fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
-          .then(response => response.json())
-          .then(data => {
-            console.log('Visibility change status check:', data)
-            if (data.state === 'completed' && data.signature) {
-              // Store auth data and refresh
-              localStorage.setItem('farcaster_auth', JSON.stringify({
-                fid: data.fid,
-                username: data.username,
-                displayName: data.displayName,
-                pfpUrl: data.pfpUrl,
-                signature: data.signature,
-                message: data.message
-              }))
-              refreshAuth()
-              setConnectData(null)
-              if (onSuccess) onSuccess()
-              setTimeout(() => window.location.reload(), 500)
-            }
-          })
-          .catch(error => console.error('Visibility change status check error:', error))
-      }
-    }
-
-    const handleFocus = () => {
-      if (connectData) {
-        console.log('Window focused, checking auth status')
-        handleVisibilityChange()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [connectData, refreshAuth, onSuccess])
+  const { refreshAuth } = useAuth()
 
   const handleConnect = async () => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Create a new channel
-      const response = await fetch('/api/auth/farcaster/connect', {
+      setIsLoading(true)
+      setError(null)
+      
+      // Use Neynar's SIWN (Sign In With Neynar) instead of broken Farcaster Connect
+      const response = await fetch('/api/auth/neynar/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,113 +35,99 @@ export function FarcasterConnect({ className, children, onSuccess }: FarcasterCo
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create authentication channel')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to initiate authentication')
       }
 
-      const data: ConnectResponse = await response.json()
-      setConnectData(data)
-
-      // On mobile, redirect directly to the connect URI
-      if (isMobileDevice) {
-        window.location.href = data.connectUri
-      }
-    } catch (error) {
-      console.error('Error creating connect channel:', error)
-      setError('Failed to start authentication. Please try again.')
+      const { url } = await response.json()
+      
+      // Redirect to Neynar's authentication page
+      window.location.href = url
+      
+    } catch (err) {
+      console.error('Error connecting with Farcaster:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to start authentication. Please try again.'
+      setError(errorMessage)
+      onError?.(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (connectData) {
-    return (
-      <div className="text-center space-y-4">
-        {!isMobileDevice ? (
-          <>
-            <div className="bg-white p-4 rounded-lg border">
-              <QRCodeSVG 
-                value={connectData.connectUri} 
-                size={200}
-                className="mx-auto"
-              />
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium">Scan with your phone</h3>
-              <p className="text-sm text-gray-600">
-                Open your camera app and scan the QR code to sign in with Farcaster
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className="space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
-            <div className="space-y-2">
-              <h3 className="font-medium">Complete authentication in Farcaster</h3>
-              <p className="text-sm text-gray-600">
-                1. Complete the authentication in the Farcaster app<br/>
-                2. Tap "Return to Farcaster" when done<br/>
-                3. Return to this browser tab<br/>
-                4. Tap "Check Status" below if needed
-              </p>
-            </div>
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <CardTitle className="flex items-center justify-center gap-2">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 1000 1000"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect width="1000" height="1000" rx="200" fill="#8A63D2"/>
+            <path
+              d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"
+              fill="white"
+            />
+            <path
+              d="M128.889 253.333L157.778 351.111H182.222V746.667C182.222 790.643 218.024 826.667 262.222 826.667H737.778C781.976 826.667 817.778 790.643 817.778 746.667V351.111H842.222L871.111 253.333H128.889Z"
+              fill="white"
+            />
+          </svg>
+          Sign in with Farcaster
+        </CardTitle>
+        <CardDescription>
+          Connect your Farcaster account to continue
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            {error}
           </div>
         )}
         
-        <div className="space-y-2">
-          <button
-            onClick={async () => {
-              console.log('Manual status check triggered')
-              try {
-                const response = await fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
-                const data = await response.json()
-                console.log('Manual status check result:', data)
-                if (data.state === 'completed' && data.signature) {
-                  localStorage.setItem('farcaster_auth', JSON.stringify({
-                    fid: data.fid,
-                    username: data.username,
-                    displayName: data.displayName,
-                    pfpUrl: data.pfpUrl,
-                    signature: data.signature,
-                    message: data.message
-                  }))
-                  await refreshAuth()
-                  setConnectData(null)
-                  if (onSuccess) onSuccess()
-                  window.location.reload()
-                }
-              } catch (error) {
-                console.error('Manual status check error:', error)
-              }
-            }}
-            className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
-          >
-            Check Status
-          </button>
-          
-          <button
-            onClick={() => setConnectData(null)}
-            className="block text-sm text-gray-500 hover:text-gray-700"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )
-  }
+        <Button
+          onClick={handleConnect}
+          disabled={isLoading}
+          className="w-full"
+          size="lg"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            <>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 1000 1000"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="mr-2"
+              >
+                <rect width="1000" height="1000" rx="200" fill="currentColor"/>
+                <path
+                  d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"
+                  fill="white"
+                />
+              </svg>
+              Connect with Farcaster
+            </>
+          )}
+        </Button>
 
-  return (
-    <div className="space-y-2">
-      <button
-        onClick={handleConnect}
-        disabled={isLoading}
-        className={`${className} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        {isLoading ? 'Connecting...' : (children || 'Sign in with Farcaster')}
-      </button>
-      
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-    </div>
+        <div className="text-xs text-gray-500 text-center">
+          <p>Powered by Neynar</p>
+          <p className="mt-1">
+            By connecting, you agree to our terms of service and privacy policy.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   )
 } 
