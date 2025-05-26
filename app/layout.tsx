@@ -58,8 +58,8 @@ export default function RootLayout({
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="https://llllllo.com/og-image.png" />
         <meta property="fc:frame:button:1" content="Login with Farcaster" />
-        <meta property="fc:frame:button:1:action" content="post_redirect" />
-        <meta property="fc:frame:post_url" content="https://llllllo.com/api/auth/frame" />
+        <meta property="fc:frame:button:1:action" content="launch_frame" />
+        <meta property="fc:frame:button:1:target" content="https://llllllo.com" />
         <meta property="og:image" content="https://llllllo.com/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />

@@ -9,6 +9,7 @@ interface AuthContextType {
   user: any | null
   dbUser: any | null
   logout: () => Promise<void>
+  authenticateWithMiniapp: (token: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   dbUser: null,
   logout: async () => {},
+  authenticateWithMiniapp: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -121,8 +123,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const authenticateWithMiniapp = async (token: string) => {
+    try {
+      setIsLoading(true)
+      
+      const response = await fetch("/api/auth/farcaster-miniapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      })
+
+      if (response.ok) {
+        const { user: miniappUser } = await response.json()
+        setIsAuthenticated(true)
+        setUser(miniappUser)
+        setDbUser(miniappUser)
+      } else {
+        throw new Error("Miniapp authentication failed")
+      }
+    } catch (error) {
+      console.error("Miniapp auth error:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, dbUser, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, dbUser, logout, authenticateWithMiniapp }}>{children}</AuthContext.Provider>
   )
 }
 
