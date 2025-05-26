@@ -9,23 +9,33 @@ function CallbackHandler() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
+
+  const addDebug = (message: string) => {
+    console.log('Callback Debug:', message)
+    setDebugInfo(prev => [...prev, message])
+  }
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        console.log('Callback handler started')
-        console.log('Search params:', Object.fromEntries(searchParams.entries()))
+        addDebug('Callback handler started')
+        addDebug(`Search params: ${JSON.stringify(Object.fromEntries(searchParams.entries()))}`)
+        addDebug(`Window opener exists: ${!!window.opener}`)
+        addDebug(`Current URL: ${window.location.href}`)
 
         // Check for errors first
         const error = searchParams.get('error')
         if (error) {
+          addDebug(`Error found: ${error}`)
           // Send error message to parent window
           if (window.opener) {
+            addDebug('Sending error to parent window')
             window.opener.postMessage({
               type: 'SIWN_ERROR',
               error: error
-            }, window.location.origin)
-            window.close()
+            }, '*') // Use '*' for now to ensure message is sent
+            setTimeout(() => window.close(), 1000)
             return
           }
           throw new Error(`Authentication error: ${error}`)
@@ -33,30 +43,33 @@ function CallbackHandler() {
 
         // Check if we have an authorization code
         const code = searchParams.get('code')
+        addDebug(`Authorization code: ${code ? 'present' : 'missing'}`)
+        
         if (!code) {
+          addDebug('No authorization code found')
           if (window.opener) {
+            addDebug('Sending no-code error to parent window')
             window.opener.postMessage({
               type: 'SIWN_ERROR',
               error: 'No authorization code received'
-            }, window.location.origin)
-            window.close()
+            }, '*')
+            setTimeout(() => window.close(), 1000)
             return
           }
           throw new Error('No authorization code received')
         }
 
-        console.log('Authorization code received:', code)
+        addDebug(`Authorization code received: ${code.substring(0, 10)}...`)
 
-        // For now, we'll simulate successful authentication
-        // In a real implementation, you would exchange the code for user data
-        // But since Neynar's OAuth flow might be different, we'll handle this differently
-        
         // Check if we have direct user data in the URL (some OAuth providers do this)
         const fid = searchParams.get('fid')
         const username = searchParams.get('username')
         const signerUuid = searchParams.get('signer_uuid')
         
+        addDebug(`Direct user data - FID: ${fid}, Username: ${username}, SignerUuid: ${signerUuid}`)
+        
         if (fid && username) {
+          addDebug('Found direct user data in URL')
           // We have user data directly
           const userData = {
             fid: parseInt(fid),
@@ -73,15 +86,17 @@ function CallbackHandler() {
           }
 
           if (window.opener) {
+            addDebug('Sending success data to parent window')
             window.opener.postMessage({
               type: 'SIWN_SUCCESS',
               ...userData
-            }, window.location.origin)
-            window.close()
+            }, '*')
+            setTimeout(() => window.close(), 1000)
             return
           }
           
           // If not in popup, store locally and redirect
+          addDebug('Not in popup, storing locally')
           const authData = {
             ...userData,
             authenticatedAt: new Date().toISOString(),
@@ -94,27 +109,35 @@ function CallbackHandler() {
           return
         }
 
-        // If we only have a code, we need to handle it differently
-        // For now, we'll show an error since we don't have the full OAuth implementation
+        // If we only have a code, try to exchange it or show a message
+        addDebug('Only have authorization code, attempting to handle')
+        
+        // For now, let's try to send the code to the parent and let it handle the exchange
         if (window.opener) {
+          addDebug('Sending code to parent window for exchange')
           window.opener.postMessage({
-            type: 'SIWN_ERROR',
-            error: 'OAuth code exchange not yet implemented'
-          }, window.location.origin)
-          window.close()
+            type: 'SIWN_CODE',
+            code: code,
+            redirect_uri: `${window.location.origin}/auth/callback`
+          }, '*')
+          setTimeout(() => window.close(), 1000)
           return
         }
         
-        throw new Error('OAuth code exchange not yet implemented')
+        // If not in popup, show a message that we need to implement code exchange
+        addDebug('Not in popup and only have code - showing error')
+        throw new Error('OAuth code exchange not yet implemented for direct access')
 
       } catch (err) {
         console.error('Callback error:', err)
+        addDebug(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
         setError(err instanceof Error ? err.message : 'Authentication failed')
         setStatus('error')
       }
     }
 
-    handleCallback()
+    // Add a small delay to ensure the page is fully loaded
+    setTimeout(handleCallback, 100)
   }, [searchParams])
 
   if (status === 'loading') {
@@ -124,6 +147,16 @@ function CallbackHandler() {
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <h1 className="text-xl font-semibold">Completing authentication...</h1>
           <p className="text-gray-600">Please wait while we verify your Farcaster account.</p>
+          
+          {/* Debug info */}
+          {process.env.NODE_ENV === 'development' && debugInfo.length > 0 && (
+            <div className="mt-4 p-4 bg-gray-100 rounded text-left text-xs max-w-md mx-auto">
+              <h3 className="font-semibold mb-2">Debug Info:</h3>
+              {debugInfo.map((info, index) => (
+                <div key={index} className="mb-1">{info}</div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -155,6 +188,17 @@ function CallbackHandler() {
         </div>
         <h1 className="text-xl font-semibold text-red-600">Authentication failed</h1>
         <p className="text-gray-600">{error}</p>
+        
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && debugInfo.length > 0 && (
+          <div className="mt-4 p-4 bg-gray-100 rounded text-left text-xs max-w-md mx-auto">
+            <h3 className="font-semibold mb-2">Debug Info:</h3>
+            {debugInfo.map((info, index) => (
+              <div key={index} className="mb-1">{info}</div>
+            ))}
+          </div>
+        )}
+        
         <button
           onClick={() => window.location.href = '/login'}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"

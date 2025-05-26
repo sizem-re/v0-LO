@@ -20,15 +20,16 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
   useEffect(() => {
     // Listen for messages from the popup window
     const handleMessage = async (event: MessageEvent) => {
-      // Make sure the message is from Neynar
-      if (event.origin !== 'https://app.neynar.com') {
-        return
-      }
+      console.log('Received message:', event)
+      console.log('Message origin:', event.origin)
+      console.log('Message data:', event.data)
 
-      console.log('Received message from Neynar:', event.data)
-
+      // For now, accept messages from any origin to debug
+      // TODO: Restrict to Neynar domains in production
+      
       if (event.data.type === 'SIWN_SUCCESS') {
         try {
+          console.log('Processing SIWN_SUCCESS')
           setIsLoading(false)
           
           const authData = {
@@ -46,6 +47,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
             authenticatedAt: new Date().toISOString(),
           }
 
+          console.log('Storing auth data:', authData)
           localStorage.setItem('farcaster_auth', JSON.stringify(authData))
           await refreshAuth()
           
@@ -64,11 +66,30 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           toast.error(errorMessage)
           setIsLoading(false)
         }
+      } else if (event.data.type === 'SIWN_CODE') {
+        try {
+          console.log('Processing SIWN_CODE')
+          console.log('Authorization code:', event.data.code)
+          
+          // For now, we'll show an error since we don't have the OAuth exchange implemented
+          // In a full implementation, you would exchange the code for user data here
+          setError('OAuth code received but exchange not implemented yet')
+          setIsLoading(false)
+          toast.error('Authentication partially complete - code exchange needed')
+          
+        } catch (err) {
+          console.error('Error handling SIWN code:', err)
+          setError('Failed to process authorization code')
+          setIsLoading(false)
+          toast.error('Authentication failed')
+        }
       } else if (event.data.type === 'SIWN_ERROR') {
         console.error('SIWN error:', event.data.error)
-        setError('Authentication failed. Please try again.')
+        setError(`Authentication failed: ${event.data.error}`)
         setIsLoading(false)
         toast.error('Authentication failed')
+      } else {
+        console.log('Unknown message type:', event.data.type)
       }
     }
 
