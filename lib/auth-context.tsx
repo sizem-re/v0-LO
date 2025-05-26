@@ -66,11 +66,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Check for OAuth callback parameters (mobile flow)
+    const code = urlParams.get('code')
+    const state = urlParams.get('state')
+    
+    if (code && window.location.pathname === '/') {
+      // User returned from OAuth flow to home page
+      console.log('Detected OAuth return to home page, cleaning up URL')
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('code')
+      newUrl.searchParams.delete('state')
+      window.history.replaceState({}, '', newUrl.toString())
+    }
+
     // Check for Farcaster Connect authentication
     const farcasterAuth = localStorage.getItem('farcaster_auth')
     if (farcasterAuth) {
       try {
         const authData = JSON.parse(farcasterAuth)
+        console.log('Found stored Farcaster auth data:', authData)
         
         // Verify the Neynar authentication and get user data
         const response = await fetch("/api/auth/verify-neynar", {
@@ -83,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (response.ok) {
           const { user: neynarUser } = await response.json()
+          console.log('Neynar auth verification successful:', neynarUser)
           setIsAuthenticated(true)
           setUser(neynarUser)
           setDbUser(neynarUser)

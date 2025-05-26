@@ -182,11 +182,25 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
       return
     }
     
-    // Open Neynar auth in a popup window
+    // Detect mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.innerWidth <= 768
+    
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`)
     const authUrl = `https://app.neynar.com/login?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read+write`
     
-    console.log('Opening auth popup:', authUrl)
+    console.log('Auth URL:', authUrl)
+    console.log('Is mobile:', isMobile)
+    
+    if (isMobile) {
+      // On mobile, use direct redirect instead of popup
+      console.log('Using mobile redirect approach')
+      window.location.href = authUrl
+      return
+    }
+    
+    // Desktop: use popup approach
+    console.log('Opening auth popup for desktop')
     
     const popup = window.open(
       authUrl,
@@ -277,7 +291,9 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Opening Neynar...
+              {typeof window !== 'undefined' && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768) 
+                ? 'Redirecting to Neynar...' 
+                : 'Opening Neynar...'}
             </>
           ) : (
             <>

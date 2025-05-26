@@ -23,18 +23,19 @@ function CallbackHandler() {
         addDebug(`Search params: ${JSON.stringify(Object.fromEntries(searchParams.entries()))}`)
         addDebug(`Window opener exists: ${!!window.opener}`)
         addDebug(`Current URL: ${window.location.href}`)
+        addDebug(`User agent: ${navigator.userAgent}`)
 
         // Check for errors first
         const error = searchParams.get('error')
         if (error) {
           addDebug(`Error found: ${error}`)
-          // Send error message to parent window
+          // Send error message to parent window if in popup
           if (window.opener) {
             addDebug('Sending error to parent window')
             window.opener.postMessage({
               type: 'SIWN_ERROR',
               error: error
-            }, '*') // Use '*' for now to ensure message is sent
+            }, '*')
             setTimeout(() => window.close(), 1000)
             return
           }
@@ -95,8 +96,8 @@ function CallbackHandler() {
             return
           }
           
-          // If not in popup, store locally and redirect
-          addDebug('Not in popup, storing locally')
+          // If not in popup (mobile redirect), store locally and redirect
+          addDebug('Not in popup, storing locally and redirecting')
           const authData = {
             ...userData,
             authenticatedAt: new Date().toISOString(),
@@ -109,11 +110,11 @@ function CallbackHandler() {
           return
         }
 
-        // If we only have a code, try to exchange it or show a message
-        addDebug('Only have authorization code, attempting to handle')
+        // If we only have a code, handle it appropriately
+        addDebug('Only have authorization code, determining next steps')
         
-        // For now, let's try to send the code to the parent and let it handle the exchange
         if (window.opener) {
+          // In popup - send code to parent for processing
           addDebug('Sending code to parent window for exchange')
           window.opener.postMessage({
             type: 'SIWN_CODE',
@@ -122,11 +123,16 @@ function CallbackHandler() {
           }, '*')
           setTimeout(() => window.close(), 1000)
           return
+        } else {
+          // Direct redirect (mobile) - show a message that we need to wait for Neynar
+          addDebug('Direct redirect detected - waiting for Neynar to complete flow')
+          setStatus('success')
+          setTimeout(() => {
+            addDebug('Redirecting to home page')
+            window.location.href = '/'
+          }, 3000)
+          return
         }
-        
-        // If not in popup, show a message that we need to implement code exchange
-        addDebug('Not in popup and only have code - showing error')
-        throw new Error('OAuth code exchange not yet implemented for direct access')
 
       } catch (err) {
         console.error('Callback error:', err)
