@@ -1,98 +1,88 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { useNeynarContext } from "@neynar/react"
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
+import { Loader2 } from 'lucide-react'
+import { Suspense } from 'react'
 
-function AuthCallbackContent() {
+function CallbackHandler() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshAuth } = useAuth()
-  const { isAuthenticated } = useNeynarContext()
-  const [status, setStatus] = useState<'checking' | 'success' | 'error'>('checking')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
+    const handleCallback = async () => {
       try {
-        console.log('Auth callback triggered')
-        
-        // Check for auth success in URL params
-        const success = searchParams.get('success')
+        // Check if we have authentication data from Neynar
+        const code = searchParams.get('code')
         const error = searchParams.get('error')
-        
+        const signerUuid = searchParams.get('signer_uuid')
+        const fid = searchParams.get('fid')
+        const username = searchParams.get('username')
+
         if (error) {
-          console.error('Auth error:', error)
+          throw new Error(`Authentication error: ${error}`)
+        }
+
+        // If we have signer data directly from Neynar
+        if (signerUuid && fid) {
+          const authData = {
+            fid: parseInt(fid),
+            username: username || '',
+            displayName: searchParams.get('display_name') || '',
+            pfpUrl: searchParams.get('pfp_url') || '',
+            bio: searchParams.get('bio') || '',
+            custodyAddress: searchParams.get('custody_address') || '',
+            verifications: [],
+            followerCount: 0,
+            followingCount: 0,
+            signerUuid: signerUuid,
+            accessToken: searchParams.get('token') || '',
+            authenticatedAt: new Date().toISOString(),
+          }
+
+          localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+          await refreshAuth()
+          setStatus('success')
+          
+          setTimeout(() => {
+            router.push('/')
+          }, 2000)
+          return
+        }
+
+        // If we just have a code, we need to exchange it
+        if (code) {
+          // For now, just store the code and redirect
+          // In a full implementation, you'd exchange this for user data
+          console.log('Received auth code:', code)
+          setError('Authentication code received but user data exchange not implemented')
           setStatus('error')
           return
         }
 
-        // Refresh auth state
-        await refreshAuth()
-        
-        // Check if we're authenticated
-        if (isAuthenticated) {
-          setStatus('success')
-          
-          // Get return URL from session storage
-          const returnUrl = sessionStorage.getItem('auth_return_url') || '/'
-          sessionStorage.removeItem('auth_return_url')
-          
-          // Redirect after a short delay
-          setTimeout(() => {
-            router.push(returnUrl)
-          }, 1500)
-        } else {
-          // If not authenticated yet, keep checking
-          setTimeout(handleAuthCallback, 1000)
-        }
-      } catch (error) {
-        console.error('Auth callback error:', error)
+        throw new Error('No authentication data received')
+
+      } catch (err) {
+        console.error('Callback error:', err)
+        setError(err instanceof Error ? err.message : 'Authentication failed')
         setStatus('error')
       }
     }
 
-    // Handle visibility change (when user returns from Farcaster)
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('Page became visible, checking auth status')
-        handleAuthCallback()
-      }
-    }
+    handleCallback()
+  }, [searchParams, refreshAuth, router])
 
-    // Handle focus (when user returns to tab)
-    const handleFocus = () => {
-      console.log('Window focused, checking auth status')
-      handleAuthCallback()
-    }
-
-    // Initial check
-    handleAuthCallback()
-
-    // Listen for when user returns from Farcaster
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [searchParams, refreshAuth, isAuthenticated, router])
-
-  if (status === 'error') {
+  if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">❌</div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Failed</h1>
-          <p className="text-gray-600 mb-4">There was an error during authentication.</p>
-          <button 
-            onClick={() => router.push('/')}
-            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Return Home
-          </button>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <h1 className="text-xl font-semibold">Completing authentication...</h1>
+          <p className="text-gray-600">Please wait while we verify your Farcaster account.</p>
         </div>
       </div>
     )
@@ -100,27 +90,36 @@ function AuthCallbackContent() {
 
   if (status === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-green-500 text-xl mb-4">✅</div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Authentication Successful!</h1>
-          <p className="text-gray-600">Redirecting you back to the app...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-green-600">Authentication successful!</h1>
+          <p className="text-gray-600">Redirecting you to the app...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
-        <h1 className="text-xl font-semibold text-gray-900 mb-2">Completing Authentication...</h1>
-        <p className="text-gray-600 mb-4">
-          If you came from Farcaster mobile app, you can now return to this tab.
-        </p>
-        <p className="text-sm text-gray-500">
-          This page will automatically detect when you return and complete the login process.
-        </p>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-semibold text-red-600">Authentication failed</h1>
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={() => router.push('/login')}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Try again
+        </button>
       </div>
     </div>
   )
@@ -128,13 +127,11 @@ function AuthCallbackContent() {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-white">
-      <div className="max-w-md w-full text-center">
-        <div className="space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-black" />
-          <h1 className="text-xl font-serif">Loading...</h1>
-          <p className="text-black/70">Please wait while we process your authentication.</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+        <h1 className="text-xl font-semibold">Loading...</h1>
+        <p className="text-gray-600">Please wait while we process your authentication.</p>
       </div>
     </div>
   )
@@ -142,12 +139,8 @@ function LoadingFallback() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-      </div>
-    }>
-      <AuthCallbackContent />
+    <Suspense fallback={<LoadingFallback />}>
+      <CallbackHandler />
     </Suspense>
   )
 } 

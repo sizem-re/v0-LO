@@ -15,19 +15,41 @@ interface FarcasterConnectProps {
 export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
   const { refreshAuth } = useAuth()
 
   useEffect(() => {
+    // Check if client ID is available
+    const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
+    console.log('Neynar Client ID:', clientId ? 'Present' : 'Missing')
+    
+    if (!clientId) {
+      setError('Neynar Client ID not configured')
+      return
+    }
+
     // Load Neynar SIWN script
     const script = document.createElement('script')
     script.src = 'https://neynarxyz.github.io/siwn/raw/1.2.0/index.js'
     script.async = true
+    
+    script.onload = () => {
+      console.log('Neynar SIWN script loaded successfully')
+      setScriptLoaded(true)
+    }
+    
+    script.onerror = () => {
+      console.error('Failed to load Neynar SIWN script')
+      setError('Failed to load authentication script')
+    }
+    
     document.body.appendChild(script)
 
     // Define global callback function
     ;(window as any).onSignInSuccess = async (data: any) => {
       try {
         console.log('SIWN success:', data)
+        setIsLoading(false)
         
         // Store the authentication data
         const authData = {
@@ -64,29 +86,65 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
         setError(errorMessage)
         onError?.(errorMessage)
         toast.error(errorMessage)
+        setIsLoading(false)
       }
     }
 
+    // Define global error callback
+    ;(window as any).onSignInError = (error: any) => {
+      console.error('SIWN error:', error)
+      setError('Authentication failed. Please try again.')
+      setIsLoading(false)
+      toast.error('Authentication failed')
+    }
+
     return () => {
-      document.body.removeChild(script)
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
       delete (window as any).onSignInSuccess
+      delete (window as any).onSignInError
     }
   }, [refreshAuth, onSuccess, onError])
 
   const handleConnect = () => {
+    console.log('Connect button clicked')
+    console.log('Script loaded:', scriptLoaded)
+    console.log('Client ID:', process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID)
+    
     setIsLoading(true)
     setError(null)
     
-    // The SIWN script will handle the authentication
-    // We just need to trigger it by clicking the button
-    const siwn = document.querySelector('.neynar_signin') as HTMLElement
-    if (siwn) {
-      siwn.click()
-    } else {
-      setError('SIWN not loaded. Please refresh and try again.')
+    const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
+    
+    if (!clientId) {
+      setError('Neynar Client ID not configured')
       setIsLoading(false)
+      return
     }
+    
+    // Try the script approach first
+    if (scriptLoaded) {
+      const siwn = document.querySelector('.neynar_signin') as HTMLElement
+      console.log('SIWN element found:', !!siwn)
+      
+      if (siwn) {
+        console.log('Triggering SIWN click')
+        siwn.click()
+        return
+      }
+    }
+    
+    // Fallback: Direct redirect to Neynar auth page
+    console.log('Using fallback redirect approach')
+    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`)
+    const authUrl = `https://app.neynar.com/login?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=read+write`
+    
+    console.log('Redirecting to:', authUrl)
+    window.location.href = authUrl
   }
+
+  const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -122,17 +180,29 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
           </div>
         )}
         
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="p-2 text-xs bg-gray-100 rounded">
+            <div>Client ID: {clientId ? 'Set' : 'Missing'}</div>
+            <div>Script Loaded: {scriptLoaded ? 'Yes' : 'No'}</div>
+          </div>
+        )}
+        
         {/* Hidden Neynar SIWN button */}
-        <div 
-          className="neynar_signin hidden" 
-          data-client_id={process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID}
-          data-success-callback="onSignInSuccess"
-          data-theme="light"
-        />
+        {clientId && (
+          <div 
+            className="neynar_signin" 
+            data-client_id={clientId}
+            data-success-callback="onSignInSuccess"
+            data-error-callback="onSignInError"
+            data-theme="light"
+            style={{ display: 'none' }}
+          />
+        )}
         
         <Button
           onClick={handleConnect}
-          disabled={isLoading}
+          disabled={isLoading || !clientId}
           className="w-full"
           size="lg"
         >
