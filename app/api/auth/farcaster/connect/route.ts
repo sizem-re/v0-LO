@@ -5,7 +5,8 @@ export async function POST(req: NextRequest) {
     const { domain, siweUri } = await req.json()
     
     // Create a channel with the official Farcaster Connect relay
-    const response = await fetch('https://relay.farcaster.xyz/v1/channel', {
+    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz
+    const response = await fetch('https://connect.farcaster.xyz/v1/channel', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,10 +18,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to create channel: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error('Farcaster Connect error:', response.status, errorText)
+      throw new Error(`Failed to create channel: ${response.status} ${errorText}`)
     }
 
     const data = await response.json()
+    console.log('Farcaster Connect response:', data)
     
     // The response should contain channelToken and url
     // We need to construct the connect URI for mobile

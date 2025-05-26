@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     }
     
     // Poll the official Farcaster Connect relay for status
-    const response = await fetch(`https://relay.farcaster.xyz/v1/channel/status?channelToken=${channelToken}`, {
+    // Based on FIP-11, the correct endpoint is connect.farcaster.xyz
+    const response = await fetch(`https://connect.farcaster.xyz/v1/channel/status?channelToken=${channelToken}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -21,10 +22,13 @@ export async function GET(req: NextRequest) {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to get status: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error('Farcaster Connect status error:', response.status, errorText)
+      throw new Error(`Failed to get status: ${response.status} ${errorText}`)
     }
 
     const data = await response.json()
+    console.log('Farcaster Connect status:', data)
     
     // The response should contain state, and if completed, the signature and user data
     return NextResponse.json(data)

@@ -51,8 +51,16 @@ export function FarcasterConnect({ className, children, onSuccess }: FarcasterCo
 
     const pollStatus = async () => {
       try {
+        console.log('Polling status for channel:', connectData.channelToken)
         const response = await fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
+        
+        if (!response.ok) {
+          console.error('Status polling failed:', response.status, response.statusText)
+          return
+        }
+        
         const data: StatusResponse = await response.json()
+        console.log('Status response:', data)
 
         if (data.state === 'completed' && data.signature) {
           console.log('Farcaster authentication completed!')
@@ -77,15 +85,27 @@ export function FarcasterConnect({ className, children, onSuccess }: FarcasterCo
           if (onSuccess) {
             onSuccess()
           }
+          
+          // Force a page refresh to ensure all components update
+          setTimeout(() => {
+            window.location.reload()
+          }, 500)
+          
         } else if (data.state === 'expired') {
+          console.log('Authentication request expired')
           setError('Authentication request expired. Please try again.')
           setConnectData(null)
+        } else {
+          console.log('Authentication still pending, state:', data.state)
         }
       } catch (error) {
         console.error('Error polling status:', error)
       }
     }
 
+    // Initial poll
+    pollStatus()
+    
     // Poll every 2 seconds
     const interval = setInterval(pollStatus, 2000)
 
@@ -99,6 +119,52 @@ export function FarcasterConnect({ className, children, onSuccess }: FarcasterCo
     return () => {
       clearInterval(interval)
       clearTimeout(timeout)
+    }
+  }, [connectData, refreshAuth, onSuccess])
+
+  // Listen for when user returns to the page (mobile)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && connectData) {
+        console.log('Page became visible, checking auth status immediately')
+        // Check status immediately when page becomes visible
+        fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
+          .then(response => response.json())
+          .then(data => {
+            console.log('Visibility change status check:', data)
+            if (data.state === 'completed' && data.signature) {
+              // Store auth data and refresh
+              localStorage.setItem('farcaster_auth', JSON.stringify({
+                fid: data.fid,
+                username: data.username,
+                displayName: data.displayName,
+                pfpUrl: data.pfpUrl,
+                signature: data.signature,
+                message: data.message
+              }))
+              refreshAuth()
+              setConnectData(null)
+              if (onSuccess) onSuccess()
+              setTimeout(() => window.location.reload(), 500)
+            }
+          })
+          .catch(error => console.error('Visibility change status check error:', error))
+      }
+    }
+
+    const handleFocus = () => {
+      if (connectData) {
+        console.log('Window focused, checking auth status')
+        handleVisibilityChange()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
     }
   }, [connectData, refreshAuth, onSuccess])
 
@@ -161,20 +227,55 @@ export function FarcasterConnect({ className, children, onSuccess }: FarcasterCo
           <div className="space-y-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
             <div className="space-y-2">
-              <h3 className="font-medium">Opening Farcaster...</h3>
+              <h3 className="font-medium">Complete authentication in Farcaster</h3>
               <p className="text-sm text-gray-600">
-                Complete the authentication in the Farcaster app, then return here.
+                1. Complete the authentication in the Farcaster app<br/>
+                2. Tap "Return to Farcaster" when done<br/>
+                3. Return to this browser tab<br/>
+                4. Tap "Check Status" below if needed
               </p>
             </div>
           </div>
         )}
         
-        <button
-          onClick={() => setConnectData(null)}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          Cancel
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={async () => {
+              console.log('Manual status check triggered')
+              try {
+                const response = await fetch(`/api/auth/farcaster/status?channelToken=${connectData.channelToken}`)
+                const data = await response.json()
+                console.log('Manual status check result:', data)
+                if (data.state === 'completed' && data.signature) {
+                  localStorage.setItem('farcaster_auth', JSON.stringify({
+                    fid: data.fid,
+                    username: data.username,
+                    displayName: data.displayName,
+                    pfpUrl: data.pfpUrl,
+                    signature: data.signature,
+                    message: data.message
+                  }))
+                  await refreshAuth()
+                  setConnectData(null)
+                  if (onSuccess) onSuccess()
+                  window.location.reload()
+                }
+              } catch (error) {
+                console.error('Manual status check error:', error)
+              }
+            }}
+            className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
+          >
+            Check Status
+          </button>
+          
+          <button
+            onClick={() => setConnectData(null)}
+            className="block text-sm text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     )
   }
