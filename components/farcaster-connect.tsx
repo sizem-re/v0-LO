@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Smartphone, Monitor, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 
@@ -17,40 +17,73 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
   const [error, setError] = useState<string | null>(null)
   const { refreshAuth } = useAuth()
 
-  const handleConnect = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      // Use Neynar's SIWN (Sign In With Neynar) instead of broken Farcaster Connect
-      const response = await fetch('/api/auth/neynar/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          domain: window.location.hostname,
-          siweUri: window.location.origin,
-        }),
-      })
+  useEffect(() => {
+    // Load Neynar SIWN script
+    const script = document.createElement('script')
+    script.src = 'https://neynarxyz.github.io/siwn/raw/1.2.0/index.js'
+    script.async = true
+    document.body.appendChild(script)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to initiate authentication')
+    // Define global callback function
+    ;(window as any).onSignInSuccess = async (data: any) => {
+      try {
+        console.log('SIWN success:', data)
+        
+        // Store the authentication data
+        const authData = {
+          fid: data.fid,
+          username: data.username,
+          displayName: data.displayName,
+          pfpUrl: data.pfpUrl,
+          bio: data.bio,
+          custodyAddress: data.custodyAddress,
+          verifications: data.verifications || [],
+          followerCount: data.followerCount,
+          followingCount: data.followingCount,
+          signerUuid: data.signerUuid,
+          accessToken: data.token,
+          authenticatedAt: new Date().toISOString(),
+        }
+
+        localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+        
+        // Refresh auth context
+        await refreshAuth()
+        
+        toast.success('Successfully connected with Farcaster!')
+        onSuccess?.()
+        
+        // Refresh the page to ensure all components update
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+        
+      } catch (err) {
+        console.error('Error handling SIWN success:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to complete authentication'
+        setError(errorMessage)
+        onError?.(errorMessage)
+        toast.error(errorMessage)
       }
+    }
 
-      const { url } = await response.json()
-      
-      // Redirect to Neynar's authentication page
-      window.location.href = url
-      
-    } catch (err) {
-      console.error('Error connecting with Farcaster:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start authentication. Please try again.'
-      setError(errorMessage)
-      onError?.(errorMessage)
-      toast.error(errorMessage)
-    } finally {
+    return () => {
+      document.body.removeChild(script)
+      delete (window as any).onSignInSuccess
+    }
+  }, [refreshAuth, onSuccess, onError])
+
+  const handleConnect = () => {
+    setIsLoading(true)
+    setError(null)
+    
+    // The SIWN script will handle the authentication
+    // We just need to trigger it by clicking the button
+    const siwn = document.querySelector('.neynar_signin') as HTMLElement
+    if (siwn) {
+      siwn.click()
+    } else {
+      setError('SIWN not loaded. Please refresh and try again.')
       setIsLoading(false)
     }
   }
@@ -88,6 +121,14 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
             {error}
           </div>
         )}
+        
+        {/* Hidden Neynar SIWN button */}
+        <div 
+          className="neynar_signin hidden" 
+          data-client_id={process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID}
+          data-success-callback="onSignInSuccess"
+          data-theme="light"
+        />
         
         <Button
           onClick={handleConnect}
