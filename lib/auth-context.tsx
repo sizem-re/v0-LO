@@ -141,19 +141,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // Clear local state
+      console.log("Starting logout process...")
+      
+      // Clear local state first
       setIsAuthenticated(false)
       setUser(null)
       setDbUser(null)
+      setIsLoading(false)
 
-      // Clear any stored tokens
-      localStorage.clear()
-      sessionStorage.clear()
+      // Clear any stored tokens and auth data
+      try {
+        localStorage.removeItem('farcaster_auth')
+        localStorage.removeItem('neynar_auth_success')
+        sessionStorage.clear()
+        
+        // Clear all localStorage items that might be related to auth
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.includes('auth') || key.includes('neynar') || key.includes('farcaster'))) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key))
+      } catch (storageError) {
+        console.warn("Error clearing storage:", storageError)
+      }
 
-      // Reload the page to clear all state and trigger Neynar logout
-      window.location.href = "/"
+      // Force a hard reload to clear all React state
+      setTimeout(() => {
+        window.location.href = "/"
+      }, 100)
+      
     } catch (error) {
       console.error("Error during logout:", error)
+      // Force reload even if there's an error
       window.location.href = "/"
     }
   }

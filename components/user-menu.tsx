@@ -40,8 +40,9 @@ export function UserMenu() {
   }
 
   // Safely extract username and display name
-  const username = typeof user.username === "string" ? user.username : "USER"
-  const displayName = typeof user.display_name === "string" ? user.display_name : username
+  const username = user?.username || user?.farcaster_username || "USER"
+  const displayName = user?.display_name || user?.farcaster_display_name || username
+  const pfpUrl = user?.pfp_url || user?.farcaster_pfp_url || null
 
   const handleSignOut = async () => {
     setIsOpen(false)
@@ -56,9 +57,9 @@ export function UserMenu() {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {user?.pfp_url ? (
+        {pfpUrl ? (
           <img 
-            src={user.pfp_url || "/placeholder.svg"} 
+            src={pfpUrl} 
             alt={displayName} 
             className="w-6 h-6 rounded-full border border-black/10" 
           />
