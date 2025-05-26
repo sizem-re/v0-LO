@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { NeynarAPIClient, Configuration } from "@neynar/nodejs-sdk"
+import { createClient } from "@farcaster/quick-auth"
 import { supabaseAdmin } from "@/lib/supabase-client"
 import { v4 as uuidv4 } from "uuid"
 
@@ -9,53 +10,57 @@ const config = new Configuration({
 })
 const neynarClient = new NeynarAPIClient(config)
 
-// JWT verification function (simplified - in production you'd use a proper JWT library)
-function decodeJWT(token: string) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      throw new Error('Invalid JWT format')
-    }
-    
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-    return payload
-  } catch (error) {
-    throw new Error('Failed to decode JWT')
-  }
-}
+// Initialize Farcaster Quick Auth client
+const quickAuthClient = createClient()
 
 export async function POST(req: NextRequest) {
   try {
     const { token } = await req.json()
     
+    console.log("Received miniapp auth request with token:", token ? "present" : "missing")
+    
     if (!token) {
       return NextResponse.json({ error: "Token is required" }, { status: 400 })
     }
 
-    // Decode the JWT (in production, you should verify the signature)
+    // Get the domain from the request headers or environment
+    const host = req.headers.get('host') || 'localhost:3000'
+    // Use production domain if available, otherwise use host
+    const domain = host.includes('localhost') ? 'localhost' : 'llllllo.com'
+    
+    console.log("Verifying JWT with domain:", domain)
+
+    // Verify the JWT using the official Farcaster Quick Auth client
     let payload
     try {
-      payload = decodeJWT(token)
+      payload = await quickAuthClient.verifyJwt({ token, domain })
+      console.log("Verified JWT payload:", JSON.stringify(payload, null, 2))
     } catch (error) {
-      return NextResponse.json({ error: "Invalid token format" }, { status: 400 })
+      console.error("JWT verification error:", error)
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }
 
-    const { sub: fid, address, exp } = payload
-
-    // Check if token is expired
-    if (Date.now() / 1000 > exp) {
-      return NextResponse.json({ error: "Token expired" }, { status: 401 })
-    }
+    const { sub: fid, address } = payload
+    console.log("Extracted from JWT - FID:", fid, "Address:", address)
 
     if (!fid) {
+      console.error("No FID found in token payload")
       return NextResponse.json({ error: "Invalid token: missing FID" }, { status: 400 })
     }
+
+    console.log("Fetching user profile for FID:", fid)
 
     // Get user details from Neynar
     let neynarUser
     try {
-      const { users } = await neynarClient.fetchBulkUsers({ fids: [fid] })
+      const { users } = await neynarClient.fetchBulkUsers({ fids: [Number(fid)] })
       neynarUser = users[0]
+      
+      console.log("Neynar user data:", neynarUser ? {
+        fid: neynarUser.fid,
+        username: neynarUser.username,
+        display_name: neynarUser.display_name
+      } : "null")
       
       if (!neynarUser) {
         return NextResponse.json({ error: "User not found on Farcaster" }, { status: 404 })
