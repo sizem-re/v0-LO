@@ -189,21 +189,21 @@ export function ListDetailView({
       const placeText = placeCount === 1 ? "place" : "places"
       const emoji = placeCount > 10 ? "🗺️" : placeCount > 5 ? "📍" : "✨"
       
-      let shareText = `${emoji} ${listTitle}\n\n`
+      let shareText = `${emoji} ${listTitle}`
       
       // Add description if available and not too long
       if (listDescription && listDescription !== "A curated list of amazing places") {
-        const truncatedDescription = listDescription.length > 100 
-          ? `${listDescription.substring(0, 100)}...` 
+        const truncatedDescription = listDescription.length > 60 
+          ? `${listDescription.substring(0, 60)}...` 
           : listDescription
-        shareText += `${truncatedDescription}\n\n`
+        shareText += `\n\n${truncatedDescription}`
       }
       
-      // Add place count and creator info
-      shareText += `📍 ${placeCount} ${placeText} curated by ${ownerName}\n\n`
+      // Add simple place count
+      shareText += `\n\n📍 ${placeCount} ${placeText}`
       
-      // Add call to action
-      shareText += `Explore the full list 👇\n${frameUrl}`
+      // Add frame URL
+      shareText += `\n\n${frameUrl}`
       
       // Try to open Warpcast app first, fallback to web
       const warpcastAppUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`
