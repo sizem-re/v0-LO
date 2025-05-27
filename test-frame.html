@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Test</title>
+    
+    <!-- Test frame metadata -->
+    <meta name="fc:frame" content='{"version":"next","imageUrl":"http://localhost:3000/api/lists/94fc9491-20c2-421a-9a73-a040830d2334/frame-image","button":{"title":"Open in LO","action":{"type":"launch_frame","name":"LO","url":"http://localhost:3000/?list=94fc9491-20c2-421a-9a73-a040830d2334"}}}' />
+    
+    <!-- Open Graph metadata -->
+    <meta property="og:title" content="Test Frame" />
+    <meta property="og:description" content="Testing frame image generation" />
+    <meta property="og:image" content="http://localhost:3000/api/lists/94fc9491-20c2-421a-9a73-a040830d2334/frame-image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+</head>
+<body>
+    <h1>Frame Test</h1>
+    <p>Testing the frame image generation endpoint.</p>
+    
+    <div style="border: 1px solid #ccc; padding: 20px; margin: 20px 0;">
+        <h2>Frame Image Preview</h2>
+        <img src="http://localhost:3000/api/lists/94fc9491-20c2-421a-9a73-a040830d2334/frame-image" 
+             alt="Frame preview" 
+             style="max-width: 100%; height: auto; border: 1px solid #ddd;" />
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <h2>Frame Metadata Test</h2>
+        <p>Check the page source to see the fc:frame meta tag.</p>
+        <a href="http://localhost:3000/lists/94fc9491-20c2-421a-9a73-a040830d2334/frame" target="_blank">
+            Test Frame Page
+        </a>
+    </div>
+</body>
+</html> 

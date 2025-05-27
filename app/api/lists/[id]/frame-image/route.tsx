@@ -39,13 +39,12 @@ export async function GET(
     }
     
     const listData = await response.json()
-    const { list, places } = listData
     
-    // Use list.title or list.name as fallback
-    const listTitle = list?.title || list?.name || 'Untitled List'
-    const listDescription = list?.description || ''
-    const ownerName = list?.owner?.farcaster_display_name || list?.owner?.farcaster_username || 'Unknown'
-    const placeCount = places?.length || 0
+    // The API returns the list data directly with places as a property
+    const listTitle = listData?.title || listData?.name || 'Untitled List'
+    const listDescription = listData?.description || ''
+    const ownerName = listData?.owner?.farcaster_display_name || listData?.owner?.farcaster_username || 'Unknown'
+    const placeCount = listData?.places?.length || 0
     
     console.log('Frame Image Generation: Creating PNG image for list:', listTitle)
     
@@ -64,7 +63,6 @@ export async function GET(
             position: 'relative',
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: 'flex',
@@ -91,7 +89,6 @@ export async function GET(
             </div>
           </div>
 
-          {/* Main Content */}
           <div
             style={{
               display: 'flex',
@@ -103,7 +100,6 @@ export async function GET(
               textAlign: 'center',
             }}
           >
-            {/* List Title */}
             <div
               style={{
                 fontSize: '48px',
@@ -118,7 +114,6 @@ export async function GET(
               {listTitle.length > 50 ? `${listTitle.substring(0, 50)}...` : listTitle}
             </div>
 
-            {/* Description */}
             <div
               style={{
                 fontSize: '24px',
@@ -131,7 +126,6 @@ export async function GET(
               {listDescription.length > 120 ? `${listDescription.substring(0, 120)}...` : listDescription || 'A curated list of amazing places to explore'}
             </div>
 
-            {/* Owner */}
             <div
               style={{
                 fontSize: '18px',
@@ -143,7 +137,6 @@ export async function GET(
             </div>
           </div>
 
-          {/* Footer */}
           <div
             style={{
               display: 'flex',
