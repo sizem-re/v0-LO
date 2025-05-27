@@ -168,7 +168,7 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
     }
   }, [refreshAuth, onSuccess, onError, currentPopup])
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     console.log('Connect button clicked')
     
     setIsLoading(true)
@@ -182,77 +182,75 @@ export function FarcasterConnect({ onSuccess, onError }: FarcasterConnectProps) 
       return
     }
     
-    // Detect mobile devices
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                     window.innerWidth <= 768
-    
-    // Use different redirect URLs for mobile vs desktop
-    const baseUrl = window.location.origin
-    const redirectUrl = isMobile 
-      ? `${baseUrl}/` // Redirect directly to home page on mobile
-      : `${baseUrl}/auth/callback` // Use callback page for desktop popup
-    
-    // Construct the auth URL with proper Neynar parameters
-    const authUrl = new URL('https://app.neynar.com/login')
-    authUrl.searchParams.set('client_id', clientId)
-    authUrl.searchParams.set('response_type', 'code')
-    authUrl.searchParams.set('scope', 'read write')
-    
-    // Use redirectUrl parameter as mentioned in the documentation
-    if (isMobile) {
-      authUrl.searchParams.set('redirectUrl', redirectUrl)
-    } else {
-      authUrl.searchParams.set('redirect_uri', redirectUrl)
-    }
-    
-    console.log('Auth URL:', authUrl.toString())
-    console.log('Is mobile:', isMobile)
-    console.log('Redirect URL:', redirectUrl)
-    
-    if (isMobile) {
-      // On mobile, use direct redirect
-      console.log('Using mobile redirect approach with redirectUrl parameter')
-      window.location.href = authUrl.toString()
-      return
-    }
-    
-    // Desktop: use popup approach
-    console.log('Opening auth popup for desktop')
-    
-    const popup = window.open(
-      authUrl.toString(),
-      'neynar-auth',
-      'width=500,height=600,scrollbars=yes,resizable=yes'
-    )
-    
-    if (!popup) {
-      setError('Popup blocked. Please allow popups for this site.')
+    try {
+      // Detect mobile devices
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                       window.innerWidth <= 768
+      
+      console.log('Is mobile:', isMobile)
+      
+      // Get the proper authorization URL from our server
+      const response = await fetch(`/api/auth/neynar-auth-url?mobile=${isMobile}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to get authorization URL')
+      }
+      
+      const { authUrl, redirectUri } = await response.json()
+      
+      console.log('Auth URL from server:', authUrl)
+      console.log('Redirect URI:', redirectUri)
+      
+      if (isMobile) {
+        // On mobile, use direct redirect
+        console.log('Using mobile redirect approach')
+        window.location.href = authUrl
+        return
+      }
+      
+      // Desktop: use popup approach
+      console.log('Opening auth popup for desktop')
+      
+      const popup = window.open(
+        authUrl,
+        'neynar-auth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      )
+      
+      if (!popup) {
+        setError('Popup blocked. Please allow popups for this site.')
+        setIsLoading(false)
+        return
+      }
+      
+      setCurrentPopup(popup)
+      
+      // Check if popup was closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed)
+          setIsLoading(false)
+          setCurrentPopup(null)
+          console.log('Popup was closed manually')
+        }
+      }, 1000)
+      
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        if (!popup.closed) {
+          popup.close()
+          clearInterval(checkClosed)
+          setIsLoading(false)
+          setCurrentPopup(null)
+          setError('Authentication timed out. Please try again.')
+        }
+      }, 300000)
+      
+    } catch (error) {
+      console.error('Error getting auth URL:', error)
+      setError('Failed to start authentication. Please try again.')
       setIsLoading(false)
-      return
     }
-    
-    setCurrentPopup(popup)
-    
-    // Check if popup was closed manually
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed)
-        setIsLoading(false)
-        setCurrentPopup(null)
-        console.log('Popup was closed manually')
-      }
-    }, 1000)
-    
-    // Timeout after 5 minutes
-    setTimeout(() => {
-      if (!popup.closed) {
-        popup.close()
-        clearInterval(checkClosed)
-        setIsLoading(false)
-        setCurrentPopup(null)
-        setError('Authentication timed out. Please try again.')
-      }
-    }, 300000)
   }
 
   const clientId = process.env.NEXT_PUBLIC_NEYNAR_CLIENT_ID
