@@ -1,19 +1,13 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check, ChevronDown } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check, Copy, Link } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditListModal } from "./edit-list-modal"
 import { AddPlaceModal } from "./add-place-modal"
 import { toast } from "@/components/ui/use-toast"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 // Farcaster icon component
 const FarcasterIcon = ({ size = 14 }: { size?: number }) => (
@@ -48,6 +42,7 @@ export function ListDetailView({
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [showShareOptions, setShowShareOptions] = useState(false)
 
   const fetchListDetails = useCallback(async () => {
     try {
@@ -87,6 +82,27 @@ export function ListDetailView({
       return () => clearTimeout(timer)
     }
   }, [linkCopied])
+
+  // Close share options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showShareOptions) {
+        const target = event.target as HTMLElement
+        const shareContainer = target.closest('.share-container')
+        if (!shareContainer) {
+          setShowShareOptions(false)
+        }
+      }
+    }
+
+    if (showShareOptions) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showShareOptions])
 
   const handleEditList = () => {
     setShowEditModal(true)
@@ -129,6 +145,7 @@ export function ListDetailView({
         description: "The shareable link has been copied to your clipboard.",
       })
       setLinkCopied(true)
+      setShowShareOptions(false) // Close share options after copying
     } catch (error) {
       console.error("Error copying link:", error)
       // Fallback for older browsers or if clipboard API fails
@@ -144,6 +161,7 @@ export function ListDetailView({
           description: "The shareable link has been copied to your clipboard.",
         })
         setLinkCopied(true)
+        setShowShareOptions(false) // Close share options after copying
       } catch (fallbackError) {
         toast({
           title: "Copy failed",
@@ -164,9 +182,28 @@ export function ListDetailView({
       const frameUrl = `${baseUrl}/lists/${listId}/frame/`
       const listTitle = list?.title || "Check out this list"
       const listDescription = list?.description || "A curated list of amazing places"
+      const placeCount = list?.places?.length || 0
+      const ownerName = list?.owner?.farcaster_display_name || list?.owner?.farcaster_username || "someone"
       
-      // Create Farcaster share text with frame URL
-      const shareText = `${listTitle}\n\n${listDescription}\n\n${frameUrl}`
+      // Create more engaging Farcaster share text
+      const placeText = placeCount === 1 ? "place" : "places"
+      const emoji = placeCount > 10 ? "🗺️" : placeCount > 5 ? "📍" : "✨"
+      
+      let shareText = `${emoji} ${listTitle}\n\n`
+      
+      // Add description if available and not too long
+      if (listDescription && listDescription !== "A curated list of amazing places") {
+        const truncatedDescription = listDescription.length > 100 
+          ? `${listDescription.substring(0, 100)}...` 
+          : listDescription
+        shareText += `${truncatedDescription}\n\n`
+      }
+      
+      // Add place count and creator info
+      shareText += `📍 ${placeCount} ${placeText} curated by ${ownerName}\n\n`
+      
+      // Add call to action
+      shareText += `Explore the full list 👇\n${frameUrl}`
       
       // Try to open Warpcast app first, fallback to web
       const warpcastAppUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`
@@ -186,6 +223,7 @@ export function ListDetailView({
         title: "Opening Farcaster",
         description: "Redirecting to Warpcast to share your list...",
       })
+      setShowShareOptions(false) // Close share options after sharing
     } catch (error) {
       console.error("Error sharing to Farcaster:", error)
       toast({
@@ -318,40 +356,42 @@ export function ListDetailView({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Share Dropdown - visible for owners and public lists */}
+            {/* Share Button - visible for owners and public lists */}
             {(isOwner || list.visibility === "public") && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
-                    title="Share options"
-                  >
-                    {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-48 bg-white border border-gray-200 shadow-lg z-50"
-                  onClick={(e) => e.stopPropagation()}
+              <div className="relative share-container">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowShareOptions(!showShareOptions)
+                  }}
+                  title="Share options"
                 >
-                  <DropdownMenuItem 
-                    onClick={handleCopyLink} 
-                    className="flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <Share2 size={14} />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleShareToFarcaster} 
-                    className="flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <FarcasterIcon size={14} />
-                    Share to Farcaster
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
+                </Button>
+                
+                {/* Share options - inline expansion */}
+                {showShareOptions && (
+                  <div className="absolute right-0 top-10 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50 min-w-[140px]">
+                    <button 
+                      onClick={handleCopyLink} 
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                    >
+                      <Link size={14} />
+                      Copy Link
+                    </button>
+                    <button 
+                      onClick={handleShareToFarcaster} 
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                    >
+                      <FarcasterIcon size={14} />
+                      Share to Farcaster
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             
             {/* Edit Button - visible for owners */}
