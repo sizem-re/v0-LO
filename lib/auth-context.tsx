@@ -69,22 +69,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for OAuth callback parameters (mobile flow)
     const code = urlParams.get('code')
     const state = urlParams.get('state')
+    const fid = urlParams.get('fid')
+    const signerUuid = urlParams.get('signer_uuid')
     
+    // Handle mobile redirect with auth data directly to home page
     if (code && window.location.pathname === '/') {
-      // User returned from OAuth flow to home page
-      console.log('Detected OAuth return to home page, cleaning up URL')
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete('code')
-      newUrl.searchParams.delete('state')
-      window.history.replaceState({}, '', newUrl.toString())
-    }
-
-    // Check for mobile auth attempt flag
-    const mobileAuthAttempted = localStorage.getItem('mobile_auth_attempted')
-    if (mobileAuthAttempted) {
-      console.log('User returned from mobile auth attempt')
-      localStorage.removeItem('mobile_auth_attempted')
-      // Don't show loading for too long if they just returned
+      console.log('Detected OAuth return to home page with code:', code.substring(0, 10) + '...')
+      
+      // Check if we have complete user data in the URL
+      if (fid && signerUuid) {
+        console.log('Found complete auth data in home page URL')
+        
+        const username = urlParams.get('username')
+        const authData = {
+          fid: parseInt(fid),
+          username: username || '',
+          displayName: urlParams.get('display_name') || '',
+          pfpUrl: urlParams.get('pfp_url') || '',
+          bio: urlParams.get('bio') || '',
+          custodyAddress: urlParams.get('custody_address') || '',
+          verifications: [],
+          followerCount: parseInt(urlParams.get('follower_count') || '0'),
+          followingCount: parseInt(urlParams.get('following_count') || '0'),
+          signerUuid: signerUuid,
+          accessToken: urlParams.get('access_token') || '',
+          authenticatedAt: new Date().toISOString(),
+        }
+        
+        console.log('Storing auth data from home page URL:', authData)
+        localStorage.setItem('farcaster_auth', JSON.stringify(authData))
+        
+        // Clean up URL
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('code')
+        newUrl.searchParams.delete('state')
+        newUrl.searchParams.delete('fid')
+        newUrl.searchParams.delete('signer_uuid')
+        newUrl.searchParams.delete('username')
+        newUrl.searchParams.delete('display_name')
+        newUrl.searchParams.delete('pfp_url')
+        newUrl.searchParams.delete('bio')
+        newUrl.searchParams.delete('custody_address')
+        newUrl.searchParams.delete('follower_count')
+        newUrl.searchParams.delete('following_count')
+        newUrl.searchParams.delete('access_token')
+        window.history.replaceState({}, '', newUrl.toString())
+        
+        // Continue with verification below
+      } else {
+        // Only have code, clean up URL and store for potential later use
+        console.log('Only have auth code on home page, cleaning up URL')
+        localStorage.setItem('pending_auth_code', code)
+        
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('code')
+        newUrl.searchParams.delete('state')
+        window.history.replaceState({}, '', newUrl.toString())
+      }
     }
 
     // Check for pending auth code from manual continue

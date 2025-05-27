@@ -35,13 +35,6 @@ function CallbackHandler() {
     window.location.href = '/'
   }
 
-  const handleReturnToApp = () => {
-    addDebug('Return to app clicked - going back to main page')
-    // Clear any loading states and go back
-    localStorage.setItem('mobile_auth_attempted', 'true')
-    window.location.href = '/'
-  }
-
   useEffect(() => {
     // Show manual continue button after 5 seconds on mobile
     if (isMobile() && !window.opener) {
@@ -247,27 +240,6 @@ function CallbackHandler() {
             }
           </p>
           
-          {/* Mobile-specific guidance */}
-          {isMobile() && !window.opener && (
-            <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <h3 className="font-semibold text-amber-900 mb-2">Mobile Authentication</h3>
-              <p className="text-sm text-amber-800 mb-3">
-                If you're stuck on the Neynar page:
-              </p>
-              <ol className="text-sm text-amber-800 text-left space-y-1 mb-4">
-                <li>1. Look for "Continue with LO" button</li>
-                <li>2. If it doesn't appear, try refreshing the page</li>
-                <li>3. If the button doesn't work, use the button below</li>
-              </ol>
-              <button
-                onClick={handleReturnToApp}
-                className="w-full bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 font-medium text-sm"
-              >
-                Return to LO App
-              </button>
-            </div>
-          )}
-          
           {/* Always show manual continue on mobile after delay */}
           {(showManualContinue || isMobile()) && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border">
@@ -336,16 +308,6 @@ function CallbackHandler() {
           >
             Continue to LO
           </button>
-        </div>
-        
-        <div className="text-center">
-          <a 
-            href="/auth/help" 
-            target="_blank"
-            className="text-xs text-blue-600 hover:text-blue-800 underline"
-          >
-            View troubleshooting guide
-          </a>
         </div>
         
         {/* Debug info */}
