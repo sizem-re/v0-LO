@@ -170,6 +170,10 @@ export function Sidebar() {
   const handleSelectList = (listId: string) => {
     setSelectedListId(listId)
     setSelectedPlace(null) // Clear any selected place
+    // If we're currently in the profile view, switch away from it to show the list
+    if (activeTab === "profile") {
+      setActiveTab("mylists")
+    }
   }
 
   const handleBackFromList = () => {
