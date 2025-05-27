@@ -31,7 +31,7 @@ export async function GET(
     })
     
     if (!response.ok) {
-      // Return error image
+      // Return simple error image
       return new ImageResponse(
         (
           <div
@@ -41,18 +41,13 @@ export async function GET(
               width: '100%',
               alignItems: 'center',
               justifyContent: 'center',
-              flexDirection: 'column',
               backgroundImage: 'linear-gradient(180deg, #fff, #f0f0f0)',
               fontSize: 60,
-              letterSpacing: -2,
               fontWeight: 700,
-              textAlign: 'center',
+              color: '#ef4444',
             }}
           >
-            <div style={{ color: '#ef4444' }}>List Not Found</div>
-            <div style={{ fontSize: 30, color: '#6b7280', marginTop: 20 }}>
-              The requested list could not be loaded
-            </div>
+            List Not Found
           </div>
         ),
         {
@@ -72,7 +67,7 @@ export async function GET(
     
     console.log('Frame Image Generation: Creating PNG image for list:', listName)
     
-    // Generate PNG image using ImageResponse
+    // Generate simple PNG image using ImageResponse
     return new ImageResponse(
       (
         <div
@@ -80,129 +75,67 @@ export async function GET(
             display: 'flex',
             height: '100%',
             width: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
             flexDirection: 'column',
             backgroundImage: 'linear-gradient(180deg, #fff, #f8fafc)',
-            fontSize: 60,
-            letterSpacing: -2,
-            fontWeight: 700,
-            textAlign: 'center',
-            position: 'relative',
+            padding: '60px',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
-          {/* Header */}
           <div
             style={{
-              position: 'absolute',
-              top: 40,
-              left: 60,
-              right: 60,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ 
-              fontSize: 32, 
-              fontWeight: 600, 
+              fontSize: 32,
+              fontWeight: 600,
               color: '#1f2937',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              🗺️ LO
-            </div>
-            <div style={{ 
-              fontSize: 24, 
-              color: '#6b7280',
-              backgroundColor: '#f3f4f6',
-              padding: '8px 16px',
-              borderRadius: '12px',
-            }}>
-              {places?.length || 0} places
-            </div>
+              marginBottom: '40px',
+            }}
+          >
+            🗺️ LO
           </div>
-
-          {/* Main Content */}
+          
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: 40,
-              maxWidth: 1000,
-              padding: '0 60px',
+              fontSize: 72,
+              fontWeight: 800,
+              color: '#1f2937',
+              textAlign: 'center',
+              marginBottom: '30px',
+              maxWidth: '900px',
             }}
           >
+            {listName}
+          </div>
+          
+          {list.description && (
             <div
               style={{
-                fontSize: 72,
-                fontWeight: 800,
-                background: 'linear-gradient(90deg, #1f2937 0%, #374151 100%)',
-                backgroundClip: 'text',
-                color: 'transparent',
-                lineHeight: 1.1,
-                marginBottom: 30,
+                display: 'flex',
+                fontSize: 28,
+                color: '#6b7280',
                 textAlign: 'center',
+                maxWidth: '800px',
+                marginBottom: '20px',
               }}
             >
-              {listName}
+              {list.description.length > 100 
+                ? list.description.substring(0, 100) + '...' 
+                : list.description}
             </div>
-            
-            {list.description && (
-              <div
-                style={{
-                  fontSize: 28,
-                  color: '#6b7280',
-                  lineHeight: 1.4,
-                  textAlign: 'center',
-                  maxWidth: 800,
-                }}
-              >
-                {list.description.length > 120 
-                  ? list.description.substring(0, 120) + '...' 
-                  : list.description}
-              </div>
-            )}
-            
-            {list.owner?.farcaster_display_name && (
-              <div
-                style={{
-                  fontSize: 22,
-                  color: '#9ca3af',
-                  marginTop: 20,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                by {list.owner.farcaster_display_name}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
+          )}
+          
           <div
             style={{
-              position: 'absolute',
-              bottom: 40,
-              left: 60,
-              right: 60,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              fontSize: 24,
+              color: '#9ca3af',
+              backgroundColor: '#f3f4f6',
+              padding: '12px 24px',
+              borderRadius: '12px',
             }}
           >
-            <div style={{ 
-              fontSize: 20, 
-              color: '#9ca3af',
-              backgroundColor: '#f9fafb',
-              padding: '12px 24px',
-              borderRadius: '16px',
-              border: '1px solid #e5e7eb',
-            }}>
-              Tap to explore this curated list
-            </div>
+            {places?.length || 0} places
           </div>
         </div>
       ),
@@ -215,7 +148,7 @@ export async function GET(
   } catch (error) {
     console.error('Error in frame image route:', error)
     
-    // Return fallback error image
+    // Return simple fallback error image
     return new ImageResponse(
       (
         <div
@@ -225,18 +158,13 @@ export async function GET(
             width: '100%',
             alignItems: 'center',
             justifyContent: 'center',
-            flexDirection: 'column',
             backgroundImage: 'linear-gradient(180deg, #fff, #f0f0f0)',
             fontSize: 60,
-            letterSpacing: -2,
             fontWeight: 700,
-            textAlign: 'center',
+            color: '#ef4444',
           }}
         >
-          <div style={{ color: '#ef4444' }}>Error</div>
-          <div style={{ fontSize: 30, color: '#6b7280', marginTop: 20 }}>
-            Could not generate frame image
-          </div>
+          Error
         </div>
       ),
       {
