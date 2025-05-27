@@ -20,136 +20,94 @@ export async function GET(
     })
     
     if (!response.ok) {
-      // Return a fallback image for not found
-      const errorImageUrl = `https://via.placeholder.com/1200x630/f3f4f6/374151?text=${encodeURIComponent('List Not Found')}`
-      return NextResponse.redirect(errorImageUrl)
+      // Return simple error SVG
+      const errorSvg = `
+        <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="errorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#errorGrad)"/>
+          <text x="600" y="300" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="48" font-weight="bold">📍</text>
+          <text x="600" y="380" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="40" font-weight="bold">List Not Found</text>
+        </svg>
+      `
+      
+      return new NextResponse(errorSvg, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/svg+xml',
+          'Cache-Control': 'public, max-age=300',
+        },
+      })
     }
 
     const list = await response.json()
-    const listTitle = list.title || "Untitled List"
-    const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
-    
-    // Generate static map image URL if we have places with coordinates
-    let mapImageUrl = null
-    if (list.places && list.places.length > 0) {
-      const validPlaces = list.places.filter((place: any) => 
-        place.coordinates && 
-        place.coordinates.lat && 
-        place.coordinates.lng &&
-        place.coordinates.lat !== 0 &&
-        place.coordinates.lng !== 0
-      )
-      
-      if (validPlaces.length > 0) {
-        // Try OpenStreetMap static maps first (free alternative)
-        try {
-          // Calculate center point (simple average)
-          const avgLat = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lat, 0) / validPlaces.length
-          const avgLng = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lng, 0) / validPlaces.length
-          
-          // Determine zoom level based on number of places
-          let zoom = 12
-          if (validPlaces.length === 1) zoom = 15
-          else if (validPlaces.length <= 3) zoom = 13
-          else if (validPlaces.length > 10) zoom = 10
-          
-          // Option 1: Try MapQuest Open Static Maps (based on OpenStreetMap)
-          // Create a simple marker list for MapQuest format
-          const markers = validPlaces.slice(0, 10).map((place: any, index: number) => 
-            `${place.coordinates.lat},${place.coordinates.lng}`
-          ).join('|')
-          
-          // MapQuest Open Static Maps API (free for basic usage)
-          mapImageUrl = `https://open.mapquestapi.com/staticmap/v5/map?` +
-            `center=${avgLat},${avgLng}&` +
-            `zoom=${zoom}&` +
-            `size=1200,630&` +
-            `type=map&` +
-            `locations=${markers}&` +
-            `format=png`
-          
-          // Alternative: Use Stadia Maps (has a free tier)
-          // This is commented out but available as backup
-          /*
-          mapImageUrl = `https://tiles.stadiamaps.com/static/stamen_terrain/` +
-            `${avgLng},${avgLat},${zoom}/` +
-            `1200x630.png`
-          */
-          
-        } catch (error) {
-          console.log('OpenStreetMap static map generation failed:', error)
-        }
-        
-        // Fallback to Google Maps if available and OSM failed
-        if (!mapImageUrl) {
-          const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
-          if (googleApiKey) {
-            // Create markers for each place
-            const markers = validPlaces.slice(0, 10).map((place: any, index: number) => 
-              `markers=color:red%7Clabel:${index + 1}%7C${place.coordinates.lat},${place.coordinates.lng}`
-            ).join('&')
-            
-            // Calculate center point (simple average)
-            const avgLat = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lat, 0) / validPlaces.length
-            const avgLng = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lng, 0) / validPlaces.length
-            
-            // Determine zoom level based on number of places
-            let zoom = 12
-            if (validPlaces.length === 1) zoom = 15
-            else if (validPlaces.length <= 3) zoom = 13
-            else if (validPlaces.length > 10) zoom = 10
-            
-            // Generate static map URL
-            mapImageUrl = `https://maps.googleapis.com/maps/api/staticmap?` +
-              `center=${avgLat},${avgLng}&` +
-              `zoom=${zoom}&` +
-              `size=1200x630&` +
-              `maptype=roadmap&` +
-              `${markers}&` +
-              `key=${googleApiKey}`
-          }
-        }
-      }
-    }
-    
-    // Test if the map image is available
-    if (mapImageUrl) {
-      try {
-        const mapResponse = await fetch(mapImageUrl, { method: 'HEAD' })
-        if (mapResponse.ok) {
-          return NextResponse.redirect(mapImageUrl)
-        }
-      } catch (error) {
-        console.log('Map API not available, falling back to placeholder')
-      }
-    }
-    
-    // Create an informative fallback image with list details
+    const listTitle = (list.title || "Untitled List").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const ownerName = (list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     const placeCount = list.places?.length || 0
-    const hasPlaces = placeCount > 0
     
-    let fallbackText = `${listTitle}`
-    if (ownerName && ownerName !== 'Unknown') {
-      fallbackText += ` by ${ownerName}`
-    }
-    if (hasPlaces) {
-      fallbackText += ` · ${placeCount} place${placeCount !== 1 ? 's' : ''}`
-    }
+    // Generate SVG frame image
+    const svg = `
+      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        
+        <!-- Background -->
+        <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+        
+        <!-- Main content container -->
+        <rect x="100" y="100" width="1000" height="430" rx="24" fill="rgba(255,255,255,0.95)" stroke="none" filter="drop-shadow(0 25px 50px rgba(0,0,0,0.25))"/>
+        
+        <!-- Location icon -->
+        <text x="600" y="200" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="80">📍</text>
+        
+        <!-- List title -->
+        <text x="600" y="280" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="48" font-weight="bold">${listTitle}</text>
+        
+        <!-- Owner name -->
+        <text x="600" y="330" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="24">by ${ownerName}</text>
+        
+        <!-- Place count badge -->
+        <rect x="450" y="370" width="300" height="60" rx="16" fill="#667eea"/>
+        <text x="600" y="410" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="bold">${placeCount} ${placeCount === 1 ? 'Place' : 'Places'}</text>
+        
+        <!-- App branding -->
+        <text x="1150" y="610" text-anchor="end" fill="rgba(255,255,255,0.8)" font-family="Arial, sans-serif" font-size="18" font-weight="500">LO</text>
+      </svg>
+    `
     
-    // Truncate if too long for the image
-    if (fallbackText.length > 60) {
-      fallbackText = fallbackText.substring(0, 57) + '...'
-    }
-    
-    const fallbackImageUrl = `https://via.placeholder.com/1200x630/667eea/ffffff?text=${encodeURIComponent(fallbackText)}`
-    
-    return NextResponse.redirect(fallbackImageUrl)
+    return new NextResponse(svg, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'public, max-age=300',
+      },
+    })
     
   } catch (error) {
     console.error('Error generating frame image:', error)
     
-    // Return a simple error image
-    const errorImageUrl = `https://via.placeholder.com/1200x630/f3f4f6/374151?text=${encodeURIComponent('Error Loading List')}`
-    return NextResponse.redirect(errorImageUrl)
+    // Return simple error SVG
+    const errorSvg = `
+      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#ef4444"/>
+        <text x="600" y="300" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="48" font-weight="bold">📍</text>
+        <text x="600" y="380" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="40" font-weight="bold">Error Loading List</text>
+      </svg>
+    `
+    
+    return new NextResponse(errorSvg, {
+      status: 500,
+      headers: {
+        'Content-Type': 'image/svg+xml',
+      },
+    })
   }
 } 
