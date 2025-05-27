@@ -7,11 +7,6 @@ import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditListModal } from "./edit-list-modal"
 import { AddPlaceModal } from "./add-place-modal"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import { toast } from "@/components/ui/use-toast"
 
 interface ListDetailViewProps {
@@ -89,41 +84,8 @@ export function ListDetailView({
   }
 
   const handlePlaceAdded = (place: any) => {
-    // Refresh the list to show the new place
-    fetchListDetails()
-  }
-
-  const handleFarcasterShare = async () => {
-    try {
-      const baseUrl = window.location.origin
-      const frameUrl = `${baseUrl}/lists/${listId}/frame`
-      
-      console.log('Farcaster share URLs:', {
-        baseUrl,
-        frameUrl,
-        listId
-      })
-      
-      // Create a Farcaster cast URL with the frame
-      const farcasterUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(`Check out this list: ${list.title}`)}&embeds[]=${encodeURIComponent(frameUrl)}`
-      
-      console.log('Final Farcaster URL:', farcasterUrl)
-      
-      // Open Farcaster in a new tab
-      window.open(farcasterUrl, '_blank', 'noopener,noreferrer')
-      
-      toast({
-        title: "Opening Farcaster",
-        description: "Opening Farcaster to share your list.",
-      })
-    } catch (error) {
-      console.error("Error opening Farcaster:", error)
-      toast({
-        title: "Error",
-        description: "Failed to open Farcaster. Please try again.",
-        variant: "destructive",
-      })
-    }
+    console.log("Place added:", place)
+    fetchListDetails() // Refresh the list to show the new place
   }
 
   const handleShare = async () => {
@@ -131,34 +93,33 @@ export function ListDetailView({
       const baseUrl = window.location.origin
       const listUrl = `${baseUrl}/?list=${listId}`
       
-      console.log('Share URLs:', {
-        baseUrl,
-        listUrl,
-        listId
+      // Always copy to clipboard for simplicity
+      await navigator.clipboard.writeText(listUrl)
+      toast({
+        title: "Link copied!",
+        description: "The shareable link has been copied to your clipboard.",
       })
-      
-      if (navigator.share) {
-        // Use Web Share API if available (mobile)
-        await navigator.share({
-          title: `${list.title} by ${ownerName}`,
-          text: list.description || `A list of ${places.length} places`,
-          url: listUrl
-        })
-      } else {
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(listUrl)
+    } catch (error) {
+      console.error("Error copying link:", error)
+      // Fallback for older browsers or if clipboard API fails
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = `${window.location.origin}/?list=${listId}`
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
         toast({
           title: "Link copied!",
           description: "The shareable link has been copied to your clipboard.",
         })
+      } catch (fallbackError) {
+        toast({
+          title: "Copy failed",
+          description: "Unable to copy link. Please copy the URL manually.",
+          variant: "destructive",
+        })
       }
-    } catch (error) {
-      console.error("Error sharing:", error)
-      toast({
-        title: "Error",
-        description: "Failed to share the list. Please try again.",
-        variant: "destructive",
-      })
     }
   }
 
@@ -284,40 +245,17 @@ export function ListDetailView({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Share Button - visible for public lists */}
+            {/* Share Button - simple copy link */}
             {(isOwner || list.visibility === "public") && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Share2 size={16} />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 bg-white border border-gray-200 shadow-lg" align="end">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Share this list</p>
-                    <div className="space-y-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={handleShare}
-                      >
-                        <Share2 size={14} className="mr-2" />
-                        Copy Link
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={handleFarcasterShare}
-                      >
-                        <ExternalLink size={14} className="mr-2" />
-                        Share to Farcaster
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleShare}
+                title="Copy link"
+              >
+                <Share2 size={16} />
+              </Button>
             )}
             
             {/* Edit Button - visible for owners */}
