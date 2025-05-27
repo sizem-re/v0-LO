@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
@@ -18,7 +18,7 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
   ),
 })
 
-export default function MapPage() {
+function MapPageContent() {
   const searchParams = useSearchParams()
   const [places, setPlaces] = useState<Place[]>([])
   const [isMounted, setIsMounted] = useState(false)
@@ -109,5 +109,20 @@ export default function MapPage() {
         <SidebarWrapper initialListId={initialListId} />
       </div>
     </div>
+  )
+}
+
+export default function MapPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 flex h-screen w-screen overflow-hidden">
+        <FarcasterReady />
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <MapPageContent />
+    </Suspense>
   )
 }
