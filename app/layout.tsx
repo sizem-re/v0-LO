@@ -54,6 +54,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
+        <meta name="fc:frame" content='{"version":"next","imageUrl":"https://llllllo.com/og-image.png","button":{"title":"🗺️ Explore Places","action":{"type":"launch_frame","name":"LO","url":"https://llllllo.com","splashImageUrl":"https://llllllo.com/splash.png","splashBackgroundColor":"#ffffff"}}}' />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
