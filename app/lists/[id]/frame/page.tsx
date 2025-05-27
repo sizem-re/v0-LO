@@ -54,6 +54,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         "fc:frame:button:2": "Open App",
         "fc:frame:button:2:action": "link", 
         "fc:frame:button:2:target": baseUrl,
+        // Twitter Card metadata
+        "twitter:card": "summary_large_image",
+        "twitter:site": "@llllllo", 
+        "twitter:title": `${listTitle} by ${ownerName}`,
+        "twitter:description": listDescription,
+        "twitter:image": frameImageUrl,
       },
     }
   } catch (error) {
