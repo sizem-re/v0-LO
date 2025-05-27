@@ -29,8 +29,8 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
             localStorage.removeItem('pending_auth_code')
             sessionStorage.clear()
             
-            // Redirect to home after signout
-            window.location.href = "/"
+            // Don't automatically redirect - let the auth context handle it
+            // window.location.href = "/"
           },
         },
       }}

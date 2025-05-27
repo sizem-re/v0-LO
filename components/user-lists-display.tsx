@@ -41,6 +41,7 @@ export function UserListsDisplay({
   useEffect(() => {
     const fetchLists = async () => {
       if (!dbUser?.id && !user?.fid) {
+        console.log("UserListsDisplay: No user ID or FID available")
         setIsLoading(false)
         return
       }
@@ -50,11 +51,15 @@ export function UserListsDisplay({
         const queryParam = user?.fid ? `fid=${user.fid}` : dbUser?.id ? `userId=${dbUser.id}` : ""
 
         if (!queryParam) {
+          console.log("UserListsDisplay: No valid query parameter")
           setIsLoading(false)
           return
         }
 
-        console.log(`Fetching lists with query: ${queryParam}`)
+        console.log(`UserListsDisplay: Fetching lists with query: ${queryParam}`)
+        console.log("UserListsDisplay: dbUser:", dbUser)
+        console.log("UserListsDisplay: neynar user:", user)
+        
         const response = await fetch(`/api/lists?${queryParam}`)
 
         if (!response.ok) {
@@ -62,10 +67,10 @@ export function UserListsDisplay({
         }
 
         const data = await response.json()
-        console.log("Lists data:", data)
+        console.log("UserListsDisplay: Lists data received:", data)
         setLists(data || [])
       } catch (err) {
-        console.error("Error fetching lists:", err)
+        console.error("UserListsDisplay: Error fetching lists:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
       } finally {
         setIsLoading(false)

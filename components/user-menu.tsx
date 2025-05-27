@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { User, LogOut } from "lucide-react"
-import { useNeynarContext } from "@neynar/react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import { FarcasterAuth } from "@/components/farcaster-auth"
 
 export function UserMenu() {
@@ -86,13 +86,9 @@ export function UserMenu() {
             >
               My Lists
             </Link>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-black/80 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
+            <div className="px-4 py-2">
+              <NeynarAuthButton />
+            </div>
           </div>
         </div>
       )}

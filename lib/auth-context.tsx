@@ -192,8 +192,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Error clearing storage:", storageError)
       }
 
-      // The Neynar React SDK should handle its own logout via the onSignout callback
-      // which is configured in the NeynarProviderWrapper
+      // Try to call Neynar's logout if available
+      try {
+        // Check if we have access to the Neynar context
+        if (typeof window !== 'undefined' && (window as any).__NEYNAR_CONTEXT__) {
+          const neynarContext = (window as any).__NEYNAR_CONTEXT__
+          if (neynarContext && typeof neynarContext.logout === 'function') {
+            await neynarContext.logout()
+          }
+        }
+      } catch (neynarError) {
+        console.warn("Could not call Neynar logout:", neynarError)
+      }
       
       // Force a hard reload to ensure clean state
       setTimeout(() => {

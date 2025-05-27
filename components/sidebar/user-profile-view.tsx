@@ -3,7 +3,7 @@
 import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useNeynarContext } from "@neynar/react"
+import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
 import { useAuth } from "@/lib/auth-context"
 import { UserListsDisplay } from "@/components/user-lists-display"
 
@@ -88,13 +88,9 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
           </button>
 
           {/* Logout button */}
-          <button 
-            onClick={logout}
-            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
+          <div className="px-4 py-2">
+            <NeynarAuthButton />
+          </div>
         </div>
       </div>
     )
@@ -134,13 +130,7 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
 
       {/* Sign Out */}
       <div className="mt-6 pt-4 border-t border-black/10">
-        <button 
-          onClick={logout}
-          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
-        </button>
+        <NeynarAuthButton />
       </div>
     </div>
   )
