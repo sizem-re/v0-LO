@@ -33,7 +33,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const listDescription = list.description || `A list of ${list.places?.length || 0} places`
     const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
     
-    const frameImageUrl = `${baseUrl}/api/lists/${id}/frame-image`
+    // Add cache-busting parameter to force fresh image
+    const timestamp = Date.now()
+    const frameImageUrl = `${baseUrl}/api/lists/${id}/frame-image?v=${timestamp}`
+    
+    // Create the Mini App embed JSON
+    const frameEmbed = {
+      version: "next",
+      imageUrl: frameImageUrl,
+      button: {
+        title: "📍 View List",
+        action: {
+          type: "launch_frame",
+          name: listTitle,
+          url: `${baseUrl}/?list=${id}`,
+          splashImageUrl: frameImageUrl,
+          splashBackgroundColor: "#667eea"
+        }
+      }
+    }
     
     return {
       title: `${listTitle} by ${ownerName}`,
@@ -44,22 +62,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         images: [frameImageUrl],
       },
       other: {
-        // Farcaster Frame metadata
-        "fc:frame": "vNext",
-        "fc:frame:image": frameImageUrl,
-        "fc:frame:image:aspect_ratio": "1.91:1",
-        "fc:frame:button:1": "View List",
-        "fc:frame:button:1:action": "link",
-        "fc:frame:button:1:target": `${baseUrl}/?list=${id}`,
-        "fc:frame:button:2": "Open App",
-        "fc:frame:button:2:action": "link", 
-        "fc:frame:button:2:target": baseUrl,
-        // Twitter Card metadata
-        "twitter:card": "summary_large_image",
-        "twitter:site": "@llllllo", 
-        "twitter:title": `${listTitle} by ${ownerName}`,
-        "twitter:description": listDescription,
-        "twitter:image": frameImageUrl,
+        // Mini App embed format - stringified JSON
+        "fc:frame": JSON.stringify(frameEmbed),
       },
     }
   } catch (error) {
