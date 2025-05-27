@@ -22,148 +22,176 @@ export async function GET(
                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
     
-    // Clean any trailing slashes
+    // Normalize base URL to avoid trailing slashes
     baseUrl = baseUrl.replace(/\/+$/, '')
     
-    // Fetch list data
-    const response = await fetch(normalizeUrl(baseUrl, `/api/lists/${id}`), {
+    // Fetch list data from our API
+    const listApiUrl = normalizeUrl(baseUrl, `/api/lists/${id}`)
+    console.log('Frame Image: Fetching list data from:', listApiUrl)
+    
+    const response = await fetch(listApiUrl, {
       cache: 'no-store'
     })
     
     if (!response.ok) {
-      // Return simple error image
-      return new ImageResponse(
-        (
-          <div
-            style={{
-              display: 'flex',
-              height: '100%',
-              width: '100%',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundImage: 'linear-gradient(180deg, #fff, #f0f0f0)',
-              fontSize: 60,
-              fontWeight: 700,
-              color: '#ef4444',
-            }}
-          >
-            List Not Found
-          </div>
-        ),
-        {
-          width: 1200,
-          height: 630,
-        }
-      )
+      console.error('Frame Image: Failed to fetch list data:', response.status, response.statusText)
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
     
     const listData = await response.json()
-    // Handle both the nested { list, places } structure and direct list structure
-    const list = listData.list || listData
-    const places = listData.places || []
+    const { list, places } = listData
     
-    // Get the list name from either 'name' or 'title' property
-    const listName = list.name || list.title || 'Untitled List'
-    const description = list.description || ''
-    const displayDescription = description.length > 100 ? description.substring(0, 100) + '...' : description
+    // Use list.title or list.name as fallback
+    const listTitle = list?.title || list?.name || 'Untitled List'
+    const listDescription = list?.description || ''
+    const ownerName = list?.owner?.farcaster_display_name || list?.owner?.farcaster_username || 'Unknown'
+    const placeCount = places?.length || 0
     
-    console.log('Frame Image Generation: Creating PNG image for list:', listName)
+    console.log('Frame Image Generation: Creating PNG image for list:', listTitle)
     
-    // Generate simple PNG image using ImageResponse - no conditional rendering
+    // Generate PNG image using ImageResponse with a single, clean JSX structure
     return new ImageResponse(
       (
         <div
           style={{
+            width: '1200px',
+            height: '630px',
             display: 'flex',
-            height: '100%',
-            width: '100%',
             flexDirection: 'column',
-            backgroundImage: 'linear-gradient(180deg, #fff, #f8fafc)',
-            padding: '60px',
-            justifyContent: 'center',
-            alignItems: 'center',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            fontFamily: 'system-ui, sans-serif',
+            position: 'relative',
           }}
         >
+          {/* Header */}
           <div
             style={{
               display: 'flex',
-              fontSize: 32,
-              fontWeight: 600,
-              color: '#1f2937',
-              marginBottom: '40px',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '40px 60px 20px 60px',
+              borderBottom: '2px solid rgba(255,255,255,0.1)',
             }}
           >
-            🗺️ LO
+            <div style={{ display: 'flex', alignItems: 'center', fontSize: '28px', fontWeight: 'bold' }}>
+              <span style={{ marginRight: '12px' }}>📍</span>
+              <span>LO</span>
+            </div>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '16px',
+                fontWeight: '600',
+              }}
+            >
+              {placeCount} {placeCount === 1 ? 'place' : 'places'}
+            </div>
           </div>
-          
+
+          {/* Main Content */}
           <div
             style={{
               display: 'flex',
-              fontSize: 72,
-              fontWeight: 800,
-              color: '#1f2937',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flex: 1,
+              padding: '0 60px',
               textAlign: 'center',
-              marginBottom: '30px',
-              maxWidth: '900px',
             }}
           >
-            {listName}
+            {/* List Title */}
+            <div
+              style={{
+                fontSize: '48px',
+                fontWeight: 'bold',
+                marginBottom: '20px',
+                background: 'linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%)',
+                backgroundClip: 'text',
+                color: 'transparent',
+                lineHeight: 1.2,
+              }}
+            >
+              {listTitle.length > 50 ? `${listTitle.substring(0, 50)}...` : listTitle}
+            </div>
+
+            {/* Description */}
+            <div
+              style={{
+                fontSize: '24px',
+                opacity: 0.9,
+                marginBottom: '20px',
+                lineHeight: 1.4,
+                maxWidth: '800px',
+              }}
+            >
+              {listDescription.length > 120 ? `${listDescription.substring(0, 120)}...` : listDescription || 'A curated list of amazing places to explore'}
+            </div>
+
+            {/* Owner */}
+            <div
+              style={{
+                fontSize: '18px',
+                opacity: 0.8,
+                marginBottom: '30px',
+              }}
+            >
+              Created by {ownerName}
+            </div>
           </div>
-          
+
+          {/* Footer */}
           <div
             style={{
               display: 'flex',
-              fontSize: 28,
-              color: '#6b7280',
-              textAlign: 'center',
-              maxWidth: '800px',
-              marginBottom: '20px',
-              minHeight: '32px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px',
+              background: 'rgba(0,0,0,0.1)',
+              fontSize: '18px',
+              fontWeight: '600',
             }}
           >
-            {displayDescription}
-          </div>
-          
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 24,
-              color: '#9ca3af',
-              backgroundColor: '#f3f4f6',
-              padding: '12px 24px',
-              borderRadius: '12px',
-            }}
-          >
-            {places?.length || 0} places
+            Tap to explore this list → llllllo.com
           </div>
         </div>
       ),
       {
         width: 1200,
         height: 630,
+        headers: {
+          'Cache-Control': 'public, max-age=3600',
+        },
       }
     )
-    
   } catch (error) {
     console.error('Error in frame image route:', error)
     
-    // Return simple fallback error image
+    // Fallback error image
     return new ImageResponse(
       (
         <div
           style={{
+            width: '1200px',
+            height: '630px',
             display: 'flex',
-            height: '100%',
-            width: '100%',
-            alignItems: 'center',
+            flexDirection: 'column',
             justifyContent: 'center',
-            backgroundImage: 'linear-gradient(180deg, #fff, #f0f0f0)',
-            fontSize: 60,
-            fontWeight: 700,
-            color: '#ef4444',
+            alignItems: 'center',
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+            color: 'white',
+            fontFamily: 'system-ui, sans-serif',
           }}
         >
-          Error
+          <div style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '20px' }}>
+            📍 LO
+          </div>
+          <div style={{ fontSize: '24px', opacity: 0.9 }}>
+            Error loading list
+          </div>
         </div>
       ),
       {

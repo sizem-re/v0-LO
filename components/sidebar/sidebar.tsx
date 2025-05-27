@@ -144,11 +144,16 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   // Handle initial list ID from URL
   useEffect(() => {
     console.log('Sidebar initialListId effect:', { initialListId, selectedListId, userIsAuthenticated })
+    
     if (initialListId && !selectedListId) {
       console.log("Setting initial list ID from URL:", initialListId)
       setSelectedListId(initialListId)
       setActiveTab("mylists")
       setIsCollapsed(false) // Ensure sidebar is expanded to show the list
+    } else if (initialListId === null && selectedListId) {
+      console.log("Clearing selected list because initialListId is null")
+      setSelectedListId(null)
+      setSelectedPlace(null)
     }
   }, [initialListId, selectedListId])
 

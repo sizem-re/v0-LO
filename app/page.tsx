@@ -46,10 +46,9 @@ function MapPageContent() {
     console.log('Current URL:', typeof window !== 'undefined' ? window.location.href : 'SSR')
     console.log('Is Mini App context:', typeof window !== 'undefined' ? window.self !== window.top : false)
     
-    if (finalListId) {
-      console.log('Setting initial list ID:', finalListId)
-      setInitialListId(finalListId)
-    }
+    // Always set initialListId - either to the list ID or null if no list parameter
+    setInitialListId(finalListId)
+    console.log('Setting initial list ID:', finalListId)
   }, [searchParams])
 
   useEffect(() => {
