@@ -113,6 +113,28 @@ export function Sidebar() {
     }
   }, [showCreateListModal, showAddPlaceModal, showLogin])
 
+  // Listen for place selection from map
+  useEffect(() => {
+    const handlePlaceSelectFromMap = (event: Event) => {
+      const customEvent = event as CustomEvent<{ place: any; navigateToPlaces: boolean }>
+      const { place, navigateToPlaces } = customEvent.detail
+
+      if (navigateToPlaces) {
+        // Switch to places tab and show place details
+        setActiveTab("places")
+        setSelectedPlace(place)
+        setSelectedListId(null)
+        setIsCollapsed(false) // Ensure sidebar is expanded
+      }
+    }
+
+    window.addEventListener("selectPlaceFromMap", handlePlaceSelectFromMap as EventListener)
+
+    return () => {
+      window.removeEventListener("selectPlaceFromMap", handlePlaceSelectFromMap as EventListener)
+    }
+  }, [])
+
   const handleProfileClick = () => {
     if (!userIsAuthenticated) {
       setShowLogin(true)
