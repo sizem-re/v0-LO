@@ -79,6 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, '', newUrl.toString())
     }
 
+    // Check for pending auth code from manual continue
+    const pendingCode = localStorage.getItem('pending_auth_code')
+    if (pendingCode) {
+      console.log('Found pending auth code, clearing it')
+      localStorage.removeItem('pending_auth_code')
+      // Note: We could potentially use this code to complete authentication
+      // but for now we'll just clear it and rely on the stored auth data
+    }
+
     // Check for Farcaster Connect authentication
     const farcasterAuth = localStorage.getItem('farcaster_auth')
     if (farcasterAuth) {
