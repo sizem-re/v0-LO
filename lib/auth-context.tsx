@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshAuth = async () => {
     setIsLoading(true)
     
-    // Check for Frame authentication token in URL
+    // Check for Frame authentication token in URL first (for miniapp support)
     const urlParams = new URLSearchParams(window.location.search)
     const authToken = urlParams.get('auth')
     
@@ -66,114 +66,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Check for OAuth callback parameters (mobile flow)
+    // Clean up any OAuth callback parameters from URL (mobile flow cleanup)
     const code = urlParams.get('code')
     const state = urlParams.get('state')
-    const fid = urlParams.get('fid')
-    const signerUuid = urlParams.get('signer_uuid')
     
-    // Handle mobile redirect with auth data directly to home page
     if (code && window.location.pathname === '/') {
-      console.log('Detected OAuth return to home page with code:', code.substring(0, 10) + '...')
-      
-      // Check if we have complete user data in the URL
-      if (fid && signerUuid) {
-        console.log('Found complete auth data in home page URL')
-        
-        const username = urlParams.get('username')
-        const authData = {
-          fid: parseInt(fid),
-          username: username || '',
-          displayName: urlParams.get('display_name') || '',
-          pfpUrl: urlParams.get('pfp_url') || '',
-          bio: urlParams.get('bio') || '',
-          custodyAddress: urlParams.get('custody_address') || '',
-          verifications: [],
-          followerCount: parseInt(urlParams.get('follower_count') || '0'),
-          followingCount: parseInt(urlParams.get('following_count') || '0'),
-          signerUuid: signerUuid,
-          accessToken: urlParams.get('access_token') || '',
-          authenticatedAt: new Date().toISOString(),
-        }
-        
-        console.log('Storing auth data from home page URL:', authData)
-        localStorage.setItem('farcaster_auth', JSON.stringify(authData))
-        
-        // Clean up URL
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete('code')
-        newUrl.searchParams.delete('state')
-        newUrl.searchParams.delete('fid')
-        newUrl.searchParams.delete('signer_uuid')
-        newUrl.searchParams.delete('username')
-        newUrl.searchParams.delete('display_name')
-        newUrl.searchParams.delete('pfp_url')
-        newUrl.searchParams.delete('bio')
-        newUrl.searchParams.delete('custody_address')
-        newUrl.searchParams.delete('follower_count')
-        newUrl.searchParams.delete('following_count')
-        newUrl.searchParams.delete('access_token')
-        window.history.replaceState({}, '', newUrl.toString())
-        
-        // Continue with verification below
-      } else {
-        // Only have code, clean up URL and store for potential later use
-        console.log('Only have auth code on home page, cleaning up URL')
-        localStorage.setItem('pending_auth_code', code)
-        
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete('code')
-        newUrl.searchParams.delete('state')
-        window.history.replaceState({}, '', newUrl.toString())
-      }
+      console.log('Cleaning up OAuth parameters from home page URL')
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('code')
+      newUrl.searchParams.delete('state')
+      // Clean up any other auth-related parameters
+      newUrl.searchParams.delete('fid')
+      newUrl.searchParams.delete('signer_uuid')
+      newUrl.searchParams.delete('username')
+      newUrl.searchParams.delete('display_name')
+      newUrl.searchParams.delete('pfp_url')
+      newUrl.searchParams.delete('bio')
+      newUrl.searchParams.delete('custody_address')
+      newUrl.searchParams.delete('follower_count')
+      newUrl.searchParams.delete('following_count')
+      newUrl.searchParams.delete('access_token')
+      window.history.replaceState({}, '', newUrl.toString())
     }
 
-    // Check for pending auth code from manual continue
-    const pendingCode = localStorage.getItem('pending_auth_code')
-    if (pendingCode) {
-      console.log('Found pending auth code, clearing it')
-      localStorage.removeItem('pending_auth_code')
-      // Note: We could potentially use this code to complete authentication
-      // but for now we'll just clear it and rely on the stored auth data
-    }
+    // Clear any legacy auth data
+    localStorage.removeItem('farcaster_auth')
+    localStorage.removeItem('pending_auth_code')
 
-    // Check for Farcaster Connect authentication
-    const farcasterAuth = localStorage.getItem('farcaster_auth')
-    if (farcasterAuth) {
-      try {
-        const authData = JSON.parse(farcasterAuth)
-        console.log('Found stored Farcaster auth data:', authData)
-        
-        // Verify the Neynar authentication and get user data
-        const response = await fetch("/api/auth/verify-neynar", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(authData),
-        })
-
-        if (response.ok) {
-          const { user: neynarUser } = await response.json()
-          console.log('Neynar auth verification successful:', neynarUser)
-          setIsAuthenticated(true)
-          setUser(neynarUser)
-          setDbUser(neynarUser)
-          setIsLoading(false)
-          return
-        } else {
-          // Invalid auth data, clear it
-          console.error("Neynar auth verification failed")
-          localStorage.removeItem('farcaster_auth')
-        }
-      } catch (error) {
-        console.error("Neynar auth error:", error)
-        localStorage.removeItem('farcaster_auth')
-      }
-    }
-
-    // Fall back to regular Neynar authentication
+    // Use the official Neynar React SDK authentication
     if (neynarAuthenticated && neynarUser) {
+      console.log('Using Neynar React SDK authentication:', neynarUser)
       setIsAuthenticated(true)
       setUser(neynarUser)
 
@@ -201,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error in createOrUpdateUser:", error)
       }
     } else {
+      console.log('No Neynar authentication found')
       setIsAuthenticated(false)
       setUser(null)
       setDbUser(null)
@@ -223,26 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setDbUser(null)
       setIsLoading(false)
 
-      // Clear any stored tokens and auth data
+      // Clear any stored auth data (legacy cleanup)
       try {
         localStorage.removeItem('farcaster_auth')
         localStorage.removeItem('neynar_auth_success')
+        localStorage.removeItem('pending_auth_code')
         sessionStorage.clear()
-        
-        // Clear all localStorage items that might be related to auth
-        const keysToRemove = []
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && (key.includes('auth') || key.includes('neynar') || key.includes('farcaster'))) {
-            keysToRemove.push(key)
-          }
-        }
-        keysToRemove.forEach(key => localStorage.removeItem(key))
       } catch (storageError) {
         console.warn("Error clearing storage:", storageError)
       }
 
-      // Force a hard reload to clear all React state
+      // The Neynar React SDK should handle its own logout via the onSignout callback
+      // which is configured in the NeynarProviderWrapper
+      
+      // Force a hard reload to ensure clean state
       setTimeout(() => {
         window.location.href = "/"
       }, 100)

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { FarcasterConnect } from "@/components/farcaster-connect"
+import { FarcasterAuth } from "@/components/farcaster-auth"
 import { useNeynarContext } from "@neynar/react"
 // Import the PageLayout at the top
 import { PageLayout } from "@/components/page-layout"
@@ -37,7 +37,7 @@ export default function LoginPage() {
             {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
 
             <div className="flex justify-center">
-              <FarcasterConnect />
+              <FarcasterAuth />
             </div>
 
             <p className="mt-6 text-sm text-black/70 text-center">

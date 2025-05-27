@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context"
 import { SearchDialog } from "@/components/search-dialog"
 import { UserMenu } from "@/components/user-menu"
 import { useNeynarContext } from "@neynar/react"
-import { FarcasterConnect } from "@/components/farcaster-connect"
+import { FarcasterAuth } from "@/components/farcaster-auth"
 
 export function MainNav() {
   const pathname = usePathname()
@@ -146,9 +146,9 @@ export function MainNav() {
               </>
             ) : (
               <div className="py-3 border-b border-black/10">
-                <FarcasterConnect className="lo-button w-full text-center">
+                <FarcasterAuth className="lo-button w-full text-center">
                   CONNECT WITH FARCASTER
-                </FarcasterConnect>
+                </FarcasterAuth>
               </div>
             )}
           </nav>
