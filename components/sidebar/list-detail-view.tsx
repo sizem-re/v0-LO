@@ -1,13 +1,28 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditListModal } from "./edit-list-modal"
 import { AddPlaceModal } from "./add-place-modal"
 import { toast } from "@/components/ui/use-toast"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+// Farcaster icon component
+const FarcasterIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 1000 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z" fill="currentColor"/>
+    <path d="M128.889 253.333L157.778 253.333C157.778 253.333 157.778 253.333 157.778 253.333L157.778 746.667C157.778 746.667 157.778 746.667 157.778 746.667L128.889 746.667V253.333Z" fill="currentColor"/>
+    <path d="M842.222 253.333L871.111 253.333V746.667L842.222 746.667C842.222 746.667 842.222 746.667 842.222 746.667L842.222 253.333C842.222 253.333 842.222 253.333 842.222 253.333Z" fill="currentColor"/>
+  </svg>
+)
 
 interface ListDetailViewProps {
   listId: string
@@ -99,7 +114,7 @@ export function ListDetailView({
     fetchListDetails() // Refresh the list to show the new place
   }
 
-  const handleShare = async () => {
+  const handleCopyLink = async () => {
     try {
       const baseUrl = window.location.origin
       const listUrl = `${baseUrl}/?list=${listId}`
@@ -133,6 +148,44 @@ export function ListDetailView({
           variant: "destructive",
         })
       }
+    }
+  }
+
+  const handleShareToFarcaster = () => {
+    try {
+      const baseUrl = window.location.origin
+      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      const listTitle = list?.title || "Check out this list"
+      const listDescription = list?.description || "A curated list of amazing places"
+      
+      // Create Farcaster share text with frame URL
+      const shareText = `${listTitle}\n\n${listDescription}\n\n${frameUrl}`
+      
+      // Try to open Warpcast app first, fallback to web
+      const warpcastAppUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`
+      
+      // Check if we're in a mobile environment
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      
+      if (isMobile) {
+        // Try to open the Warpcast app
+        window.open(warpcastAppUrl, '_blank')
+      } else {
+        // On desktop, open Warpcast web
+        window.open(warpcastAppUrl, '_blank')
+      }
+      
+      toast({
+        title: "Opening Farcaster",
+        description: "Redirecting to Warpcast to share your list...",
+      })
+    } catch (error) {
+      console.error("Error sharing to Farcaster:", error)
+      toast({
+        title: "Share failed",
+        description: "Unable to open Farcaster. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -258,17 +311,30 @@ export function ListDetailView({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Share Button - simple copy link */}
+            {/* Share Dropdown - visible for owners and public lists */}
             {(isOwner || list.visibility === "public") && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
-                onClick={handleShare}
-                title={linkCopied ? "Link copied!" : "Copy link"}
-              >
-                {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
+                    title="Share options"
+                  >
+                    {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleCopyLink} className="flex items-center gap-2">
+                    <Share2 size={14} />
+                    Copy Link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleShareToFarcaster} className="flex items-center gap-2">
+                    <FarcasterIcon size={14} />
+                    Share to Farcaster
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             
             {/* Edit Button - visible for owners */}
