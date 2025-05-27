@@ -88,9 +88,13 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
           </button>
 
           {/* Logout button */}
-          <div className="px-4 py-2">
-            <NeynarAuthButton />
-          </div>
+          <button 
+            onClick={logout}
+            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
+          >
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
     )
@@ -130,7 +134,13 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
 
       {/* Sign Out */}
       <div className="mt-6 pt-4 border-t border-black/10">
-        <NeynarAuthButton />
+        <button 
+          onClick={logout}
+          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
+        >
+          <LogOut size={16} />
+          <span>Sign Out</span>
+        </button>
       </div>
     </div>
   )

@@ -192,23 +192,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Error clearing storage:", storageError)
       }
 
-      // Try to call Neynar's logout if available
-      try {
-        // Check if we have access to the Neynar context
-        if (typeof window !== 'undefined' && (window as any).__NEYNAR_CONTEXT__) {
-          const neynarContext = (window as any).__NEYNAR_CONTEXT__
-          if (neynarContext && typeof neynarContext.logout === 'function') {
-            await neynarContext.logout()
-          }
-        }
-      } catch (neynarError) {
-        console.warn("Could not call Neynar logout:", neynarError)
-      }
-      
-      // Force a hard reload to ensure clean state
-      setTimeout(() => {
-        window.location.href = "/"
-      }, 100)
+      // Force a hard reload to ensure clean state and trigger Neynar's logout
+      window.location.href = "/"
       
     } catch (error) {
       console.error("Error during logout:", error)

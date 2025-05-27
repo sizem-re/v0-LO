@@ -89,6 +89,13 @@ export function UserMenu() {
             <div className="px-4 py-2">
               <NeynarAuthButton />
             </div>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-red-600 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
       )}

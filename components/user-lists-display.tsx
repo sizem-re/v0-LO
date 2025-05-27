@@ -40,6 +40,11 @@ export function UserListsDisplay({
 
   useEffect(() => {
     const fetchLists = async () => {
+      console.log("UserListsDisplay: Starting fetchLists")
+      console.log("UserListsDisplay: dbUser:", dbUser)
+      console.log("UserListsDisplay: neynar user:", user)
+      console.log("UserListsDisplay: neynarAuthenticated:", neynarAuthenticated)
+      
       if (!dbUser?.id && !user?.fid) {
         console.log("UserListsDisplay: No user ID or FID available")
         setIsLoading(false)
@@ -57,8 +62,7 @@ export function UserListsDisplay({
         }
 
         console.log(`UserListsDisplay: Fetching lists with query: ${queryParam}`)
-        console.log("UserListsDisplay: dbUser:", dbUser)
-        console.log("UserListsDisplay: neynar user:", user)
+        console.log("UserListsDisplay: Full URL will be: /api/lists?" + queryParam)
         
         const response = await fetch(`/api/lists?${queryParam}`)
 
@@ -68,6 +72,14 @@ export function UserListsDisplay({
 
         const data = await response.json()
         console.log("UserListsDisplay: Lists data received:", data)
+        console.log("UserListsDisplay: Number of lists:", data?.length || 0)
+        
+        // Log owner information for debugging
+        if (data && data.length > 0) {
+          console.log("UserListsDisplay: First list owner_id:", data[0].owner_id)
+          console.log("UserListsDisplay: Expected owner_id should be:", dbUser?.id || "from FID lookup")
+        }
+        
         setLists(data || [])
       } catch (err) {
         console.error("UserListsDisplay: Error fetching lists:", err)
@@ -78,7 +90,7 @@ export function UserListsDisplay({
     }
 
     fetchLists()
-  }, [dbUser?.id, user?.fid])
+  }, [dbUser?.id, user?.fid, neynarAuthenticated])
 
   const handleSelectList = (listId: string) => {
     if (onSelectList) {
