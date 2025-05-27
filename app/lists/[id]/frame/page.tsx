@@ -104,6 +104,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+// Function to detect if request is from a bot/crawler
+function isBotRequest(userAgent: string): boolean {
+  const botPatterns = [
+    /facebookexternalhit/i,
+    /twitterbot/i,
+    /linkedinbot/i,
+    /farcaster/i,
+    /bot/i,
+    /crawler/i,
+    /spider/i,
+    /preview/i,
+    /whatsapp/i,
+    /telegram/i,
+    /discord/i,
+    /slack/i,
+    /meta/i
+  ]
+  
+  return botPatterns.some(pattern => pattern.test(userAgent))
+}
+
 // Main component for the frame page
 export default async function ListFramePage({ params }: Props) {
   try {
@@ -129,22 +150,21 @@ export default async function ListFramePage({ params }: Props) {
     // Handle both the nested { list, places } structure and direct list structure
     const list = listData.list || listData
     
-    // For direct visits to frame URL, redirect to the main app with list parameter
-    const userAgent = (await headers()).get('user-agent') || ''
-    const isFarcasterBot = userAgent.includes('facebookexternalhit') || 
-                          userAgent.includes('Twitterbot') || 
-                          userAgent.includes('LinkedInBot') ||
-                          userAgent.includes('farcaster') ||
-                          userAgent.includes('bot')
+    // Get user agent for bot detection
+    const headersList = await headers()
+    const userAgent = headersList.get('user-agent') || ''
     
-    if (!isFarcasterBot) {
+    // For direct visits to frame URL, redirect to the main app with list parameter
+    // Only redirect if it's NOT a bot/crawler request
+    if (!isBotRequest(userAgent)) {
+      console.log('Non-bot request detected, redirecting to main app:', userAgent)
       redirect(`/?list=${id}`)
     }
     
     // Get the list name from either 'name' or 'title' property
     const listName = list.name || list.title || 'Untitled List'
     
-    // This should not render for regular users, only for frame metadata
+    // This should only render for bots/crawlers for frame metadata
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">

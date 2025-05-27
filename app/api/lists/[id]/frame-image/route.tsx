@@ -166,7 +166,7 @@ export async function GET(
               </div>
             )}
             
-            {list.farcaster_display_name && (
+            {list.owner?.farcaster_display_name && (
               <div
                 style={{
                   fontSize: 22,
@@ -176,7 +176,7 @@ export async function GET(
                   alignItems: 'center',
                 }}
               >
-                by {list.farcaster_display_name}
+                by {list.owner.farcaster_display_name}
               </div>
             )}
           </div>
