@@ -4,15 +4,12 @@
     "payload": "eyJkb21haW4iOiJsbGxsbGxvLmNvbSJ9",
     "signature": "MHg5M2JlMWVhY2E3NzNmYjU0MjE2ZDY3YjFkNDhlZGQxZjdiNDY1OWEwODdkYmMwNjZkY2U3MzhhY2I0NmQ5OWZkN2I3ZDU0ZDkzYjJhZDY5ZTEyNjA2NDI2MmI0Y2E2MzQ1NjlmNDE0OTcyMzVlMzQ4MWNkNGRkOGIyZTdhOGQ1MTFj"
   },
-  "frame": {
-    "version": "1",
+  "miniApp": {
     "name": "LO",
+    "description": "Discover and share curated lists of locations",
     "iconUrl": "https://llllllo.com/icon.png",
     "homeUrl": "https://llllllo.com",
-    "imageUrl": "https://llllllo.com/og-image.png",
-    "buttonTitle": "🗺️ Explore Places",
     "splashImageUrl": "https://llllllo.com/splash.png",
-    "splashBackgroundColor": "#ffffff",
-    "webhookUrl": "https://api.neynar.com/f/app/4529cab2-868b-420b-a4cf-afb4549ed937/event"
+    "splashBackgroundColor": "#ffffff"
   }
 }
