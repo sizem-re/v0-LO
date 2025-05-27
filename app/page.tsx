@@ -27,10 +27,28 @@ function MapPageContent() {
   const [initialListId, setInitialListId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for list parameter in URL
+    // Check for list parameter in URL - use multiple methods for reliability
     const listId = searchParams?.get('list')
-    if (listId) {
-      setInitialListId(listId)
+    
+    // Fallback: parse URL manually in case searchParams doesn't work in Mini App
+    let fallbackListId = null
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      fallbackListId = urlParams.get('list')
+    }
+    
+    const finalListId = listId || fallbackListId
+    
+    console.log('URL search params:', searchParams?.toString())
+    console.log('List ID from searchParams:', listId)
+    console.log('List ID from fallback:', fallbackListId)
+    console.log('Final list ID:', finalListId)
+    console.log('Current URL:', typeof window !== 'undefined' ? window.location.href : 'SSR')
+    console.log('Is Mini App context:', typeof window !== 'undefined' ? window.self !== window.top : false)
+    
+    if (finalListId) {
+      console.log('Setting initial list ID:', finalListId)
+      setInitialListId(finalListId)
     }
   }, [searchParams])
 

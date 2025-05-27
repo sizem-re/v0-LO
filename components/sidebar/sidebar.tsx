@@ -141,6 +141,7 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
 
   // Handle initial list ID from URL
   useEffect(() => {
+    console.log('Sidebar initialListId effect:', { initialListId, selectedListId, userIsAuthenticated })
     if (initialListId && !selectedListId) {
       console.log("Setting initial list ID from URL:", initialListId)
       setSelectedListId(initialListId)
