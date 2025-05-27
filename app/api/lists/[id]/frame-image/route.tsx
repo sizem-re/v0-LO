@@ -63,9 +63,14 @@ export async function GET(
     }
     
     const listData = await response.json()
-    const { list, places } = listData
+    // Handle both the nested { list, places } structure and direct list structure
+    const list = listData.list || listData
+    const places = listData.places || []
     
-    console.log('Frame Image Generation: Creating PNG image for list:', list.name)
+    // Get the list name from either 'name' or 'title' property
+    const listName = list.name || list.title || 'Untitled List'
+    
+    console.log('Frame Image Generation: Creating PNG image for list:', listName)
     
     // Generate PNG image using ImageResponse
     return new ImageResponse(
@@ -142,7 +147,7 @@ export async function GET(
                 textAlign: 'center',
               }}
             >
-              {list.name || 'Untitled List'}
+              {listName}
             </div>
             
             {list.description && (
