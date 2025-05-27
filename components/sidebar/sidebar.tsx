@@ -202,8 +202,11 @@ export function Sidebar() {
     // Dispatch event to center the map
     const event = new CustomEvent("centerMap", { detail: coordinates })
     window.dispatchEvent(event)
-    // Collapse the sidebar instead of hiding it
-    setIsCollapsed(true)
+    // Only collapse the sidebar if no place is currently selected
+    // This allows the place details to remain visible when auto-centering
+    if (!selectedPlace) {
+      setIsCollapsed(true)
+    }
   }
 
   const handleNavigateToList = (listId: string) => {

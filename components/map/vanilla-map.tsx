@@ -127,7 +127,7 @@ export default function VanillaMap({
       })
 
       // Add event listener for popup content clicks
-      map.on("popupopen", (e) => {
+      map.on("popupopen", (e: any) => {
         // Find all view details buttons in the popup
         const popup = e.popup
         const container = popup.getElement()
@@ -230,6 +230,26 @@ export default function VanillaMap({
       }
     }
   }, [places, onPlaceSelect, isMapInitialized])
+
+  // Listen for centerMap events
+  useEffect(() => {
+    const handleCenterMap = (event: Event) => {
+      if (!mapInstanceRef.current) return
+
+      const customEvent = event as CustomEvent<{ lat: number; lng: number }>
+      const { lat, lng } = customEvent.detail
+
+      if (lat && lng) {
+        mapInstanceRef.current.setView([lat, lng], 16)
+      }
+    }
+
+    window.addEventListener("centerMap", handleCenterMap as EventListener)
+
+    return () => {
+      window.removeEventListener("centerMap", handleCenterMap as EventListener)
+    }
+  }, [])
 
   return (
     <div
