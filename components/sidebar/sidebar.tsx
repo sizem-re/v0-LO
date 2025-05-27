@@ -150,11 +150,9 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       setSelectedListId(initialListId)
       setActiveTab("mylists")
       setIsCollapsed(false) // Ensure sidebar is expanded to show the list
-    } else if (initialListId === null && selectedListId) {
-      console.log("Clearing selected list because initialListId is null")
-      setSelectedListId(null)
-      setSelectedPlace(null)
     }
+    // Note: We removed the auto-clearing logic here because it was interfering with manual list selection
+    // The URL parameter clearing is handled by navigation functions (handleBackFromList, handleTabClick, etc.)
   }, [initialListId, selectedListId])
 
   const handleProfileClick = () => {
