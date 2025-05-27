@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-client"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +12,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     console.log(`Fetching list with ID: ${id}`)
 
+    console.log("Supabase Environment Check:", {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "NOT SET",
+      anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "NOT SET",
+      serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "NOT SET",
+    })
+
     // Fetch the list with its owner
     const { data: list, error: listError } = await supabaseAdmin
       .from("lists")
@@ -24,11 +30,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (listError) {
       console.error("Error fetching list:", listError)
-      return NextResponse.json({ error: listError.message }, { status: 500 })
+      return NextResponse.json({ error: "List not found" }, { status: 404 })
     }
 
     if (!list) {
-      console.log(`List with ID ${id} not found`)
+      console.log("List not found in database")
       return NextResponse.json({ error: "List not found" }, { status: 404 })
     }
 
@@ -115,7 +121,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       places: formattedPlaces,
     })
   } catch (error) {
-    console.error("Error in GET /api/lists/[id]:", error)
+    console.error("Error in list API route:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

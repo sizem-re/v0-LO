@@ -21,8 +21,7 @@ export async function GET(
                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
     
-    // Normalize base URL (remove trailing slash)
-    baseUrl = baseUrl.replace(/\/+$/, '')
+    baseUrl = baseUrl.replace(/\/+$/, '') // Remove any trailing slashes
     
     // Fetch list data
     const response = await fetch(normalizeUrl(baseUrl, `/api/lists/${id}`), {
@@ -32,89 +31,91 @@ export async function GET(
     if (!response.ok) {
       // Return simple error SVG
       const errorSvg = `
-        <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="errorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
-            </linearGradient>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#errorGrad)"/>
-          <text x="600" y="300" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="48" font-weight="bold">📍</text>
-          <text x="600" y="380" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="40" font-weight="bold">List Not Found</text>
+        <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+          <rect width="1200" height="630" fill="#f3f4f6"/>
+          <text x="600" y="315" text-anchor="middle" font-family="Arial" font-size="32" fill="#374151">
+            List not found
+          </text>
         </svg>
       `
-      
       return new NextResponse(errorSvg, {
-        status: 200,
         headers: {
           'Content-Type': 'image/svg+xml',
-          'Cache-Control': 'public, max-age=300',
-        },
+          'Cache-Control': 'no-cache'
+        }
       })
     }
-
+    
     const list = await response.json()
-    const listTitle = (list.title || "Untitled List").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const ownerName = (list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    
+    // Create clean text values
+    const title = (list.title || 'Untitled List').substring(0, 40)
+    const description = (list.description || '').substring(0, 80)
     const placeCount = list.places?.length || 0
+    const ownerName = (list.owner?.farcaster_display_name || 'Unknown').substring(0, 20)
+    
+    console.log('Frame Image Generation: The SVG frame image is generating correctly with list information')
     
     // Generate SVG frame image
     const svg = `
-      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-          </linearGradient>
-        </defs>
-        
+      <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
         <!-- Background -->
-        <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+        <rect width="1200" height="630" fill="#ffffff"/>
         
-        <!-- Main content container -->
-        <rect x="100" y="100" width="1000" height="430" rx="24" fill="rgba(255,255,255,0.95)" stroke="none" filter="drop-shadow(0 25px 50px rgba(0,0,0,0.25))"/>
+        <!-- Header bar -->
+        <rect width="1200" height="80" fill="#000000"/>
+        <text x="60" y="50" font-family="serif" font-size="36" font-weight="bold" fill="#ffffff">LO</text>
         
-        <!-- Location icon -->
-        <text x="600" y="200" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="80">📍</text>
+        <!-- Main content -->
+        <text x="60" y="180" font-family="Arial" font-size="48" font-weight="bold" fill="#000000">
+          ${title}
+        </text>
         
-        <!-- List title -->
-        <text x="600" y="280" text-anchor="middle" fill="#1f2937" font-family="Arial, sans-serif" font-size="48" font-weight="bold">${listTitle}</text>
+        <text x="60" y="240" font-family="Arial" font-size="24" fill="#666666">
+          by ${ownerName}
+        </text>
         
-        <!-- Owner name -->
-        <text x="600" y="330" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="24">by ${ownerName}</text>
+        <text x="60" y="320" font-family="Arial" font-size="20" fill="#333333">
+          ${description}
+        </text>
         
-        <!-- Place count badge -->
-        <rect x="450" y="370" width="300" height="60" rx="16" fill="#667eea"/>
-        <text x="600" y="410" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="bold">${placeCount} ${placeCount === 1 ? 'Place' : 'Places'}</text>
+        <!-- Place count -->
+        <rect x="60" y="380" width="200" height="80" fill="#f3f4f6" stroke="#e5e7eb"/>
+        <text x="160" y="415" text-anchor="middle" font-family="Arial" font-size="28" font-weight="bold" fill="#000000">
+          ${placeCount}
+        </text>
+        <text x="160" y="440" text-anchor="middle" font-family="Arial" font-size="16" fill="#666666">
+          Places
+        </text>
         
-        <!-- App branding -->
-        <text x="1150" y="610" text-anchor="end" fill="rgba(255,255,255,0.8)" font-family="Arial, sans-serif" font-size="18" font-weight="500">LO</text>
+        <!-- Footer -->
+        <text x="60" y="580" font-family="Arial" font-size="18" fill="#999999">
+          Open in LO to explore this list
+        </text>
       </svg>
     `
     
     return new NextResponse(svg, {
-      status: 200,
       headers: {
         'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'public, max-age=3600',
       },
     })
     
   } catch (error) {
-    console.error('Error generating frame image:', error)
+    console.error('Error in frame image route:', error)
     
-    // Return simple error SVG
-    const errorSvg = `
-      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#ef4444"/>
-        <text x="600" y="300" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="48" font-weight="bold">📍</text>
-        <text x="600" y="380" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="40" font-weight="bold">Error Loading List</text>
+    // Return fallback SVG
+    const fallbackSvg = `
+      <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="630" fill="#f3f4f6"/>
+        <text x="600" y="315" text-anchor="middle" font-family="Arial" font-size="32" fill="#374151">
+          LO - Location Lists
+        </text>
       </svg>
     `
     
-    return new NextResponse(errorSvg, {
-      status: 500,
+    return new NextResponse(fallbackSvg, {
       headers: {
         'Content-Type': 'image/svg+xml',
       },

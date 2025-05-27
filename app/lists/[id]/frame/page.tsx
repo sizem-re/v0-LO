@@ -23,8 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
     
-    // Normalize base URL (remove trailing slash)
-    baseUrl = baseUrl.replace(/\/+$/, '')
+    baseUrl = baseUrl.replace(/\/+$/, '') // Remove any trailing slashes
     
     // Fetch list data
     const response = await fetch(normalizeUrl(baseUrl, `/api/lists/${id}`), {
@@ -33,73 +32,54 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     
     if (!response.ok) {
       return {
-        title: "List not found",
-        description: "The requested list could not be found."
+        title: 'List not found'
       }
     }
     
     const list = await response.json()
-    const listTitle = list.title || "Untitled List"
-    const listDescription = list.description || `A list of ${list.places?.length || 0} places`
-    const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
     
-    // Add cache-busting parameter to force fresh image
-    const timestamp = Date.now()
-    const frameImageUrl = normalizeUrl(baseUrl, `/api/lists/${id}/frame-image?v=${timestamp}`)
-    const appUrl = normalizeUrl(baseUrl, `/?list=${id}`)
-    
-    // Create the Mini App embed JSON
-    const frameEmbed = {
+    // Generate frame metadata using new Mini App format
+    const frameMetadata = {
       version: "next",
-      imageUrl: frameImageUrl,
+      imageUrl: normalizeUrl(baseUrl, `/api/lists/${id}/frame-image?v=${Date.now()}`),
       button: {
-        title: "📍 View List",
+        title: "View List",
         action: {
           type: "launch_frame",
-          name: listTitle,
-          url: appUrl,
-          splashImageUrl: frameImageUrl,
-          splashBackgroundColor: "#667eea"
+          name: "LO",
+          url: normalizeUrl(baseUrl, `/?list=${id}`),
+          splashImageUrl: normalizeUrl(baseUrl, `/api/lists/${id}/frame-image?v=${Date.now()}`)
         }
       }
     }
     
     return {
-      title: `${listTitle} by ${ownerName}`,
-      description: listDescription,
+      title: `${list.title} - LO`,
+      description: list.description || `View ${list.title} on LO`,
       openGraph: {
-        title: `${listTitle} by ${ownerName}`,
-        description: listDescription,
-        images: [frameImageUrl],
+        title: `${list.title} - LO`,
+        description: list.description || `View ${list.title} on LO`,
+        images: [normalizeUrl(baseUrl, `/api/lists/${id}/frame-image?v=${Date.now()}`)],
       },
       other: {
-        // Mini App embed format - stringified JSON
-        "fc:frame": JSON.stringify(frameEmbed),
-      },
+        "fc:frame": JSON.stringify(frameMetadata)
+      }
     }
   } catch (error) {
-    console.error("Error generating frame metadata:", error)
+    console.error('Error generating frame metadata:', error)
     return {
-      title: "List not found",
-      description: "The requested list could not be found."
+      title: 'LO - Location Lists'
     }
   }
 }
 
+// Main component for the frame page
 export default async function ListFramePage({ params }: Props) {
   try {
     const { id } = await params
     
-    // Use proper base URL for production - ensure no trailing slash
-    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                  (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
-    
-    // Normalize base URL (remove trailing slash)
-    baseUrl = baseUrl.replace(/\/+$/, '')
-    
     // Fetch list data
-    const response = await fetch(normalizeUrl(baseUrl, `/api/lists/${id}`), {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}`, {
       cache: 'no-store'
     })
     
@@ -108,77 +88,35 @@ export default async function ListFramePage({ params }: Props) {
     }
     
     const list = await response.json()
-    const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
     
+    // For direct visits to frame URL, redirect to the main app with list parameter
+    const userAgent = (await headers()).get('user-agent') || ''
+    const isFarcasterBot = userAgent.includes('facebookexternalhit') || 
+                          userAgent.includes('Twitterbot') || 
+                          userAgent.includes('LinkedInBot') ||
+                          userAgent.includes('farcaster')
+    
+    if (!isFarcasterBot) {
+      redirect(`/?list=${id}`)
+    }
+    
+    // This should not render for regular users, only for frame metadata
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8">
-        {/* Auto-redirect script for regular browsers */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                // Only redirect if we're in a regular browser (not embedded frame)
-                if (typeof window !== 'undefined' && window === window.top) {
-                  // Show brief content then redirect to main app
-                  setTimeout(function() {
-                    window.location.replace('/?list=${id}');
-                  }, 2000);
-                }
-              })();
-            `,
-          }}
-        />
-        
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <h1 className="text-4xl font-serif font-bold text-gray-900">
-            {list.title}
-          </h1>
-          
-          <p className="text-lg text-gray-600">
-            by {ownerName}
-          </p>
-          
-          {list.description && (
-            <p className="text-gray-700 max-w-xl mx-auto">
-              {list.description}
-            </p>
-          )}
-          
-          <div className="bg-gray-50 rounded-lg p-6 inline-block">
-            <p className="text-2xl font-semibold text-gray-900">
-              {list.places?.length || 0} Places
-            </p>
-            <p className="text-gray-600">in this list</p>
-          </div>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 text-sm">
-              Taking you to the full app experience...
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <a
-              href={`/?list=${id}`}
-              className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              View List Now
-            </a>
-            
-            <br />
-            
-            <a
-              href="/"
-              className="inline-block text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Browse All Lists
-            </a>
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">{list.title}</h1>
+          <p className="text-gray-600 mb-6">{list.description}</p>
+          <a 
+            href={`/?list=${id}`}
+            className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            View List
+          </a>
         </div>
       </div>
     )
   } catch (error) {
-    console.error("Error loading list:", error)
+    console.error('Error loading list:', error)
     notFound()
   }
 } 
