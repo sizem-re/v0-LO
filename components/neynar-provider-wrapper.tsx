@@ -3,11 +3,8 @@
 import { NeynarContextProvider, Theme } from "@neynar/react"
 import "@neynar/react/dist/style.css"
 import type React from "react"
-import { useRouter } from "next/navigation"
 
 export function NeynarProviderWrapper({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-
   return (
     <NeynarContextProvider
       settings={{
@@ -20,11 +17,8 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
             // Store success flag for cross-tab communication
             localStorage.setItem('neynar_auth_success', Date.now().toString())
             
-            // Small delay to ensure auth state is fully updated
-            setTimeout(() => {
-              console.log("Triggering page refresh after auth success")
-              window.location.reload()
-            }, 1000)
+            // Don't force a page reload - let React handle the state updates
+            // The useNeynarContext hook will automatically update when auth succeeds
           },
           onSignout: () => {
             console.log("Neynar signed out successfully")
@@ -35,7 +29,7 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
             localStorage.removeItem('pending_auth_code')
             sessionStorage.clear()
             
-            // Redirect to home
+            // Redirect to home after signout
             window.location.href = "/"
           },
         },

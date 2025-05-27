@@ -35,7 +35,7 @@ export function FarcasterAuth({ className, children, onSuccess }: FarcasterAuthP
       setIsAuthenticating(false)
       setShowMobileInstructions(false)
       
-      // Refresh our auth context
+      // Refresh our auth context to sync with database
       refreshAuth()
       
       // Call success callback
