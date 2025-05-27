@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import { FarcasterReady } from "@/components/farcaster-ready"
@@ -18,10 +19,20 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
 })
 
 export default function MapPage() {
+  const searchParams = useSearchParams()
   const [places, setPlaces] = useState<Place[]>([])
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [initialListId, setInitialListId] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Check for list parameter in URL
+    const listId = searchParams?.get('list')
+    if (listId) {
+      setInitialListId(listId)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const loadPlaces = async () => {
@@ -95,7 +106,7 @@ export default function MapPage() {
 
       {/* Sidebar with higher z-index */}
       <div className="absolute top-0 left-0 h-full z-50">
-        <SidebarWrapper />
+        <SidebarWrapper initialListId={initialListId} />
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -157,6 +157,36 @@ export function ListDetailView({
     fetchListDetails()
   }
 
+  const handleShare = async () => {
+    try {
+      const baseUrl = window.location.origin
+      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      
+      if (navigator.share) {
+        // Use Web Share API if available (mobile)
+        await navigator.share({
+          title: `${list.title} by ${ownerName}`,
+          text: list.description || `A list of ${places.length} places`,
+          url: frameUrl
+        })
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(frameUrl)
+        toast({
+          title: "Link copied!",
+          description: "The shareable link has been copied to your clipboard.",
+        })
+      }
+    } catch (error) {
+      console.error("Error sharing:", error)
+      toast({
+        title: "Error",
+        description: "Failed to share the list. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const isOwner = dbUser?.id === list?.owner_id
   const canAddPlaces = isOwner || list?.visibility === "community"
 
@@ -278,7 +308,7 @@ export function ListDetailView({
             <h2 className="font-serif text-xl truncate">{list.title}</h2>
           </div>
 
-          {isOwner && (
+          {(isOwner || list.visibility === "public") && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -286,17 +316,26 @@ export function ListDetailView({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRefreshList} disabled={isRefreshing}>
-                  {isRefreshing ? "Refreshing..." : "Refresh List"}
+                <DropdownMenuItem onClick={handleShare}>
+                  <Share2 size={14} className="mr-2" />
+                  Share List
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  Delete List
-                </DropdownMenuItem>
+                {isOwner && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleRefreshList} disabled={isRefreshing}>
+                      {isRefreshing ? "Refreshing..." : "Refresh List"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      Delete List
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

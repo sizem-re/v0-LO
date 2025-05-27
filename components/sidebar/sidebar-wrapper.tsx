@@ -1,6 +1,10 @@
 "use client"
 import { Sidebar } from "./sidebar"
 
-export function SidebarWrapper() {
-  return <Sidebar />
+interface SidebarWrapperProps {
+  initialListId?: string | null
+}
+
+export function SidebarWrapper({ initialListId }: SidebarWrapperProps) {
+  return <Sidebar initialListId={initialListId} />
 }

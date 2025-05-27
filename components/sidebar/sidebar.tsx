@@ -17,7 +17,11 @@ import { PlacesListView } from "./places-list-view"
 import { AddPlaceModal } from "./add-place-modal"
 import { DiscoverView } from "./discover-view"
 
-export function Sidebar() {
+interface SidebarProps {
+  initialListId?: string | null
+}
+
+export function Sidebar({ initialListId }: SidebarProps = {}) {
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
 
@@ -134,6 +138,16 @@ export function Sidebar() {
       window.removeEventListener("selectPlaceFromMap", handlePlaceSelectFromMap as EventListener)
     }
   }, [])
+
+  // Handle initial list ID from URL
+  useEffect(() => {
+    if (initialListId && !selectedListId) {
+      console.log("Setting initial list ID from URL:", initialListId)
+      setSelectedListId(initialListId)
+      setActiveTab("mylists")
+      setIsCollapsed(false) // Ensure sidebar is expanded to show the list
+    }
+  }, [initialListId, selectedListId])
 
   const handleProfileClick = () => {
     if (!userIsAuthenticated) {
