@@ -48,7 +48,7 @@ export async function GET(
     
     console.log('Frame Image Generation: Creating PNG image for list:', listTitle)
     
-    // Generate PNG image using ImageResponse with a single, clean JSX structure
+    // Generate PNG image using ImageResponse with proper display styling for ALL elements
     return new ImageResponse(
       (
         <div
@@ -73,11 +73,12 @@ export async function GET(
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', fontSize: '28px', fontWeight: 'bold' }}>
-              <span style={{ marginRight: '12px' }}>📍</span>
-              <span>LO</span>
+              <div style={{ marginRight: '12px', display: 'flex' }}>📍</div>
+              <div style={{ display: 'flex' }}>LO</div>
             </div>
             <div
               style={{
+                display: 'flex',
                 background: 'rgba(255,255,255,0.2)',
                 padding: '8px 16px',
                 borderRadius: '20px',
@@ -97,11 +98,11 @@ export async function GET(
               alignItems: 'center',
               flex: 1,
               padding: '0 60px',
-              textAlign: 'center',
             }}
           >
             <div
               style={{
+                display: 'flex',
                 fontSize: '48px',
                 fontWeight: 'bold',
                 marginBottom: '20px',
@@ -109,6 +110,7 @@ export async function GET(
                 backgroundClip: 'text',
                 color: 'transparent',
                 lineHeight: 1.2,
+                textAlign: 'center',
               }}
             >
               {listTitle.length > 50 ? `${listTitle.substring(0, 50)}...` : listTitle}
@@ -116,11 +118,13 @@ export async function GET(
 
             <div
               style={{
+                display: 'flex',
                 fontSize: '24px',
                 opacity: 0.9,
                 marginBottom: '20px',
                 lineHeight: 1.4,
                 maxWidth: '800px',
+                textAlign: 'center',
               }}
             >
               {listDescription.length > 120 ? `${listDescription.substring(0, 120)}...` : listDescription || 'A curated list of amazing places to explore'}
@@ -128,9 +132,11 @@ export async function GET(
 
             <div
               style={{
+                display: 'flex',
                 fontSize: '18px',
                 opacity: 0.8,
                 marginBottom: '30px',
+                textAlign: 'center',
               }}
             >
               Created by {ownerName}
@@ -179,10 +185,10 @@ export async function GET(
             fontFamily: 'system-ui, sans-serif',
           }}
         >
-          <div style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', fontSize: '48px', fontWeight: 'bold', marginBottom: '20px' }}>
             📍 LO
           </div>
-          <div style={{ fontSize: '24px', opacity: 0.9 }}>
+          <div style={{ display: 'flex', fontSize: '24px', opacity: 0.9 }}>
             Error loading list
           </div>
         </div>

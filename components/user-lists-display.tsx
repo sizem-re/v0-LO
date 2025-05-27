@@ -93,8 +93,13 @@ export function UserListsDisplay({
   }, [dbUser?.id, user?.fid, neynarAuthenticated])
 
   const handleSelectList = (listId: string) => {
+    console.log('UserListsDisplay: handleSelectList called with listId:', listId)
+    console.log('UserListsDisplay: onSelectList prop available:', !!onSelectList)
     if (onSelectList) {
+      console.log('UserListsDisplay: Calling onSelectList with listId:', listId)
       onSelectList(listId)
+    } else {
+      console.log('UserListsDisplay: onSelectList prop is not available')
     }
   }
 

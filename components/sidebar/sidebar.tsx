@@ -198,12 +198,17 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   }
 
   const handleSelectList = (listId: string) => {
+    console.log("Sidebar: handleSelectList called with listId:", listId)
+    console.log("Sidebar: Current selectedListId:", selectedListId)
+    console.log("Sidebar: Current activeTab:", activeTab)
     setSelectedListId(listId)
     setSelectedPlace(null) // Clear any selected place
     // If we're currently in the profile view, switch away from it to show the list
     if (activeTab === "profile") {
+      console.log("Sidebar: Switching from profile to mylists tab")
       setActiveTab("mylists")
     }
+    console.log("Sidebar: After update - selectedListId should be:", listId)
   }
 
   const handleBackFromList = () => {
