@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2 } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -32,6 +32,7 @@ export function ListDetailView({
   const [error, setError] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const fetchListDetails = useCallback(async () => {
     try {
@@ -61,6 +62,16 @@ export function ListDetailView({
       fetchListDetails()
     }
   }, [listId, fetchListDetails])
+
+  // Reset linkCopied state after 2 seconds
+  useEffect(() => {
+    if (linkCopied) {
+      const timer = setTimeout(() => {
+        setLinkCopied(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [linkCopied])
 
   const handleEditList = () => {
     setShowEditModal(true)
@@ -99,6 +110,7 @@ export function ListDetailView({
         title: "Link copied!",
         description: "The shareable link has been copied to your clipboard.",
       })
+      setLinkCopied(true)
     } catch (error) {
       console.error("Error copying link:", error)
       // Fallback for older browsers or if clipboard API fails
@@ -113,6 +125,7 @@ export function ListDetailView({
           title: "Link copied!",
           description: "The shareable link has been copied to your clipboard.",
         })
+        setLinkCopied(true)
       } catch (fallbackError) {
         toast({
           title: "Copy failed",
@@ -250,11 +263,11 @@ export function ListDetailView({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
                 onClick={handleShare}
-                title="Copy link"
+                title={linkCopied ? "Link copied!" : "Copy link"}
               >
-                <Share2 size={16} />
+                {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
               </Button>
             )}
             
