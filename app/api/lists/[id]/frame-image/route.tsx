@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'edge'
 
+// Helper function to normalize URLs and avoid double slashes
+function normalizeUrl(baseUrl: string, path: string): string {
+  const cleanBase = baseUrl.replace(/\/+$/, '') // Remove trailing slashes
+  const cleanPath = path.replace(/^\/+/, '') // Remove leading slashes
+  return `${cleanBase}/${cleanPath}`
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,13 +16,16 @@ export async function GET(
   try {
     const { id } = await params
     
-    // Use proper base URL for production
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
+    // Use proper base URL for production - ensure no trailing slash
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                  (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
+    
+    // Normalize base URL (remove trailing slash)
+    baseUrl = baseUrl.replace(/\/+$/, '')
     
     // Fetch list data
-    const response = await fetch(`${baseUrl}/api/lists/${id}`, {
+    const response = await fetch(normalizeUrl(baseUrl, `/api/lists/${id}`), {
       cache: 'no-store'
     })
     
