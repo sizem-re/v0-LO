@@ -2,14 +2,16 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 // Generate metadata for the frame
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
+    const { id } = await params
+    
     // Fetch list data
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${params.id}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}`, {
       cache: 'no-store'
     })
     
@@ -25,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const listDescription = list.description || `A list of ${list.places?.length || 0} places`
     const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
     
-    const frameImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${params.id}/frame-image`
+    const frameImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}/frame-image`
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     
     return {
@@ -43,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         "fc:frame:image:aspect_ratio": "1.91:1",
         "fc:frame:button:1": "View List",
         "fc:frame:button:1:action": "link",
-        "fc:frame:button:1:target": `${baseUrl}/?list=${params.id}`,
+        "fc:frame:button:1:target": `${baseUrl}/?list=${id}`,
         "fc:frame:button:2": "Open App",
         "fc:frame:button:2:action": "link", 
         "fc:frame:button:2:target": baseUrl,
@@ -60,8 +62,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ListFramePage({ params }: Props) {
   try {
+    const { id } = await params
+    
     // Fetch list data
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${params.id}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}`, {
       cache: 'no-store'
     })
     
@@ -98,7 +102,7 @@ export default async function ListFramePage({ params }: Props) {
           
           <div className="space-y-4">
             <a
-              href={`/?list=${params.id}`}
+              href={`/?list=${id}`}
               className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors"
             >
               View List

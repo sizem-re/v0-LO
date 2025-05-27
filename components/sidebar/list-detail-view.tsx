@@ -98,8 +98,16 @@ export function ListDetailView({
       const baseUrl = window.location.origin
       const frameUrl = `${baseUrl}/lists/${listId}/frame`
       
+      console.log('Farcaster share URLs:', {
+        baseUrl,
+        frameUrl,
+        listId
+      })
+      
       // Create a Farcaster cast URL with the frame
       const farcasterUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(`Check out this list: ${list.title}`)}&embeds[]=${encodeURIComponent(frameUrl)}`
+      
+      console.log('Final Farcaster URL:', farcasterUrl)
       
       // Open Farcaster in a new tab
       window.open(farcasterUrl, '_blank', 'noopener,noreferrer')
@@ -121,18 +129,24 @@ export function ListDetailView({
   const handleShare = async () => {
     try {
       const baseUrl = window.location.origin
-      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      const listUrl = `${baseUrl}/?list=${listId}`
+      
+      console.log('Share URLs:', {
+        baseUrl,
+        listUrl,
+        listId
+      })
       
       if (navigator.share) {
         // Use Web Share API if available (mobile)
         await navigator.share({
           title: `${list.title} by ${ownerName}`,
           text: list.description || `A list of ${places.length} places`,
-          url: frameUrl
+          url: listUrl
         })
       } else {
         // Fallback to clipboard
-        await navigator.clipboard.writeText(frameUrl)
+        await navigator.clipboard.writeText(listUrl)
         toast({
           title: "Link copied!",
           description: "The shareable link has been copied to your clipboard.",
@@ -278,7 +292,7 @@ export function ListDetailView({
                     <Share2 size={16} />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48" align="end">
+                <PopoverContent className="w-48 bg-white border border-gray-200 shadow-lg" align="end">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Share this list</p>
                     <div className="space-y-1">
