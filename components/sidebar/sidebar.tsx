@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Search, MapPin, ListIcon, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
@@ -24,6 +25,7 @@ interface SidebarProps {
 export function Sidebar({ initialListId }: SidebarProps = {}) {
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
+  const router = useRouter()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -160,6 +162,10 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       setSelectedListId(null) // Clear any selected list
       setSelectedPlace(null) // Clear any selected place
       setIsCollapsed(false)
+      // Clear the list parameter from URL if present
+      if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
+        router.replace('/', { scroll: false })
+      }
     }
   }
 
@@ -168,6 +174,10 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
     setSearchQuery("") // Reset search when switching tabs
     setSelectedListId(null)
     setSelectedPlace(null)
+    // Clear the list parameter from URL if present
+    if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
+      router.replace('/', { scroll: false })
+    }
   }
 
   const handleCreateList = () => {
@@ -194,6 +204,10 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   const handleBackFromList = () => {
     setSelectedListId(null)
     setSelectedPlace(null) // Clear any selected place
+    // Clear the list parameter from URL when going back from a list
+    if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
+      router.replace('/', { scroll: false })
+    }
   }
 
   const handlePlaceClick = (place: any) => {
@@ -291,7 +305,21 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       >
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
-          <h1 className="font-serif text-xl font-bold">LO</h1>
+          <button 
+            onClick={() => {
+              setActiveTab("discover")
+              setSelectedListId(null)
+              setSelectedPlace(null)
+              setIsCollapsed(false)
+              // Clear the list parameter from URL when clicking logo
+              if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
+                router.replace('/', { scroll: false })
+              }
+            }}
+            className="font-serif text-xl font-bold hover:opacity-70 transition-opacity"
+          >
+            LO
+          </button>
           <button
             className="mt-2 p-1 hover:bg-gray-100 rounded-full"
             onClick={() => {
@@ -398,7 +426,20 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       >
         {/* Header with collapse button and profile button */}
         <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
-          <h1 className="font-serif text-xl">LO</h1>
+          <button 
+            onClick={() => {
+              setActiveTab("discover")
+              setSelectedListId(null)
+              setSelectedPlace(null)
+              // Clear the list parameter from URL when clicking logo
+              if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
+                router.replace('/', { scroll: false })
+              }
+            }}
+            className="font-serif text-xl hover:opacity-70 transition-opacity"
+          >
+            LO
+          </button>
           <div className="flex items-center gap-2">
             {/* Profile button in header */}
             {userIsAuthenticated ? (
