@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'edge'
 
@@ -9,28 +9,101 @@ export async function GET(
   try {
     const { id } = await params
     
-    // For now, return a simple JSON response to test the endpoint
-    return new Response(JSON.stringify({ 
-      success: true, 
-      listId: id,
-      message: "Frame image endpoint working" 
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // Fetch list data
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const response = await fetch(`${baseUrl}/api/lists/${id}`, {
+      cache: 'no-store'
     })
+    
+    if (!response.ok) {
+      // Return a fallback image for not found
+      const errorImageUrl = `https://via.placeholder.com/1200x630/f3f4f6/374151?text=${encodeURIComponent('List Not Found')}`
+      return NextResponse.redirect(errorImageUrl)
+    }
+
+    const list = await response.json()
+    const listTitle = list.title || "Untitled List"
+    const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
+    
+    // Generate static map image URL if we have places with coordinates
+    let mapImageUrl = null
+    if (list.places && list.places.length > 0) {
+      const validPlaces = list.places.filter((place: any) => 
+        place.coordinates && 
+        place.coordinates.lat && 
+        place.coordinates.lng &&
+        place.coordinates.lat !== 0 &&
+        place.coordinates.lng !== 0
+      )
+      
+      if (validPlaces.length > 0) {
+        const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
+        if (googleApiKey) {
+          // Create markers for each place
+          const markers = validPlaces.slice(0, 10).map((place: any, index: number) => 
+            `markers=color:red%7Clabel:${index + 1}%7C${place.coordinates.lat},${place.coordinates.lng}`
+          ).join('&')
+          
+          // Calculate center point (simple average)
+          const avgLat = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lat, 0) / validPlaces.length
+          const avgLng = validPlaces.reduce((sum: number, place: any) => sum + place.coordinates.lng, 0) / validPlaces.length
+          
+          // Determine zoom level based on number of places
+          let zoom = 12
+          if (validPlaces.length === 1) zoom = 15
+          else if (validPlaces.length <= 3) zoom = 13
+          else if (validPlaces.length > 10) zoom = 10
+          
+          // Generate static map URL
+          mapImageUrl = `https://maps.googleapis.com/maps/api/staticmap?` +
+            `center=${avgLat},${avgLng}&` +
+            `zoom=${zoom}&` +
+            `size=1200x630&` +
+            `maptype=roadmap&` +
+            `${markers}&` +
+            `key=${googleApiKey}`
+        }
+      }
+    }
+    
+    // Test if Google Maps API is available by making a simple request
+    if (mapImageUrl) {
+      try {
+        const mapResponse = await fetch(mapImageUrl, { method: 'HEAD' })
+        if (mapResponse.ok) {
+          return NextResponse.redirect(mapImageUrl)
+        }
+      } catch (error) {
+        console.log('Google Maps API not available, falling back to placeholder')
+      }
+    }
+    
+    // Create an informative fallback image with list details
+    const placeCount = list.places?.length || 0
+    const hasPlaces = placeCount > 0
+    
+    let fallbackText = `${listTitle}`
+    if (ownerName && ownerName !== 'Unknown') {
+      fallbackText += ` by ${ownerName}`
+    }
+    if (hasPlaces) {
+      fallbackText += ` · ${placeCount} place${placeCount !== 1 ? 's' : ''}`
+    }
+    
+    // Truncate if too long for the image
+    if (fallbackText.length > 60) {
+      fallbackText = fallbackText.substring(0, 57) + '...'
+    }
+    
+    const fallbackImageUrl = `https://via.placeholder.com/1200x630/667eea/ffffff?text=${encodeURIComponent(fallbackText)}`
+    
+    return NextResponse.redirect(fallbackImageUrl)
+    
   } catch (error) {
     console.error('Error generating frame image:', error)
     
-    return new Response(JSON.stringify({ 
-      error: 'Failed to generate frame image',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // Return a simple error image
+    const errorImageUrl = `https://via.placeholder.com/1200x630/f3f4f6/374151?text=${encodeURIComponent('Error Loading List')}`
+    return NextResponse.redirect(errorImageUrl)
   }
 } 

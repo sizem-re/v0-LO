@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-client"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       console.log("List ID is missing")
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Get all place IDs
-    const placeIds = listPlaces.map((item) => item.place_id)
+    const placeIds = listPlaces.map((item) => item.place_id as string)
 
     // Fetch all places in one query
     const { data: places, error: placesDataError } = await supabaseAdmin.from("places").select("*").in("id", placeIds)
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Create a map of places for easy lookup
-    const placesMap = places.reduce((acc, place) => {
+    const placesMap: Record<string, any> = places.reduce((acc: Record<string, any>, place: any) => {
       acc[place.id] = place
       return acc
     }, {})
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Format the places data
     const formattedPlaces = listPlaces
       .map((item) => {
-        const place = placesMap[item.place_id]
+        const place = placesMap[item.place_id as string]
 
         if (!place) {
           console.warn(`Place with ID ${item.place_id} not found`)
@@ -120,9 +120,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 })
@@ -172,9 +172,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // Ensure the DELETE method is properly implemented
 
 // Check if there are any console.log statements in the DELETE function to help with debugging
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       console.log("List ID is missing in DELETE request")
