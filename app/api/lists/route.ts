@@ -60,12 +60,12 @@ async function createUserFromFid(fid: string) {
 async function findUserByFid(fid: string) {
   console.log(`Searching for user with FID: ${fid}`)
 
-  // Try multiple search strategies
+  // Try multiple search strategies using admin client to bypass RLS
   const searchStrategies = [
     // Search by farcaster_id as string
-    () => supabase.from("users").select("*").eq("farcaster_id", fid.toString()).maybeSingle(),
+    () => supabaseAdmin.from("users").select("*").eq("farcaster_id", fid.toString()).maybeSingle(),
     // Search by farcaster_id as number string
-    () => supabase.from("users").select("*").eq("farcaster_id", Number.parseInt(fid).toString()).maybeSingle(),
+    () => supabaseAdmin.from("users").select("*").eq("farcaster_id", Number.parseInt(fid).toString()).maybeSingle(),
   ]
 
   for (const [index, strategy] of searchStrategies.entries()) {
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
       const userData = await findUserByFid(fid)
 
       if (userData) {
-        dbUserId = userData.id
+        dbUserId = userData.id as string
         console.log(`Found user ID ${dbUserId} for fid ${fid}`)
       } else {
         console.log(`No user found for fid ${fid}, attempting to create...`)
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
         // Try to create the user from Neynar data
         const newUser = await createUserFromFid(fid)
         if (newUser) {
-          dbUserId = newUser.id
+          dbUserId = newUser.id as string
           console.log(`Created new user with ID ${dbUserId} for fid ${fid}`)
         } else {
           console.log(`Failed to create user for fid ${fid}`)
