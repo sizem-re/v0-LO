@@ -11,6 +11,13 @@ export interface DatabasePlace {
   website_url?: string
   created_at: string
   updated_at: string
+  created_by?: string
+  created_by_user?: {
+    id: string
+    farcaster_username?: string
+    farcaster_display_name?: string
+    farcaster_pfp_url?: string
+  }
 }
 
 /**
@@ -42,6 +49,10 @@ export function transformDatabasePlaces(data: DatabasePlace[]): Place[] {
         },
         description: dbPlace.description || "",
         website: dbPlace.website_url || "",
+        created_by: dbPlace.created_by,
+        created_by_user: dbPlace.created_by_user,
+        addedBy: dbPlace.created_by, // For backward compatibility
+        addedByUser: dbPlace.created_by_user, // For backward compatibility
       }
     })
     .filter((place): place is Place => place !== null)

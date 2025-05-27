@@ -168,7 +168,17 @@ export function PlaceDetailView({
       // Handle user data - try multiple sources
       let userHandled = false
       
-      if (debugData && debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
+      // First, check if user data is already available in the place object
+      if (currentPlace.created_by_user || currentPlace.addedByUser) {
+        const userData = currentPlace.created_by_user || currentPlace.addedByUser
+        if (userData && userData.farcaster_display_name) {
+          setCreatedByUser(userData)
+          userHandled = true
+          console.log("Using user data from place object:", userData)
+        }
+      }
+      
+      if (!userHandled && debugData && debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
         const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
         setCreatedByUser({
           ...debugData.user,

@@ -14,7 +14,13 @@ export async function GET(request: NextRequest) {
       .from("places")
       .select(`
         *,
-        list_count:list_places(count)
+        list_count:list_places(count),
+        created_by_user:users!places_created_by_fkey(
+          id,
+          farcaster_username,
+          farcaster_display_name,
+          farcaster_pfp_url
+        )
       `)
       .order("created_at", { ascending: false })
 
