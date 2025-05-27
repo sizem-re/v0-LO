@@ -15,17 +15,27 @@ export function NeynarProviderWrapper({ children }: { children: React.ReactNode 
         defaultTheme: Theme.Light,
         eventsCallbacks: {
           onAuthSuccess: () => {
-            console.log("Authentication successful")
-            // Force a page refresh to ensure all components update their auth state
+            console.log("Neynar authentication successful")
+            
+            // Store success flag for cross-tab communication
+            localStorage.setItem('neynar_auth_success', Date.now().toString())
+            
+            // Small delay to ensure auth state is fully updated
             setTimeout(() => {
+              console.log("Triggering page refresh after auth success")
               window.location.reload()
-            }, 500)
+            }, 1000)
           },
           onSignout: () => {
-            console.log("Signed out successfully")
-            // Clear any local storage and redirect to home
-            localStorage.clear()
+            console.log("Neynar signed out successfully")
+            
+            // Clear any auth-related storage
+            localStorage.removeItem('neynar_auth_success')
+            localStorage.removeItem('farcaster_auth')
+            localStorage.removeItem('pending_auth_code')
             sessionStorage.clear()
+            
+            // Redirect to home
             window.location.href = "/"
           },
         },

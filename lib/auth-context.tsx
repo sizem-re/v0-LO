@@ -134,6 +134,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshAuth()
+    
+    // Check if user just returned from mobile authentication
+    const checkMobileReturn = () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const hasAuthParams = urlParams.get('code') || urlParams.get('state')
+      
+      if (hasAuthParams && window.location.pathname === '/') {
+        console.log('Detected mobile auth return, setting up periodic checks')
+        
+        // Set up periodic checks for auth state changes
+        let checkCount = 0
+        const maxChecks = 10
+        
+        const authCheckInterval = setInterval(() => {
+          checkCount++
+          console.log(`Auth check ${checkCount}/${maxChecks}`)
+          
+          if (neynarAuthenticated && neynarUser) {
+            console.log('Auth detected during periodic check')
+            clearInterval(authCheckInterval)
+            refreshAuth()
+          } else if (checkCount >= maxChecks) {
+            console.log('Max auth checks reached')
+            clearInterval(authCheckInterval)
+          }
+        }, 1000)
+        
+        // Clean up interval after 15 seconds
+        setTimeout(() => {
+          clearInterval(authCheckInterval)
+        }, 15000)
+      }
+    }
+    
+    // Run the check after a short delay
+    setTimeout(checkMobileReturn, 500)
   }, [neynarAuthenticated, neynarUser])
 
   const logout = async () => {
