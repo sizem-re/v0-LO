@@ -114,7 +114,10 @@ export function ListDetailView({
     fetchListDetails() // Refresh the list to show the new place
   }
 
-  const handleCopyLink = async () => {
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
     try {
       const baseUrl = window.location.origin
       const listUrl = `${baseUrl}/?list=${listId}`
@@ -151,10 +154,14 @@ export function ListDetailView({
     }
   }
 
-  const handleShareToFarcaster = () => {
+  const handleShareToFarcaster = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
     try {
       const baseUrl = window.location.origin
-      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      // Add trailing slash to ensure proper embed
+      const frameUrl = `${baseUrl}/lists/${listId}/frame/`
       const listTitle = list?.title || "Check out this list"
       const listDescription = list?.description || "A curated list of amazing places"
       
@@ -324,12 +331,22 @@ export function ListDetailView({
                     {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={handleCopyLink} className="flex items-center gap-2">
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-48 bg-white border border-gray-200 shadow-lg z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <DropdownMenuItem 
+                    onClick={handleCopyLink} 
+                    className="flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
+                  >
                     <Share2 size={14} />
                     Copy Link
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleShareToFarcaster} className="flex items-center gap-2">
+                  <DropdownMenuItem 
+                    onClick={handleShareToFarcaster} 
+                    className="flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
+                  >
                     <FarcasterIcon size={14} />
                     Share to Farcaster
                   </DropdownMenuItem>
