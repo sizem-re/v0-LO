@@ -316,9 +316,48 @@ export function EditPlaceModal({
         }
       }
 
-      // TODO: Handle photo upload when backend is ready
+      // Handle photo upload if a file was selected
       if (photoFile) {
-        console.log("Photo will be uploaded in a future update:", photoFile.name)
+        try {
+          console.log("Uploading photo for place:", place.id)
+          
+          const formData = new FormData()
+          formData.append('image', photoFile)
+          
+          const uploadResponse = await fetch(`/api/places/${place.id}/upload-image`, {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            console.log("Photo uploaded successfully:", uploadResult.imageUrl)
+            
+            // Update the place object with the new image URL
+            updatedPlaceData.image = uploadResult.imageUrl
+            
+            toast({
+              title: "Photo uploaded",
+              description: "Place photo has been uploaded successfully.",
+            })
+          } else {
+            const errorData = await uploadResponse.json()
+            console.error("Photo upload failed:", errorData.error)
+            
+            toast({
+              title: "Photo upload failed",
+              description: errorData.error || "Failed to upload photo.",
+              variant: "destructive",
+            })
+          }
+        } catch (uploadError) {
+          console.error("Error uploading photo:", uploadError)
+          toast({
+            title: "Photo upload failed",
+            description: "Failed to upload photo.",
+            variant: "destructive",
+          })
+        }
       }
 
       toast({
@@ -576,7 +615,7 @@ export function EditPlaceModal({
             </div>
 
             <div className="space-y-2">
-              <Label>Photo (coming soon)</Label>
+              <Label>Photo (optional)</Label>
               <div
                 className={cn(
                   "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
@@ -608,7 +647,7 @@ export function EditPlaceModal({
                     <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-sm text-gray-500">
                       Click to add a photo
-                      <span className="block text-xs mt-1">(Photo uploads will be available soon)</span>
+                      <span className="block text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</span>
                     </p>
                   </div>
                 )}

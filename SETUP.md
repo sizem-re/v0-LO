@@ -144,6 +144,58 @@ CREATE POLICY "Users can remove places from lists they own" ON list_places FOR D
 );
 ```
 
+### 3. Storage Setup
+
+The application uses Supabase Storage for image uploads. You need to create a storage bucket:
+
+#### Storage Policies
+
+The easiest way to set up storage for place images is through the Supabase dashboard:
+
+**Method 1: Public Bucket (Recommended for Development)**
+
+1. In your Supabase dashboard, go to **Storage**
+2. Click **"Create a new bucket"**
+3. Name it: `place-images`
+4. Toggle **"Public bucket"** to **ON**
+5. Click **"Create bucket"**
+
+This allows public read access to images while your API controls uploads.
+
+**Method 2: Manual Policy Creation (Advanced)**
+
+If you prefer more granular control, you can create policies manually in the Supabase dashboard:
+
+1. Go to **Storage** → **Policies**
+2. Click **"New Policy"** 
+3. Create these policies one by one:
+
+**Policy 1: Public Read**
+- Policy name: `Public read access for place images`
+- Allowed operation: `SELECT`
+- Target roles: `public`
+- USING expression: `bucket_id = 'place-images'`
+
+**Policy 2: Authenticated Upload**
+- Policy name: `Authenticated users can upload place images`  
+- Allowed operation: `INSERT`
+- Target roles: `authenticated`
+- WITH CHECK expression: `bucket_id = 'place-images'`
+
+**Policy 3: Authenticated Update**
+- Policy name: `Users can update place images`
+- Allowed operation: `UPDATE` 
+- Target roles: `authenticated`
+- USING expression: `bucket_id = 'place-images'`
+
+**Policy 4: Authenticated Delete**
+- Policy name: `Users can delete place images`
+- Allowed operation: `DELETE`
+- Target roles: `authenticated` 
+- USING expression: `bucket_id = 'place-images'`
+
+**For development, we recommend Method 1 (Public Bucket) as it's simpler and more reliable.**
+
 ## API Keys Setup
 
 ### 1. Neynar (Farcaster) API
