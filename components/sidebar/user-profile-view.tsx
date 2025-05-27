@@ -27,6 +27,23 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
   console.log("UserProfileView - neynarUser:", neynarUser)
   console.log("UserProfileView - final user:", user)
 
+  // Enhanced logout function that handles both Neynar and custom auth
+  const handleLogout = async () => {
+    try {
+      console.log("Starting logout process...")
+      
+      // Call our custom logout first (clears local state)
+      await logout()
+      
+      // Force a page reload to ensure clean state
+      window.location.href = "/"
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Force reload even if there's an error
+      window.location.href = "/"
+    }
+  }
+
   // Format user data
   const displayUser = user
     ? {
@@ -87,14 +104,13 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
             <span>Create List</span>
           </button>
 
-          {/* Logout button */}
-          <button 
-            onClick={logout}
-            className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
+          {/* Use NeynarAuthButton for proper logout */}
+          <div className="px-4 py-2">
+            <NeynarAuthButton 
+              label="Sign Out"
+              className="flex items-center gap-2 w-full text-left hover:bg-black/5 rounded-md text-red-600 border-0 bg-transparent p-0 font-normal"
+            />
+          </div>
         </div>
       </div>
     )
@@ -134,13 +150,12 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
 
       {/* Sign Out */}
       <div className="mt-6 pt-4 border-t border-black/10">
-        <button 
-          onClick={logout}
-          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600"
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
-        </button>
+        <div className="px-4 py-2">
+          <NeynarAuthButton 
+            label="Sign Out"
+            className="flex items-center gap-2 w-full text-left hover:bg-black/5 rounded-md text-red-600 border-0 bg-transparent p-0 font-normal"
+          />
+        </div>
       </div>
     </div>
   )
