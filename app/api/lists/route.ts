@@ -133,11 +133,31 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (dbUserId) {
-      query = query.eq("owner_id", dbUserId)
+      // Use admin client when filtering by owner_id to bypass RLS for private lists
+      query = supabaseAdmin.from("lists").select(`
+        *,
+        owner:users(id, farcaster_username, farcaster_display_name, farcaster_pfp_url),
+        places:list_places(
+          id,
+          place:places(*)
+        )
+      `).eq("owner_id", dbUserId)
       console.log(`Filtering lists by owner_id: ${dbUserId}`)
+    } else {
+      // For public queries without owner filter, use regular client
+      if (visibility) {
+        if (visibility === "public-community") {
+          query = query.in("visibility", ["public", "community"])
+          console.log(`Filtering lists by visibility: public or community`)
+        } else {
+          query = query.eq("visibility", visibility)
+          console.log(`Filtering lists by visibility: ${visibility}`)
+        }
+      }
     }
 
-    if (visibility) {
+    // If we have both dbUserId and visibility, apply visibility filter to admin query
+    if (dbUserId && visibility) {
       if (visibility === "public-community") {
         query = query.in("visibility", ["public", "community"])
         console.log(`Filtering lists by visibility: public or community`)
