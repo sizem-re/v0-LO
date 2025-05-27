@@ -196,17 +196,12 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   }
 
   const handleSelectList = (listId: string) => {
-    console.log("Sidebar: handleSelectList called with listId:", listId)
-    console.log("Sidebar: Current selectedListId:", selectedListId)
-    console.log("Sidebar: Current activeTab:", activeTab)
     setSelectedListId(listId)
     setSelectedPlace(null) // Clear any selected place
     // If we're currently in the profile view, switch away from it to show the list
     if (activeTab === "profile") {
-      console.log("Sidebar: Switching from profile to mylists tab")
       setActiveTab("mylists")
     }
-    console.log("Sidebar: After update - selectedListId should be:", listId)
   }
 
   const handleBackFromList = () => {
@@ -487,147 +482,124 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
 
         {/* Content based on what's being viewed */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {(() => {
-            console.log("Sidebar render decision:", {
-              showLogin,
-              activeTab,
-              selectedPlace: !!selectedPlace,
-              selectedListId,
-              userIsAuthenticated
-            })
-            
-            if (showLogin) {
-              console.log("Rendering login view")
-              return (
+          {showLogin ? (
+            <div className="flex-1 overflow-y-auto">
+              <LoginView
+                onBack={() => setShowLogin(false)}
+                onLoginSuccess={() => {
+                  setShowLogin(false)
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {activeTab === "profile" ? (
                 <div className="flex-1 overflow-y-auto">
-                  <LoginView
-                    onBack={() => setShowLogin(false)}
-                    onLoginSuccess={() => {
-                      setShowLogin(false)
-                    }}
+                  <UserProfileView
+                    onClose={() => setActiveTab("discover")}
+                    expanded={true}
+                    onCreateList={handleCreateList}
+                    onSelectList={handleSelectList}
+                    key={listsKey}
                   />
                 </div>
-              )
-            } else {
-              if (activeTab === "profile") {
-                console.log("Rendering profile view")
-                return (
-                  <div className="flex-1 overflow-y-auto">
-                    <UserProfileView
-                      onClose={() => setActiveTab("discover")}
-                      expanded={true}
-                      onCreateList={handleCreateList}
-                      onSelectList={handleSelectList}
-                      key={listsKey}
-                    />
+              ) : selectedPlace ? (
+                <div className="flex-1 overflow-y-auto">
+                  <PlaceDetailView
+                    place={selectedPlace}
+                    listId={selectedListId || ""}
+                    onBack={handleBackFromPlace}
+                    onPlaceUpdated={handlePlaceUpdated}
+                    onPlaceDeleted={handlePlaceDeleted}
+                    onCenterMap={handleCenterMap}
+                    onNavigateToList={handleNavigateToList}
+                  />
+                </div>
+              ) : selectedListId ? (
+                <div className="flex-1 overflow-y-auto">
+                  <ListDetailView
+                    listId={selectedListId}
+                    onBack={handleBackFromList}
+                    onPlaceClick={handlePlaceClick}
+                    onEditList={handleEditList}
+                    onDeleteList={handleDeleteList}
+                    onAddPlace={handleAddPlace}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Tabs */}
+                  <div className="flex border-b border-black/10">
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("discover")}
+                    >
+                      Discover
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("mylists")}
+                    >
+                      My Lists
+                    </button>
+                    <button
+                      className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
+                      onClick={() => handleTabClick("places")}
+                    >
+                      Places
+                    </button>
                   </div>
-                )
-              } else if (selectedPlace) {
-                console.log("Rendering place detail view")
-                return (
-                  <div className="flex-1 overflow-y-auto">
-                    <PlaceDetailView
-                      place={selectedPlace}
-                      listId={selectedListId || ""}
-                      onBack={handleBackFromPlace}
-                      onPlaceUpdated={handlePlaceUpdated}
-                      onPlaceDeleted={handlePlaceDeleted}
-                      onCenterMap={handleCenterMap}
-                      onNavigateToList={handleNavigateToList}
-                    />
-                  </div>
-                )
-              } else if (selectedListId) {
-                console.log("Rendering list detail view for listId:", selectedListId)
-                return (
-                  <div className="flex-1 overflow-y-auto">
-                    <ListDetailView
-                      listId={selectedListId}
-                      onBack={handleBackFromList}
-                      onPlaceClick={handlePlaceClick}
-                      onEditList={handleEditList}
-                      onDeleteList={handleDeleteList}
-                      onAddPlace={handleAddPlace}
-                    />
-                  </div>
-                )
-              } else {
-                console.log("Rendering tabs view")
-                return (
-                  <>
-                    {/* Tabs */}
-                    <div className="flex border-b border-black/10">
-                      <button
-                        className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "discover" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                        onClick={() => handleTabClick("discover")}
-                      >
-                        Discover
-                      </button>
-                      <button
-                        className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "mylists" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                        onClick={() => handleTabClick("mylists")}
-                      >
-                        My Lists
-                      </button>
-                      <button
-                        className={`flex-1 text-center py-3 px-2 font-serif ${activeTab === "places" ? "border-b-2 border-black font-medium" : "text-black/70"}`}
-                        onClick={() => handleTabClick("places")}
-                      >
-                        Places
-                      </button>
-                    </div>
 
-                    {/* Search bar - show for discover, mylists, and places tabs */}
-                    {(activeTab === "discover" || activeTab === "mylists" || activeTab === "places") && (
-                      <div className="px-4 pt-3 pb-2">
-                        <div className="relative">
-                          <Input
-                            type="text"
-                            className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
-                            placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                          />
-                          <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
-                        </div>
+                  {/* Search bar - show for discover, mylists, and places tabs */}
+                  {(activeTab === "discover" || activeTab === "mylists" || activeTab === "places") && (
+                    <div className="px-4 pt-3 pb-2">
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          className="w-full border border-black/20 pl-9 pr-4 py-2 text-sm"
+                          placeholder={`Search ${activeTab === "mylists" ? "lists" : "places"}...`}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <Search size={16} className="absolute left-3 top-2.5 text-black/40" />
                       </div>
+                    </div>
+                  )}
+
+                  {/* Content based on active tab */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {activeTab === "discover" && (
+                      <DiscoverView
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onSelectList={handleSelectList}
+                        onLogin={() => setShowLogin(true)}
+                      />
                     )}
 
-                    {/* Content based on active tab */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                      {activeTab === "discover" && (
-                        <DiscoverView
-                          searchQuery={searchQuery}
-                          onSearchChange={setSearchQuery}
-                          onSelectList={handleSelectList}
-                          onLogin={() => setShowLogin(true)}
-                        />
-                      )}
+                    {activeTab === "mylists" && (
+                      <UserListsDisplay
+                        compact={true}
+                        onCreateList={handleCreateList}
+                        onSelectList={handleSelectList}
+                        key={listsKey}
+                      />
+                    )}
 
-                      {activeTab === "mylists" && (
-                        <UserListsDisplay
-                          compact={true}
-                          onCreateList={handleCreateList}
-                          onSelectList={handleSelectList}
-                          key={listsKey}
-                        />
-                      )}
-
-                      {activeTab === "places" && (
-                        <PlacesListView
-                          searchQuery={searchQuery}
-                          onSearchChange={setSearchQuery}
-                          onPlaceClick={handlePlaceClick}
-                          onAddPlace={handleAddPlaceFromTab}
-                          refreshTrigger={placesRefreshTrigger}
-                        />
-                      )}
-                    </div>
-                  </>
-                )
-              }
-            }
-          })()}
+                    {activeTab === "places" && (
+                      <PlacesListView
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onPlaceClick={handlePlaceClick}
+                        onAddPlace={handleAddPlaceFromTab}
+                        refreshTrigger={placesRefreshTrigger}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
 
