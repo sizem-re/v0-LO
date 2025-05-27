@@ -441,11 +441,11 @@ export function PlaceDetailView({
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-black/10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center">
+      <div className="p-4 border-b border-black/10 bg-white sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center min-w-0 flex-1">
             <button
-              className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
+              className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2 flex-shrink-0"
               onClick={onBack}
               aria-label="Back"
             >
@@ -462,7 +462,7 @@ export function PlaceDetailView({
                 fetchDebugData()
                 setShowDebug(!showDebug)
               }}
-              className="text-xs"
+              className="text-xs flex-shrink-0"
             >
               <Bug size={12} />
             </Button>
@@ -480,142 +480,166 @@ export function PlaceDetailView({
       {/* Place Image */}
       <div className="relative">
         <div
-          className="w-full h-48 bg-gray-100"
+          className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
           style={{
             backgroundImage: currentPlace.image ? `url(${currentPlace.image})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
-        />
+        >
+          {!currentPlace.image && (
+            <MapPin size={32} className="text-gray-400" />
+          )}
+        </div>
       </div>
 
       {/* Place Details */}
-      <div className="p-4 flex-grow">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={handleCenterMap}
-            title="Center on map"
-          >
-            <MapPin size={14} /> Map
-          </Button>
-
-          {canEdit && (
+      <div className="flex-grow">
+        {/* Action Buttons */}
+        <div className="p-4 border-b border-black/5">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-1"
-              onClick={handleEditPlace}
-              title="Edit place details"
+              className="flex items-center justify-center gap-2 h-9"
+              onClick={handleCenterMap}
+              title="Center on map"
             >
-              <Edit size={14} /> Edit Details
+              <MapPin size={14} />
+              <span className="text-xs">View on Map</span>
             </Button>
-          )}
 
-          {dbUser && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1"
-              onClick={() => setShowAddToListDialog(true)}
-              title="Add to another list"
-            >
-              <Plus size={14} /> Add to list
-            </Button>
-          )}
+            {dbUser && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2 h-9"
+                onClick={() => setShowAddToListDialog(true)}
+                title="Add to another list"
+              >
+                <Plus size={14} />
+                <span className="text-xs">Add to List</span>
+              </Button>
+            )}
+
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2 h-9 col-span-2"
+                onClick={handleEditPlace}
+                title="Edit place details"
+              >
+                <Edit size={14} />
+                <span className="text-xs">Edit Details</span>
+              </Button>
+            )}
+          </div>
         </div>
 
-        {currentPlace.address && (
-          <div className="flex items-start mb-3">
-            <MapPin size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-            <p className="text-sm text-black/80">{currentPlace.address}</p>
-          </div>
-        )}
+        {/* Place Information */}
+        <div className="p-4 space-y-4">
+          {/* Basic Info Section */}
+          <div className="space-y-3">
+            {currentPlace.address && (
+              <div className="flex items-start gap-3">
+                <MapPin size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
+                <p className="text-sm text-black/80 leading-relaxed">{currentPlace.address}</p>
+              </div>
+            )}
 
-        {currentPlace.website_url && (
-          <div className="flex items-start mb-3">
-            <Globe size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-            <a
-              href={currentPlace.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline flex items-center"
-            >
-              {currentPlace.website_url.replace(/^https?:\/\//, "")}
-              <ExternalLink size={12} className="ml-1" />
-            </a>
-          </div>
-        )}
-
-        {/* Added By field */}
-        <div className="flex items-start mb-3">
-          <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
-          {isLoadingCreatedBy ? (
-            <Skeleton className="h-4 w-24" />
-          ) : (
-            <p className="text-sm text-black/70">
-              Added by {createdByUser?.farcaster_display_name || "Unknown User"}
-            </p>
-          )}
-        </div>
-
-        {currentPlace.notes && (
-          <>
-            <Separator className="my-4" />
-            <div className="mb-4">
-              <h3 className="font-medium mb-2">Notes</h3>
-              <p className="text-sm text-black/80 whitespace-pre-wrap">{currentPlace.notes}</p>
-            </div>
-          </>
-        )}
-
-        {/* Lists containing this place */}
-        <Separator className="my-4" />
-        <div className="mb-4">
-          <h3 className="font-medium mb-2">In Lists</h3>
-
-          {isLoadingLists ? (
-            <div className="flex justify-center py-2">
-              <Loader2 className="h-5 w-5 animate-spin text-black/50" />
-            </div>
-          ) : listsError ? (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex flex-col">
-                <span>Error loading lists: {listsError}</span>
-                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={fetchAllData}>
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : connectedLists.length > 0 ? (
-            <div className="space-y-2">
-              {connectedLists.map((list) => (
-                <Card
-                  key={list.id}
-                  className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => handleListClick(list.id)}
+            {currentPlace.website_url && (
+              <div className="flex items-start gap-3">
+                <Globe size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
+                <a
+                  href={currentPlace.website_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 leading-relaxed"
                 >
-                  <CardContent className="p-3 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <ListIcon size={16} className="mr-2 text-black/60" />
-                      <div>
-                        <p className="font-medium text-sm">{list.title}</p>
-                        <p className="text-xs text-black/60">
-                          {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
-                        </p>
-                      </div>
-                    </div>
-                    {list.id === listId && <div className="text-xs bg-black/10 px-2 py-1 rounded">Current</div>}
-                  </CardContent>
-                </Card>
-              ))}
+                  {currentPlace.website_url.replace(/^https?:\/\//, "")}
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            )}
+
+            {/* Added By field */}
+            <div className="flex items-start gap-3">
+              <User size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
+              {isLoadingCreatedBy ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <p className="text-sm text-black/70 leading-relaxed">
+                  Added by {createdByUser?.farcaster_display_name || "Unknown User"}
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="text-sm text-black/60 text-center py-2">This place is not in any lists yet.</p>
+          </div>
+
+          {/* Notes Section */}
+          {currentPlace.notes && (
+            <div className="pt-4 border-t border-black/5">
+              <h3 className="font-medium text-sm mb-3 text-black/90">Notes</h3>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-black/80 whitespace-pre-wrap leading-relaxed">{currentPlace.notes}</p>
+              </div>
+            </div>
           )}
+
+          {/* Lists Section */}
+          <div className="pt-4 border-t border-black/5">
+            <h3 className="font-medium text-sm mb-3 text-black/90">In Lists</h3>
+
+            {isLoadingLists ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-black/50" />
+              </div>
+            ) : listsError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex flex-col gap-2">
+                  <span className="text-sm">Error loading lists: {listsError}</span>
+                  <Button variant="outline" size="sm" className="self-start" onClick={fetchAllData}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : connectedLists.length > 0 ? (
+              <div className="space-y-2">
+                {connectedLists.map((list) => (
+                  <Card
+                    key={list.id}
+                    className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors border-black/10"
+                    onClick={() => handleListClick(list.id)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <ListIcon size={16} className="flex-shrink-0 text-black/60" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{list.title}</p>
+                            <p className="text-xs text-black/60">
+                              {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
+                            </p>
+                          </div>
+                        </div>
+                        {list.id === listId && (
+                          <div className="text-xs bg-black/10 px-2 py-1 rounded-full font-medium flex-shrink-0">
+                            Current
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <ListIcon size={24} className="mx-auto text-black/30 mb-2" />
+                <p className="text-sm text-black/60">This place is not in any lists yet.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
