@@ -79,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, '', newUrl.toString())
     }
 
+    // Check for mobile auth attempt flag
+    const mobileAuthAttempted = localStorage.getItem('mobile_auth_attempted')
+    if (mobileAuthAttempted) {
+      console.log('User returned from mobile auth attempt')
+      localStorage.removeItem('mobile_auth_attempted')
+      // Don't show loading for too long if they just returned
+    }
+
     // Check for pending auth code from manual continue
     const pendingCode = localStorage.getItem('pending_auth_code')
     if (pendingCode) {
