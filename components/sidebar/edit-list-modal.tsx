@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { X, Globe, Lock, Users } from "lucide-react"
+import { X, Globe, Lock, Users, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,10 +21,13 @@ interface EditListModalProps {
     visibility: ListVisibility
   }
   onListUpdated?: (list: { id: string; title: string; description?: string; visibility: ListVisibility }) => void
+  onListDeleted?: () => void
 }
 
-export function EditListModal({ isOpen, onClose, list, onListUpdated }: EditListModalProps) {
+export function EditListModal({ isOpen, onClose, list, onListUpdated, onListDeleted }: EditListModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [formData, setFormData] = useState({
     title: list.title || "",
     description: list.description || "",
@@ -95,6 +98,40 @@ export function EditListModal({ isOpen, onClose, list, onListUpdated }: EditList
       setError(err instanceof Error ? err.message : "An unknown error occurred")
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/lists/${list.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete list")
+      }
+
+      console.log("List deleted successfully")
+      
+      // Call the callback if provided
+      if (onListDeleted) {
+        onListDeleted()
+      }
+
+      onClose()
+    } catch (err) {
+      console.error("Error deleting list:", err)
+      setError(err instanceof Error ? err.message : "Failed to delete list")
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -212,23 +249,72 @@ export function EditListModal({ isOpen, onClose, list, onListUpdated }: EditList
           </form>
         </div>
 
-        <div className="p-4 border-t border-black/10 flex gap-3">
-          <Button
-            type="button"
-            className="bg-transparent text-black border border-black/20 hover:bg-black/5"
-            onClick={handleClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="flex-1 bg-black text-white hover:bg-black/80"
-            onClick={handleSubmit}
-            disabled={!formData.title.trim() || isSubmitting}
-          >
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
+        <div className="p-4 border-t border-black/10">
+          {/* Main Actions */}
+          <div className="flex gap-3 mb-4">
+            <Button
+              type="button"
+              className="bg-transparent text-black border border-black/20 hover:bg-black/5"
+              onClick={handleClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 bg-black text-white hover:bg-black/80"
+              onClick={handleSubmit}
+              disabled={!formData.title.trim() || isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+          
+          {/* Delete Section */}
+          <div className="pt-4 border-t border-red-100">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">Danger Zone</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isSubmitting || isDeleting}
+              >
+                <Trash2 size={14} className="mr-2" />
+                Delete List
+              </Button>
+            </div>
+          </div>
         </div>
+        
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+              <h3 className="font-semibold text-lg mb-2">Delete List?</h3>
+              <p className="text-gray-600 mb-4">
+                This will permanently delete "{list.title}" and all its places. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,29 +1,17 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink, Share2 } from "lucide-react"
+import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditListModal } from "./edit-list-modal"
 import { AddPlaceModal } from "./add-place-modal"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { toast } from "@/components/ui/use-toast"
 
 interface ListDetailViewProps {
@@ -47,15 +35,11 @@ export function ListDetailView({
   const [list, setList] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const fetchListDetails = useCallback(async () => {
     try {
-      setIsRefreshing(true)
       setError(null)
 
       console.log(`Fetching list details for ID: ${listId}`)
@@ -73,7 +57,6 @@ export function ListDetailView({
       setError(err instanceof Error ? err.message : "Failed to load list details")
     } finally {
       setLoading(false)
-      setIsRefreshing(false)
     }
   }, [listId])
 
@@ -101,49 +84,6 @@ export function ListDetailView({
     }
   }
 
-  const handleDeleteList = async () => {
-    if (!list) return
-
-    try {
-      setIsDeleting(true)
-      console.log(`Deleting list with ID: ${list.id}`)
-
-      const response = await fetch(`/api/lists/${list.id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to delete list")
-      }
-
-      console.log("List deleted successfully")
-      toast({
-        title: "List deleted",
-        description: `"${list.title}" has been deleted successfully.`,
-      })
-
-      // Call the parent callback if provided
-      if (onDeleteList) {
-        onDeleteList(list)
-      }
-
-      setShowDeleteConfirm(false)
-    } catch (err) {
-      console.error("Error deleting list:", err)
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to delete list",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
   const handleAddPlace = () => {
     setShowAddPlaceModal(true)
   }
@@ -153,8 +93,29 @@ export function ListDetailView({
     fetchListDetails()
   }
 
-  const handleRefreshList = () => {
-    fetchListDetails()
+  const handleFarcasterShare = async () => {
+    try {
+      const baseUrl = window.location.origin
+      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      
+      // Create a Farcaster cast URL with the frame
+      const farcasterUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(`Check out this list: ${list.title}`)}&embeds[]=${encodeURIComponent(frameUrl)}`
+      
+      // Open Farcaster in a new tab
+      window.open(farcasterUrl, '_blank', 'noopener,noreferrer')
+      
+      toast({
+        title: "Opening Farcaster",
+        description: "Opening Farcaster to share your list.",
+      })
+    } catch (error) {
+      console.error("Error opening Farcaster:", error)
+      toast({
+        title: "Error",
+        description: "Failed to open Farcaster. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleShare = async () => {
@@ -308,37 +269,55 @@ export function ListDetailView({
             <h2 className="font-serif text-xl truncate">{list.title}</h2>
           </div>
 
-          {(isOwner || list.visibility === "public") && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleShare}>
-                  <Share2 size={14} className="mr-2" />
-                  Share List
-                </DropdownMenuItem>
-                {isOwner && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleRefreshList} disabled={isRefreshing}>
-                      {isRefreshing ? "Refreshing..." : "Refresh List"}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
-                      onClick={() => setShowDeleteConfirm(true)}
-                    >
-                      Delete List
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Share Button - visible for public lists */}
+            {(isOwner || list.visibility === "public") && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Share2 size={16} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48" align="end">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Share this list</p>
+                    <div className="space-y-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={handleShare}
+                      >
+                        <Share2 size={14} className="mr-2" />
+                        Copy Link
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={handleFarcasterShare}
+                      >
+                        <ExternalLink size={14} className="mr-2" />
+                        Share to Farcaster
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            
+            {/* Edit Button - visible for owners */}
+            {isOwner && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleEditList}
+              >
+                <Edit3 size={16} />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center text-sm text-black/70 mb-2">
@@ -408,6 +387,11 @@ export function ListDetailView({
           onClose={() => setShowEditModal(false)}
           list={list}
           onListUpdated={handleListUpdated}
+          onListDeleted={() => {
+            if (onDeleteList) {
+              onDeleteList(list)
+            }
+          }}
         />
       )}
 
@@ -417,27 +401,9 @@ export function ListDetailView({
           listId={listId}
           onClose={() => setShowAddPlaceModal(false)}
           onPlaceAdded={handlePlaceAdded}
-          onRefreshList={handleRefreshList}
+          onRefreshList={fetchListDetails}
         />
       )}
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the list "{list.title}" and remove it from your profile.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeleteList} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
