@@ -178,8 +178,8 @@ export function ListDetailView({
     
     try {
       const baseUrl = window.location.origin
-      // Remove trailing slash to avoid space issues in Farcaster
-      const frameUrl = `${baseUrl}/lists/${listId}/frame`
+      // Add trailing slash for Farcaster frame URL
+      const frameUrl = `${baseUrl}/lists/${listId}/frame/`
       const listTitle = list?.title || "Check out this list"
       const listDescription = list?.description || "A curated list of amazing places"
       const placeCount = list?.places?.length || 0
