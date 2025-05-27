@@ -39,7 +39,9 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
         username: user.farcaster_username || user.username || "user",
         pfp: user.farcaster_pfp_url || user.pfp_url || "/placeholder.svg",
         fid: user.farcaster_id || user.fid?.toString() || "0",
-        bio: user.profile?.bio || "",
+        bio: typeof user.profile?.bio === 'string' 
+          ? user.profile.bio 
+          : user.profile?.bio?.text || user.bio || "",
       }
     : {
         displayName: "Demo User",
