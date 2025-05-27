@@ -13,6 +13,29 @@ function normalizeUrl(baseUrl: string, path: string): string {
   return `${cleanBase}/${cleanPath}`
 }
 
+// Function to detect if request is from a bot/crawler
+function isBotRequest(userAgent: string): boolean {
+  if (!userAgent) return false
+  
+  const botPatterns = [
+    /facebookexternalhit/i,
+    /twitterbot/i,
+    /linkedinbot/i,
+    /farcaster/i,
+    /bot/i,
+    /crawler/i,
+    /spider/i,
+    /preview/i,
+    /whatsapp/i,
+    /telegram/i,
+    /discord/i,
+    /slack/i,
+    /meta/i
+  ]
+  
+  return botPatterns.some(pattern => pattern.test(userAgent))
+}
+
 // Generate metadata for the frame
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
@@ -104,31 +127,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-// Function to detect if request is from a bot/crawler
-function isBotRequest(userAgent: string): boolean {
-  const botPatterns = [
-    /facebookexternalhit/i,
-    /twitterbot/i,
-    /linkedinbot/i,
-    /farcaster/i,
-    /bot/i,
-    /crawler/i,
-    /spider/i,
-    /preview/i,
-    /whatsapp/i,
-    /telegram/i,
-    /discord/i,
-    /slack/i,
-    /meta/i
-  ]
-  
-  return botPatterns.some(pattern => pattern.test(userAgent))
-}
-
 // Main component for the frame page
 export default async function ListFramePage({ params }: Props) {
   try {
     const { id } = await params
+    
+    // Get user agent for bot detection FIRST
+    const headersList = await headers()
+    const userAgent = headersList.get('user-agent') || ''
+    
+    console.log(`Frame page request for ${id} with user agent:`, userAgent)
+    
+    // For direct visits to frame URL, redirect to the main app with list parameter
+    // Only redirect if it's NOT a bot/crawler request
+    if (!isBotRequest(userAgent)) {
+      console.log('Non-bot request detected, redirecting to main app:', userAgent)
+      redirect(`/?list=${id}`)
+      return null // This won't be reached, but TypeScript needs it
+    }
+    
+    console.log('Bot request detected, serving frame content:', userAgent)
     
     // Use proper base URL for production - ensure no trailing slash
     let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
@@ -150,17 +168,6 @@ export default async function ListFramePage({ params }: Props) {
     // Handle both the nested { list, places } structure and direct list structure
     const list = listData.list || listData
     
-    // Get user agent for bot detection
-    const headersList = await headers()
-    const userAgent = headersList.get('user-agent') || ''
-    
-    // For direct visits to frame URL, redirect to the main app with list parameter
-    // Only redirect if it's NOT a bot/crawler request
-    if (!isBotRequest(userAgent)) {
-      console.log('Non-bot request detected, redirecting to main app:', userAgent)
-      redirect(`/?list=${id}`)
-    }
-    
     // Get the list name from either 'name' or 'title' property
     const listName = list.name || list.title || 'Untitled List'
     
@@ -181,6 +188,13 @@ export default async function ListFramePage({ params }: Props) {
     )
   } catch (error) {
     console.error('Error loading list:', error)
+    
+    // If it's a redirect error, let it bubble up
+    if (error && typeof error === 'object' && 'digest' in error && 
+        typeof error.digest === 'string' && error.digest.includes('NEXT_REDIRECT')) {
+      throw error
+    }
+    
     notFound()
   }
 } 

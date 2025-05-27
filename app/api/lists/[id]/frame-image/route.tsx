@@ -64,10 +64,12 @@ export async function GET(
     
     // Get the list name from either 'name' or 'title' property
     const listName = list.name || list.title || 'Untitled List'
+    const description = list.description || ''
+    const displayDescription = description.length > 100 ? description.substring(0, 100) + '...' : description
     
     console.log('Frame Image Generation: Creating PNG image for list:', listName)
     
-    // Generate simple PNG image using ImageResponse
+    // Generate simple PNG image using ImageResponse - no conditional rendering
     return new ImageResponse(
       (
         <div
@@ -108,22 +110,19 @@ export async function GET(
             {listName}
           </div>
           
-          {list.description && (
-            <div
-              style={{
-                display: 'flex',
-                fontSize: 28,
-                color: '#6b7280',
-                textAlign: 'center',
-                maxWidth: '800px',
-                marginBottom: '20px',
-              }}
-            >
-              {list.description.length > 100 
-                ? list.description.substring(0, 100) + '...' 
-                : list.description}
-            </div>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 28,
+              color: '#6b7280',
+              textAlign: 'center',
+              maxWidth: '800px',
+              marginBottom: '20px',
+              minHeight: '32px',
+            }}
+          >
+            {displayDescription}
+          </div>
           
           <div
             style={{
