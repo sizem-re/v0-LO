@@ -10,8 +10,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { id } = await params
     
+    // Use proper base URL for production
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
+    
     // Fetch list data
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}`, {
+    const response = await fetch(`${baseUrl}/api/lists/${id}`, {
       cache: 'no-store'
     })
     
@@ -27,8 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const listDescription = list.description || `A list of ${list.places?.length || 0} places`
     const ownerName = list.owner?.farcaster_display_name || list.owner?.farcaster_username || "Unknown"
     
-    const frameImageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}/frame-image`
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const frameImageUrl = `${baseUrl}/api/lists/${id}/frame-image`
     
     return {
       title: `${listTitle} by ${ownerName}`,
@@ -64,8 +68,13 @@ export default async function ListFramePage({ params }: Props) {
   try {
     const { id } = await params
     
+    // Use proper base URL for production
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   (process.env.NODE_ENV === 'production' ? 'https://llllllo.com' : 'http://localhost:3000'))
+    
     // Fetch list data
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/lists/${id}`, {
+    const response = await fetch(`${baseUrl}/api/lists/${id}`, {
       cache: 'no-store'
     })
     
