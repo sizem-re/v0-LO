@@ -11,6 +11,8 @@ import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { LocationPicker } from "@/components/ui/location-picker"
+import { SimpleMapPicker } from "@/components/ui/simple-map-picker"
 import { PlaceSearch } from "@/components/place-search"
 import { CompressionStatus } from "@/components/ui/compression-status"
 import {
@@ -24,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreateListModal } from "@/components/create-list-modal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface Place {
   id?: string
@@ -67,39 +70,29 @@ interface AddressAutocompleteResult {
 }
 
 interface AddPlaceModalProps {
-  listId: string
+  isOpen: boolean
   onClose: () => void
-  onPlaceAdded: (place: any) => void
-  onRefreshList?: () => void
+  listId?: string
+  onPlaceAdded?: (place: any) => void
 }
 
-export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: AddPlaceModalProps) {
+export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlaceModalProps) {
   const { dbUser } = useAuth()
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<AddressAutocompleteResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
 
   // Place details state
   const [placeName, setPlaceName] = useState("")
-  const [note, setNote] = useState("")
-  const [website, setWebsite] = useState("")
+  const [websiteUrl, setWebsiteUrl] = useState("")
+  const [notes, setNotes] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Location state
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
-  const [isEditingAddress, setIsEditingAddress] = useState(false)
-  const [isAddingPlace, setIsAddingPlace] = useState(false)
+  const [address, setAddress] = useState("")
+  const [locationSource, setLocationSource] = useState<string>("")
+  const [showMapPicker, setShowMapPicker] = useState(false)
+  const [showPlaceSearch, setShowPlaceSearch] = useState(false)
 
-  // Address components state
-  const [addressComponents, setAddressComponents] = useState<AddressComponents>({
-    street: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "",
-  })
-
-  // Photo placeholder state
+  // Photo state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [compressionStatus, setCompressionStatus] = useState<{
@@ -141,6 +134,23 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
   const listDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setPlaceName("")
+      setWebsiteUrl("")
+      setNotes("")
+      setCoordinates(null)
+      setAddress("")
+      setLocationSource("")
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      setCompressionStatus({ isCompressing: false })
+      setShowMapPicker(false)
+      setShowPlaceSearch(false)
+    }
+  }, [isOpen])
 
   // Fetch user's lists
   useEffect(() => {
@@ -193,107 +203,45 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     setFilteredLists(filtered)
   }, [listSearchQuery, userLists])
 
-  // Handle clicks outside the list dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (listDropdownRef.current && !listDropdownRef.current.contains(event.target as Node)) {
-        setIsListDropdownOpen(false)
-      }
+  // Handle location changes from LocationPicker
+  const handleLocationChange = (location: { lat: number; lng: number } | null, newAddress?: string, source?: string) => {
+    setCoordinates(location)
+    if (newAddress) {
+      setAddress(newAddress)
     }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
+    if (source) {
+      setLocationSource(source)
     }
-  }, [])
-
-  // Handle place selection from PlaceSearch
-  const handlePlaceSelect = (place: Place) => {
-    setPlaceName(place.name)
-    setCoordinates({
-      lat: place.lat,
-      lng: place.lng,
-    })
-
-    // Parse address into components (simplified)
-    const addressParts = place.address.split(",").map((part) => part.trim())
-
-    setAddressComponents({
-      street: addressParts[0] || "",
-      city: addressParts[1] || "",
-      state: addressParts[2] || "",
-      postalCode: addressParts[3] || "",
-      country: addressParts[4] || "",
-    })
-
-    // Move to the details step
-    setCurrentStep("details")
+    
+    // Close other location pickers
+    setShowMapPicker(false)
+    setShowPlaceSearch(false)
   }
 
-  // Handle manual entry without search
-  const handleManualEntry = () => {
-    setPlaceName("")
-    setCoordinates(null)
-    setAddressComponents({
-      street: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
-    })
-    setCurrentStep("details")
+  // Handle place selection from search
+  const handlePlaceSelect = (place: any) => {
+    setPlaceName(place.name || "")
+    setAddress(place.address || "")
+    setCoordinates(place.coordinates || null)
+    setLocationSource("search")
+    setShowPlaceSearch(false)
   }
 
-  // Format address components into a single string
-  const formatFullAddress = (): string => {
-    const components = []
-
-    if (addressComponents.street) components.push(addressComponents.street)
-    if (addressComponents.city) components.push(addressComponents.city)
-    if (addressComponents.state) components.push(addressComponents.state)
-    if (addressComponents.postalCode) components.push(addressComponents.postalCode)
-    if (addressComponents.country) components.push(addressComponents.country)
-
-    return components.join(", ")
-  }
-
-  // Geocode the address when components change
-  useEffect(() => {
-    const geocodeAddress = async () => {
-      if (!isEditingAddress) return
-
-      const addressString = formatFullAddress()
-      if (!addressString) return
-
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressString)}&limit=1`,
-          {
-            headers: {
-              "Accept-Language": "en-US,en",
-              "User-Agent": "LO Place App (https://llllllo.com)",
-            },
-          },
-        )
-
-        if (!response.ok) return
-
-        const data = await response.json()
-        if (data.length > 0) {
-          setCoordinates({
-            lat: Number.parseFloat(data[0].lat),
-            lng: Number.parseFloat(data[0].lon),
-          })
+  // Handle map picker
+  const handleMapLocationSelect = (location: { lat: number; lng: number }) => {
+    setCoordinates(location)
+    setLocationSource("map")
+    setShowMapPicker(false)
+    
+    // Try to get address for the selected coordinates
+    import("@/lib/geolocation-utils").then(({ reverseGeocode }) => {
+      reverseGeocode(location.lat, location.lng).then(newAddress => {
+        if (newAddress) {
+          setAddress(newAddress)
         }
-      } catch (err) {
-        console.error("Error geocoding address:", err)
-      }
-    }
-
-    // Debounce the geocoding
-    const timer = setTimeout(geocodeAddress, 1000)
-    return () => clearTimeout(timer)
-  }, [addressComponents, isEditingAddress])
+      })
+    })
+  }
 
   // Handle photo selection
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,7 +285,38 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     return list ? list.title : "Unknown List"
   }
 
-  // Validate website URL
+  // Validate form
+  const validateForm = () => {
+    if (!placeName.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please provide a name for the place.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!coordinates) {
+      toast({
+        title: "Missing location",
+        description: "Please select a location for the place.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (websiteUrl && !isValidUrl(websiteUrl)) {
+      toast({
+        title: "Invalid website",
+        description: "Please enter a valid URL (e.g., https://example.com)",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
+  }
+
   const isValidUrl = (url: string) => {
     if (!url) return true
     try {
@@ -350,803 +329,419 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     }
   }
 
-  // Handle refreshing the list to show the place that's already there
-  const handleRefreshList = () => {
-    if (onRefreshList) {
-      onRefreshList()
-    }
-    setDuplicateError({ show: false, message: "", listId: "", placeName: "" })
-    onClose()
-  }
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  // Handle new list creation
-  const handleListCreated = async (newList: { id: string; title: string; description?: string }) => {
-    // Add the new list to the selected lists
-    setSelectedLists(prev => [...prev, newList.id])
-    
-    // Refresh the lists data
-    try {
-      const response = await fetch(`/api/lists?userId=${dbUser?.id}`)
-      if (response.ok) {
-        const lists = await response.json()
-        setUserLists(lists)
-        setFilteredLists(lists)
-        
-        // Update recent lists
-        const recent = lists.filter((list: List) => listId && list.id !== listId).slice(0, 3)
-        setRecentLists(recent)
-      }
-    } catch (err) {
-      console.error("Error refreshing lists:", err)
-    }
-  }
-
-  // Add the place to selected lists
-  const handleAddPlace = async () => {
-    if (!placeName.trim() || !coordinates || selectedLists.length === 0 || !dbUser) {
-      toast({
-        title: "Missing information",
-        description: "Please provide a name, valid address, and select at least one list.",
-        variant: "destructive",
-      })
+    if (!validateForm() || !dbUser) {
       return
     }
 
-    // Validate website URL if provided
-    if (website && !isValidUrl(website)) {
-      toast({
-        title: "Invalid website",
-        description: "Please enter a valid URL (e.g., https://example.com)",
-        variant: "destructive",
-      })
-      return
-    }
+    const successfulAdds: any[] = []
 
     try {
-      setIsAddingPlace(true)
-
-      const fullAddress = formatFullAddress()
-      console.log(`Adding place to ${selectedLists.length} lists:`, {
-        name: placeName,
-        address: fullAddress,
-        website,
-        coordinates,
-        userId: dbUser.id,
-      })
+      setIsSubmitting(true)
 
       // Format website URL if needed
-      let formattedWebsite = website
-      if (website && !website.match(/^https?:\/\//)) {
-        formattedWebsite = `https://${website}`
+      let formattedWebsite = websiteUrl
+      if (websiteUrl && !websiteUrl.match(/^https?:\/\//)) {
+        formattedWebsite = `https://${websiteUrl}`
       }
 
-      // First, check if the place already exists in the database
-      const checkResponse = await fetch(`/api/places?lat=${coordinates.lat}&lng=${coordinates.lng}`)
+      console.log("Creating place with data:", {
+        name: placeName,
+        address,
+        coordinates,
+        website_url: formattedWebsite,
+        notes,
+        locationSource
+      })
 
-      let placeId: string
+      // Create the place
+      const placeResponse = await fetch("/api/places", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: placeName,
+          address,
+          lat: coordinates!.lat,
+          lng: coordinates!.lng,
+          website_url: formattedWebsite,
+          created_by: dbUser.id,
+        }),
+      })
 
-      if (checkResponse.ok) {
-        const existingPlaces = await checkResponse.json()
+      if (!placeResponse.ok) {
+        const errorData = await placeResponse.json()
+        throw new Error(errorData.error || "Failed to create place")
+      }
 
-        if (existingPlaces.length > 0) {
-          // Use existing place
-          placeId = existingPlaces[0].id
-          console.log("Using existing place:", placeId)
-        } else {
-          // Create a new place
-          const createPlaceResponse = await fetch("/api/places", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: placeName,
-              address: fullAddress,
-              website_url: formattedWebsite,
-              lat: coordinates.lat,
-              lng: coordinates.lng,
-              created_by: dbUser.id, // Use created_by instead of added_by
-            }),
-          })
+      const place = await placeResponse.json()
+      console.log("Place created:", place)
+      const placeId = place.id
+      successfulAdds.push({ place, placeId })
 
-          if (!createPlaceResponse.ok) {
-            const errorData = await createPlaceResponse.json()
-            throw new Error(errorData.error || "Failed to create place")
-          }
-
-          const newPlace = await createPlaceResponse.json()
-          placeId = newPlace.id
-          console.log("Created new place:", placeId)
-        }
-
-        // Add the place to all selected lists
-        const addPromises = selectedLists.map(async (listId) => {
-          try {
-            const addToListResponse = await fetch("/api/list-places", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                list_id: listId,
-                place_id: placeId,
-                note: note,
-                added_by: dbUser.id,
-              }),
-            })
-
-            const responseData = await addToListResponse.json()
-
-            if (!addToListResponse.ok) {
-              // Check if this is a duplicate error
-              if (addToListResponse.status === 409 && responseData.alreadyExists) {
-                console.log("Place already exists in list:", responseData)
-
-                // If this is the only list we're adding to, show the duplicate error dialog
-                if (selectedLists.length === 1) {
-                  setDuplicateError({
-                    show: true,
-                    message: responseData.error || "This place is already in the list",
-                    listId: listId,
-                    placeName: placeName,
-                  })
-                  return { error: true, duplicate: true, listId }
-                }
-
-                // Otherwise just return the error but continue with other lists
-                return { error: true, duplicate: true, listId }
-              }
-
-              throw new Error(responseData.error || `Failed to add place to list ${listId}`)
-            }
-
-            return responseData
-          } catch (err) {
-            console.error(`Error adding place to list ${listId}:`, err)
-            return { error: true, message: err instanceof Error ? err.message : "Unknown error", listId }
-          }
+      // Add to list if listId is provided
+      if (listId) {
+        console.log("Adding place to list:", listId)
+        const listResponse = await fetch("/api/list-places", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            list_id: listId,
+            place_id: placeId,
+            note: notes,
+            added_by: dbUser.id,
+          }),
         })
 
-        const results = await Promise.all(addPromises)
-        console.log("Place add results:", results)
-
-        // Check if we had any successful additions
-        const successfulAdds = results.filter((result) => !result.error)
-        const duplicates = results.filter((result) => result.error && result.duplicate)
-
-        if (successfulAdds.length === 0 && duplicates.length > 0) {
-          // If all were duplicates, show a message
-          if (duplicates.length === 1) {
-            setDuplicateError({
-              show: true,
-              message: `${placeName} is already in this list`,
-              listId: duplicates[0].listId,
-              placeName,
-            })
-            return
-          } else {
-            toast({
-              title: "Already added",
-              description: `${placeName} is already in all selected lists.`,
-              action: (
-                <Button variant="outline" size="sm" onClick={handleRefreshList}>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Refresh
-                </Button>
-              ),
-            })
-            onClose()
-            return
-          }
+        if (!listResponse.ok) {
+          const errorData = await listResponse.json()
+          throw new Error(errorData.error || "Failed to add place to list")
         }
 
-        // Handle photo upload if a file was selected
-        if (photoFile && successfulAdds.length > 0) {
-          try {
-            // Import and use the compression hook
-            const { compressImage, shouldCompress } = await import('@/lib/image-compression')
-            
-            console.log("Processing photo for place:", placeId)
-            
-            let fileToUpload = photoFile
-            
-            // Set initial compression status
-            setCompressionStatus({
-              isCompressing: shouldCompress(photoFile, 500),
-              originalSize: photoFile.size
-            })
-            
-            // Compress if needed
-            if (shouldCompress(photoFile, 500)) {
-              console.log("Compressing image...")
-              try {
-                const compressionResult = await compressImage(photoFile, {
-                  maxWidth: 1200,
-                  maxHeight: 1200,
-                  quality: 0.8,
-                  maxSizeKB: 500
-                })
-                
-                fileToUpload = compressionResult.file
-                
-                // Update compression status
-                setCompressionStatus({
-                  isCompressing: false,
-                  originalSize: compressionResult.originalSize,
-                  compressedSize: compressionResult.compressedSize,
-                  compressionRatio: compressionResult.compressionRatio
-                })
-                
-                console.log('Image compression result:', {
-                  originalSize: `${Math.round(compressionResult.originalSize / 1024)}KB`,
-                  compressedSize: `${Math.round(compressionResult.compressedSize / 1024)}KB`,
-                  compressionRatio: `${compressionResult.compressionRatio}%`
-                })
-                
-                // Show compression success toast with longer duration
-                toast({
-                  title: "Image compressed successfully",
-                  description: `Reduced file size by ${compressionResult.compressionRatio}% (${Math.round(compressionResult.originalSize / 1024)}KB → ${Math.round(compressionResult.compressedSize / 1024)}KB)`,
-                  duration: 4000, // Show for 4 seconds
-                })
-              } catch (compressionError) {
-                console.warn('Compression failed, uploading original:', compressionError)
-                setCompressionStatus({
-                  isCompressing: false,
-                  originalSize: photoFile.size
-                })
-                // Continue with original file
-              }
-            } else {
+        console.log("Place added to list successfully")
+      }
+
+      // Handle photo upload if a file was selected
+      if (photoFile && successfulAdds.length > 0) {
+        try {
+          // Import and use the compression hook
+          const { compressImage, shouldCompress } = await import('@/lib/image-compression')
+          
+          console.log("Processing photo for place:", placeId)
+          
+          let fileToUpload = photoFile
+          
+          // Set initial compression status
+          setCompressionStatus({
+            isCompressing: shouldCompress(photoFile, 500),
+            originalSize: photoFile.size
+          })
+          
+          // Compress if needed
+          if (shouldCompress(photoFile, 500)) {
+            console.log("Compressing image...")
+            try {
+              const compressionResult = await compressImage(photoFile, {
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.8,
+                maxSizeKB: 500
+              })
+              
+              fileToUpload = compressionResult.file
+              
+              // Update compression status
+              setCompressionStatus({
+                isCompressing: false,
+                originalSize: compressionResult.originalSize,
+                compressedSize: compressionResult.compressedSize,
+                compressionRatio: compressionResult.compressionRatio
+              })
+              
+              console.log('Image compression result:', {
+                originalSize: `${Math.round(compressionResult.originalSize / 1024)}KB`,
+                compressedSize: `${Math.round(compressionResult.compressedSize / 1024)}KB`,
+                compressionRatio: `${compressionResult.compressionRatio}%`
+              })
+              
+              // Show compression success toast
+              toast({
+                title: "Image compressed",
+                description: `Reduced by ${compressionResult.compressionRatio}% (${Math.round(compressionResult.originalSize / 1024)}KB → ${Math.round(compressionResult.compressedSize / 1024)}KB)`,
+                duration: 4000,
+              })
+            } catch (compressionError) {
+              console.warn('Compression failed, uploading original:', compressionError)
               setCompressionStatus({
                 isCompressing: false,
                 originalSize: photoFile.size
               })
             }
-            
-            console.log("Uploading photo for place:", placeId)
-            
-            const formData = new FormData()
-            formData.append('image', fileToUpload)
-            
-            // Try the original endpoint first, then fallback to the simpler one
-            let uploadResponse = await fetch(`/api/places/${placeId}/upload-image`, {
+          } else {
+            setCompressionStatus({
+              isCompressing: false,
+              originalSize: photoFile.size
+            })
+          }
+          
+          console.log("Uploading photo for place:", placeId)
+          
+          const formData = new FormData()
+          formData.append('image', fileToUpload)
+          
+          // Try the original endpoint first, then fallback
+          let uploadResponse = await fetch(`/api/places/${placeId}/upload-image`, {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (uploadResponse.status === 404) {
+            console.log("Original endpoint not found, trying alternative...")
+            uploadResponse = await fetch(`/api/upload-place-image?placeId=${placeId}`, {
               method: 'POST',
               body: formData,
             })
+          }
+          
+          if (uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            console.log("Photo uploaded successfully:", uploadResult.imageUrl)
             
-            // If 404, try the alternative endpoint
-            if (uploadResponse.status === 404) {
-              console.log("Original endpoint not found, trying alternative...")
-              uploadResponse = await fetch(`/api/upload-place-image?placeId=${placeId}`, {
-                method: 'POST',
-                body: formData,
-              })
-            }
+            toast({
+              title: "Photo uploaded",
+              description: "Place photo has been uploaded successfully.",
+            })
+          } else {
+            const errorData = await uploadResponse.json()
+            console.error("Photo upload failed:", errorData.error)
             
-            if (uploadResponse.ok) {
-              const uploadResult = await uploadResponse.json()
-              console.log("Photo uploaded successfully:", uploadResult.imageUrl)
-              
-              toast({
-                title: "Photo uploaded",
-                description: "Place photo has been uploaded successfully.",
-              })
-            } else {
-              const errorData = await uploadResponse.json()
-              console.error("Photo upload failed:", errorData.error)
-              
-              toast({
-                title: "Photo upload failed",
-                description: errorData.error || "Failed to upload photo. You can add it later by editing the place.",
-                variant: "destructive",
-              })
-            }
-          } catch (uploadError) {
-            console.error("Error uploading photo:", uploadError)
             toast({
               title: "Photo upload failed",
-              description: "Failed to upload photo. You can add it later by editing the place.",
+              description: errorData.error || "Failed to upload photo.",
               variant: "destructive",
             })
           }
-        }
-
-        // If we had some successful adds but also some duplicates
-        if (successfulAdds.length > 0 && duplicates.length > 0) {
+        } catch (uploadError) {
+          console.error("Error uploading photo:", uploadError)
           toast({
-            title: "Place added partially",
-            description: `${placeName} was added to ${successfulAdds.length} list(s) but was already in ${duplicates.length} list(s).`,
-          })
-        } else if (successfulAdds.length > 0) {
-          // All successful
-          toast({
-            title: "Place added",
-            description:
-              selectedLists.length === 1
-                ? `${placeName} has been added to ${getListTitle(selectedLists[0])}.`
-                : `${placeName} has been added to ${successfulAdds.length} lists.`,
+            title: "Photo upload failed",
+            description: "Failed to upload photo.",
+            variant: "destructive",
           })
         }
-
-        // Call the callback with the added place if we had at least one successful add
-        if (successfulAdds.length > 0) {
-          onPlaceAdded({
-            id: placeId,
-            name: placeName,
-            address: fullAddress,
-            website_url: formattedWebsite,
-            coordinates,
-            listPlaceId: successfulAdds[0].id, // Use the first result for the original list
-          })
-        }
-
-        // Close the modal if we didn't show the duplicate error dialog
-        if (!duplicateError.show) {
-          onClose()
-        }
-      } else {
-        throw new Error("Failed to check for existing places")
       }
+
+      toast({
+        title: "Place added!",
+        description: `${placeName} has been ${listId ? "added to the list" : "created"} successfully.`,
+      })
+
+      // Call the callback with the created place
+      if (onPlaceAdded && successfulAdds.length > 0) {
+        onPlaceAdded(successfulAdds[0].place)
+      }
+
+      onClose()
     } catch (err) {
-      console.error("Error adding place to lists:", err)
+      console.error("Error adding place:", err)
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Failed to add place to lists",
+        description: err instanceof Error ? err.message : "Failed to add place",
         variant: "destructive",
       })
     } finally {
-      setIsAddingPlace(false)
+      setIsSubmitting(false)
     }
   }
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (currentStep === "details") {
-      handleAddPlace()
-    }
-  }
-
-  // Render the search step with our new PlaceSearch component
-  const renderSearchStep = () => (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="search">Search for a place or paste a URL</Label>
-        <div className="mt-1">
-          <PlaceSearch onPlaceSelect={handlePlaceSelect} placeholder="Enter a place name, address, or URL" />
-        </div>
-      </div>
-
-      <div className="text-center pt-2">
-        <button type="button" className="text-sm text-blue-600 hover:text-blue-800" onClick={handleManualEntry}>
-          Or add place details manually
-        </button>
-      </div>
-    </div>
-  )
-
-  // Render the details step
-  const renderDetailsStep = () => (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="placeName">
-          Place Name <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          id="placeName"
-          type="text"
-          placeholder="e.g., Cozy Corner Cafe"
-          value={placeName}
-          onChange={(e) => setPlaceName(e.target.value)}
-          className="mt-1"
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="website">Website</Label>
-        <div className="relative mt-1">
-          <Input
-            id="website"
-            type="text"
-            placeholder="e.g., https://example.com"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            className="pl-8"
-          />
-          <Link className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-        </div>
-      </div>
-
-      <div>
-        <Label>
-          Add to Lists <span className="text-red-500">*</span>
-        </Label>
-        <div className="relative mt-1" ref={listDropdownRef}>
-          <button
-            type="button"
-            className="w-full flex items-center justify-between p-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
-            onClick={() => setIsListDropdownOpen(!isListDropdownOpen)}
-          >
-            <span>
-              {selectedLists.length === 0
-                ? "Select lists or create new"
-                : selectedLists.length === 1
-                  ? getListTitle(selectedLists[0])
-                  : `${selectedLists.length} lists selected`}
-            </span>
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          </button>
-
-          {isListDropdownOpen && (
-            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
-              <div className="p-2 border-b border-gray-200">
-                <Input
-                  type="text"
-                  placeholder="Search lists..."
-                  value={listSearchQuery}
-                  onChange={(e) => setListSearchQuery(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="max-h-60 overflow-y-auto">
-                {isLoadingLists ? (
-                  <div className="p-4 text-center text-gray-500">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    Loading lists...
-                  </div>
-                ) : filteredLists.length === 0 && listSearchQuery === "" && userLists.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    <p className="mb-3">You don't have any lists yet.</p>
-                    <p className="text-sm">Create your first list to organize this place!</p>
-                  </div>
-                ) : filteredLists.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">No lists found</div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {/* Current list (always shown at the top) */}
-                    {currentList && (
-                      <div className="p-2 bg-gray-50">
-                        <label className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedLists.includes(currentList.id)}
-                            onChange={() => handleToggleList(currentList.id)}
-                            className="mr-2"
-                          />
-                          <div>
-                            <div className="font-medium">{currentList.title}</div>
-                            <div className="text-xs text-gray-500">Current list</div>
-                          </div>
-                        </label>
-                      </div>
-                    )}
-
-                    {/* Recent lists section */}
-                    {recentLists.length > 0 && listSearchQuery === "" && (
-                      <div className="p-2">
-                        <div className="text-xs font-medium text-gray-500 px-2 py-1">Recent Lists</div>
-                        {recentLists.map((list) => (
-                          <label
-                            key={list.id}
-                            className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedLists.includes(list.id)}
-                              onChange={() => handleToggleList(list.id)}
-                              className="mr-2"
-                            />
-                            <span>{list.title}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* All lists or search results */}
-                    <div className="p-2">
-                      {listSearchQuery !== "" && (
-                        <div className="text-xs font-medium text-gray-500 px-2 py-1">Search Results</div>
-                      )}
-                      {filteredLists
-                        .filter((list) => {
-                          // Filter out the current list and recent lists when not searching
-                          if (listSearchQuery === "") {
-                            return (
-                              (!currentList || list.id !== currentList.id) &&
-                              !recentLists.some((recent) => recent.id === list.id)
-                            )
-                          }
-                          return true
-                        })
-                        .map((list) => (
-                          <label
-                            key={list.id}
-                            className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedLists.includes(list.id)}
-                              onChange={() => handleToggleList(list.id)}
-                              className="mr-2"
-                            />
-                            <span>{list.title}</span>
-                          </label>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Create New List Option - Always visible at bottom */}
-              <div className="border-t border-gray-200 p-2 bg-gray-50">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded cursor-pointer font-medium"
-                  onClick={() => {
-                    setIsListDropdownOpen(false)
-                    setShowCreateListModal(true)
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create New Private List
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <Label>
-            Address <span className="text-red-500">*</span>
-          </Label>
-          <button
-            type="button"
-            className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-            onClick={() => setIsEditingAddress(!isEditingAddress)}
-          >
-            {isEditingAddress ? (
-              <>
-                <Check className="h-3 w-3 mr-1" />
-                Done
-              </>
-            ) : (
-              <>
-                <Edit className="h-3 w-3 mr-1" />
-                Edit
-              </>
-            )}
-          </button>
-        </div>
-
-        {isEditingAddress ? (
-          <div className="grid grid-cols-1 gap-3 mt-1">
-            <div>
-              <Label htmlFor="street" className="text-xs">
-                Street
-              </Label>
-              <Input
-                id="street"
-                type="text"
-                placeholder="Street address"
-                value={addressComponents.street}
-                onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="city" className="text-xs">
-                  City
-                </Label>
-                <Input
-                  id="city"
-                  type="text"
-                  placeholder="City"
-                  value={addressComponents.city}
-                  onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="state" className="text-xs">
-                  State/Province
-                </Label>
-                <Input
-                  id="state"
-                  type="text"
-                  placeholder="State/Province"
-                  value={addressComponents.state}
-                  onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="postalCode" className="text-xs">
-                  Postal Code
-                </Label>
-                <Input
-                  id="postalCode"
-                  type="text"
-                  placeholder="Postal/ZIP code"
-                  value={addressComponents.postalCode}
-                  onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="country" className="text-xs">
-                  Country
-                </Label>
-                <Input
-                  id="country"
-                  type="text"
-                  placeholder="Country"
-                  value={addressComponents.country}
-                  onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-3 bg-gray-50 rounded-md mt-1">
-            {formatFullAddress() || "No address provided"}
-            {coordinates && (
-              <div className="text-xs text-gray-500 mt-1">
-                Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="note">Note (optional)</Label>
-        <Textarea
-          id="note"
-          placeholder="Add any notes about this place..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={3}
-          className="mt-1"
-        />
-      </div>
-
-      <div>
-        <Label>Photo (optional)</Label>
-        <div
-          className={cn(
-            "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
-            photoPreview ? "border-gray-300" : "border-gray-200",
-          )}
-          onClick={handlePhotoButtonClick}
-        >
-          <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
-
-          {photoPreview ? (
-            <div className="relative">
-              <img
-                src={photoPreview || "/placeholder.svg"}
-                alt="Place preview"
-                className="mx-auto max-h-40 rounded-md"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
-                <Camera className="h-8 w-8 text-white" />
-              </div>
-            </div>
-          ) : (
-            <div className="py-4">
-              <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">
-                Click to add a photo
-                <span className="block text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</span>
-              </p>
-            </div>
-          )}
-        </div>
-        
-        {/* Show compression status */}
-        {photoFile && (
-          <div className="mt-2">
-            <CompressionStatus
-              originalSize={compressionStatus.originalSize || 0}
-              compressedSize={compressionStatus.compressedSize}
-              compressionRatio={compressionStatus.compressionRatio}
-              isCompressing={compressionStatus.isCompressing}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  if (!isOpen) return null
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center sm:pt-[10vh]">
-        <div className="bg-white w-full max-w-md border border-black/10 shadow-lg rounded-md overflow-hidden max-h-[90vh] flex flex-col">
-          <div className="p-4 border-b border-black/10 flex items-center justify-between flex-shrink-0">
-            <h2 className="text-lg font-medium">{currentStep === "search" ? "Add Place" : "Place Details"}</h2>
-            <button onClick={onClose} className="p-1" aria-label="Close">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+      <Dialog open={isOpen && !showMapPicker && !showPlaceSearch} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[600px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
+          <DialogHeader>
+            <DialogTitle>Add New Place</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            {/* Place Name */}
+            <div className="space-y-2">
+              <Label htmlFor="placeName">Place Name *</Label>
+              <Input
+                id="placeName"
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                placeholder="Enter place name"
+                className="w-full min-w-0"
+              />
+            </div>
 
-          <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1">
-            {currentStep === "search" ? renderSearchStep() : renderDetailsStep()}
-
-            <div className="flex justify-between gap-2 mt-6 sticky bottom-0 bg-white pt-4 border-t border-black/10">
-              {currentStep === "details" && (
-                <Button type="button" variant="outline" onClick={() => setCurrentStep("search")}>
-                  Back
+            {/* Location Selection */}
+            <div className="space-y-2">
+              <Label>Location *</Label>
+              <LocationPicker
+                value={coordinates}
+                onLocationChange={handleLocationChange}
+                photoFile={photoFile}
+                disabled={isSubmitting}
+              />
+              
+              {/* Quick action buttons for map and search */}
+              <div className="flex gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMapPicker(true)}
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  Open Map Picker
                 </Button>
-              )}
-
-              <div className={cn("flex gap-2", currentStep === "details" ? "ml-auto" : "w-full justify-end")}>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPlaceSearch(true)}
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  Search Places
                 </Button>
-
-                {currentStep === "details" && (
-                  <Button
-                    type="submit"
-                    className="bg-black text-white hover:bg-black/80"
-                    disabled={isAddingPlace || !placeName.trim() || !coordinates || selectedLists.length === 0}
-                  >
-                    {isAddingPlace ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add to List{selectedLists.length > 1 ? "s" : ""}
-                      </>
-                    )}
-                  </Button>
-                )}
               </div>
             </div>
+
+            {/* Address Display */}
+            {address && (
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <div className="p-3 bg-gray-50 rounded-md text-sm text-gray-700">
+                  {address}
+                </div>
+              </div>
+            )}
+
+            {/* Website */}
+            <div className="space-y-2">
+              <Label htmlFor="website">Website (optional)</Label>
+              <Input
+                id="website"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full min-w-0"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add your notes about this place..."
+                rows={3}
+                className="w-full min-w-0 resize-none"
+              />
+            </div>
+
+            {/* Photo Upload */}
+            <div className="space-y-2">
+              <Label>Photo (optional)</Label>
+              <div
+                className={cn(
+                  "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
+                  photoPreview ? "border-gray-300" : "border-gray-200",
+                )}
+                onClick={handlePhotoButtonClick}
+              >
+                <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
+
+                {photoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={photoPreview || "/placeholder.svg"}
+                      alt="Place preview"
+                      className="mx-auto max-h-40 rounded-md"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
+                      <Camera className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">
+                      Click to add a photo
+                      <span className="block text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</span>
+                      <span className="block text-xs mt-1 text-blue-600">📍 Photos with GPS location will be detected automatically</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Show compression status */}
+              {photoFile && (
+                <div className="mt-2">
+                  <CompressionStatus
+                    originalSize={compressionStatus.originalSize || 0}
+                    compressedSize={compressionStatus.compressedSize}
+                    compressionRatio={compressionStatus.compressionRatio}
+                    isCompressing={compressionStatus.isCompressing}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !placeName.trim() || !coordinates} className="w-full sm:w-auto">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding Place...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Add Place
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Duplicate Place Alert Dialog */}
-      <AlertDialog
-        open={duplicateError.show}
-        onOpenChange={(open) => setDuplicateError({ ...duplicateError, show: open })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Place Already in List</AlertDialogTitle>
-            <AlertDialogDescription>
-              {duplicateError.message}. This place might not be visible in your list due to a synchronization issue.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefreshList}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh List
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Map Picker Modal */}
+      {showMapPicker && (
+        <Dialog open={showMapPicker} onOpenChange={setShowMapPicker}>
+          <DialogContent className="sm:max-w-[800px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
+            <DialogHeader>
+              <DialogTitle>Pick Location on Map</DialogTitle>
+            </DialogHeader>
+            <SimpleMapPicker
+              initialLocation={coordinates}
+              onLocationSelect={handleMapLocationSelect}
+              onCancel={() => setShowMapPicker(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
-      {/* Create List Modal */}
-      <CreateListModal
-        isOpen={showCreateListModal}
-        onClose={() => setShowCreateListModal(false)}
-        onListCreated={handleListCreated}
-      />
+      {/* Place Search Modal */}
+      {showPlaceSearch && (
+        <Dialog open={showPlaceSearch} onOpenChange={setShowPlaceSearch}>
+          <DialogContent className="sm:max-w-[600px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
+            <DialogHeader>
+              <DialogTitle>Search for Places</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <PlaceSearch
+                onPlaceSelect={handlePlaceSelect}
+                placeholder="Search for restaurants, shops, landmarks..."
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }

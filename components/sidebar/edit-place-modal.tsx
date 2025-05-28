@@ -23,6 +23,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CompressionStatus } from "@/components/ui/compression-status"
+import { LocationPicker } from "@/components/ui/location-picker"
+import { SimpleMapPicker } from "@/components/ui/simple-map-picker"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface EditPlaceModalProps {
   isOpen: boolean
@@ -32,14 +35,6 @@ interface EditPlaceModalProps {
   listPlaceId?: string | null
   onPlaceUpdated?: (updatedPlace: any) => void
   onPlaceRemoved?: (placeId: string) => void
-}
-
-interface AddressComponents {
-  street: string
-  city: string
-  state: string
-  postalCode: string
-  country: string
 }
 
 export function EditPlaceModal({
@@ -61,19 +56,12 @@ export function EditPlaceModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isEditingAddress, setIsEditingAddress] = useState(false)
+  
+  // Location state
+  const [showMapPicker, setShowMapPicker] = useState(false)
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(
     place?.lat && place?.lng ? { lat: Number.parseFloat(place.lat), lng: Number.parseFloat(place.lng) } : null,
   )
-
-  // Address components state
-  const [addressComponents, setAddressComponents] = useState<AddressComponents>({
-    street: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "",
-  })
 
   // Photo placeholder state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -109,40 +97,15 @@ export function EditPlaceModal({
       console.log("- Website URL:", place.website_url || "")
       console.log("- Notes:", place.notes || "")
       console.log("- List Place ID:", place.listPlaceId || place.list_place_id)
-
-      // Parse address into components (simplified)
-      if (place.address) {
-        const addressParts = place.address.split(",").map((part: string) => part.trim())
-        setAddressComponents({
-          street: addressParts[0] || "",
-          city: addressParts[1] || "",
-          state: addressParts[2] || "",
-          postalCode: addressParts[3] || "",
-          country: addressParts[4] || "",
-        })
-      }
     }
   }, [place])
-
-  // Format address components into a single string
-  const formatFullAddress = (): string => {
-    const components = []
-
-    if (addressComponents.street) components.push(addressComponents.street)
-    if (addressComponents.city) components.push(addressComponents.city)
-    if (addressComponents.state) components.push(addressComponents.state)
-    if (addressComponents.postalCode) components.push(addressComponents.postalCode)
-    if (addressComponents.country) components.push(addressComponents.country)
-
-    return components.join(", ")
-  }
 
   // Geocode the address when components change
   useEffect(() => {
     const geocodeAddress = async () => {
-      if (!isEditingAddress) return
+      if (!showMapPicker) return
 
-      const addressString = formatFullAddress()
+      const addressString = address
       if (!addressString) return
 
       try {
@@ -173,7 +136,7 @@ export function EditPlaceModal({
     // Debounce the geocoding
     const timer = setTimeout(geocodeAddress, 1000)
     return () => clearTimeout(timer)
-  }, [addressComponents, isEditingAddress])
+  }, [address, showMapPicker])
 
   // Validate form
   const validateForm = () => {
@@ -253,7 +216,7 @@ export function EditPlaceModal({
       }
 
       // Use the formatted address from components if editing address
-      const finalAddress = isEditingAddress ? formatFullAddress() : address
+      const finalAddress = address
 
       console.log("=== UPDATE PLACE DEBUG ===")
       console.log("Current form values:")
@@ -551,6 +514,30 @@ export function EditPlaceModal({
     }
   }
 
+  // Handle location change
+  const handleLocationChange = (location: { lat: number; lng: number } | null, newAddress?: string, source?: string) => {
+    setCoordinates(location)
+    if (newAddress) {
+      setAddress(newAddress)
+    }
+    setShowMapPicker(false)
+  }
+
+  // Handle map picker
+  const handleMapLocationSelect = (location: { lat: number; lng: number }) => {
+    setCoordinates(location)
+    setShowMapPicker(false)
+    
+    // Try to get address for the selected coordinates
+    import("@/lib/geolocation-utils").then(({ reverseGeocode }) => {
+      reverseGeocode(location.lat, location.lng).then(newAddress => {
+        if (newAddress) {
+          setAddress(newAddress)
+        }
+      })
+    })
+  }
+
   if (!isOpen) return null
 
   return (
@@ -576,114 +563,28 @@ export function EditPlaceModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>
-                    Address <span className="text-red-500">*</span>
+                    Location
                   </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center h-auto p-1"
-                    onClick={() => {
-                      console.log("Address edit toggle clicked, current state:", isEditingAddress)
-                      setIsEditingAddress(!isEditingAddress)
-                    }}
-                  >
-                    {isEditingAddress ? (
-                      <>
-                        <Check className="h-3 w-3 mr-1" />
-                        Done
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </>
-                    )}
-                  </Button>
                 </div>
 
-                {isEditingAddress ? (
-                  <div className="grid gap-3">
-                    <div>
-                      <Label htmlFor="street" className="text-xs">
-                        Street
-                      </Label>
-                      <Input
-                        id="street"
-                        type="text"
-                        placeholder="Street address"
-                        value={addressComponents.street}
-                        onChange={(e) => setAddressComponents({ ...addressComponents, street: e.target.value })}
-                        className="mt-1 w-full min-w-0"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="city" className="text-xs">
-                          City
-                        </Label>
-                        <Input
-                          id="city"
-                          type="text"
-                          placeholder="City"
-                          value={addressComponents.city}
-                          onChange={(e) => setAddressComponents({ ...addressComponents, city: e.target.value })}
-                          className="mt-1 w-full min-w-0"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="state" className="text-xs">
-                          State/Province
-                        </Label>
-                        <Input
-                          id="state"
-                          type="text"
-                          placeholder="State/Province"
-                          value={addressComponents.state}
-                          onChange={(e) => setAddressComponents({ ...addressComponents, state: e.target.value })}
-                          className="mt-1 w-full min-w-0"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="postalCode" className="text-xs">
-                          Postal Code
-                        </Label>
-                        <Input
-                          id="postalCode"
-                          type="text"
-                          placeholder="Postal/ZIP code"
-                          value={addressComponents.postalCode}
-                          onChange={(e) => setAddressComponents({ ...addressComponents, postalCode: e.target.value })}
-                          className="mt-1 w-full min-w-0"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="country" className="text-xs">
-                          Country
-                        </Label>
-                        <Input
-                          id="country"
-                          type="text"
-                          placeholder="Country"
-                          value={addressComponents.country}
-                          onChange={(e) => setAddressComponents({ ...addressComponents, country: e.target.value })}
-                          className="mt-1 w-full min-w-0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-gray-50 rounded-md mt-1 break-words">
-                    {address || formatFullAddress() || "No address provided"}
-                    {coordinates && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <LocationPicker
+                  value={coordinates}
+                  onLocationChange={handleLocationChange}
+                  photoFile={photoFile}
+                  disabled={isSubmitting}
+                />
+                
+                {/* Quick action button for map picker */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMapPicker(true)}
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  Open Map Picker
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -838,6 +739,22 @@ export function EditPlaceModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Map Picker Modal */}
+      {showMapPicker && (
+        <Dialog open={showMapPicker} onOpenChange={setShowMapPicker}>
+          <DialogContent className="sm:max-w-[800px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
+            <DialogHeader>
+              <DialogTitle>Pick Location on Map</DialogTitle>
+            </DialogHeader>
+            <SimpleMapPicker
+              initialLocation={coordinates}
+              onLocationSelect={handleMapLocationSelect}
+              onCancel={() => setShowMapPicker(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }

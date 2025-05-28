@@ -624,16 +624,11 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       />
 
       {/* Add Place Modal */}
-      {showAddPlaceModal && (
-        <AddPlaceModal
-          listId=""
-          onClose={() => setShowAddPlaceModal(false)}
-          onPlaceAdded={handlePlaceAdded}
-          onRefreshList={() => {
-            setPlacesRefreshTrigger(prev => prev + 1)
-          }}
-        />
-      )}
+      <AddPlaceModal
+        isOpen={showAddPlaceModal}
+        onClose={() => setShowAddPlaceModal(false)}
+        onPlaceAdded={handlePlaceAdded}
+      />
     </>
   )
 }

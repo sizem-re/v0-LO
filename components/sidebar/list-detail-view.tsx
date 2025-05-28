@@ -488,14 +488,12 @@ export function ListDetailView({
       )}
 
       {/* Add Place Modal */}
-      {showAddPlaceModal && (
-        <AddPlaceModal
-          listId={listId}
-          onClose={() => setShowAddPlaceModal(false)}
-          onPlaceAdded={handlePlaceAdded}
-          onRefreshList={fetchListDetails}
-        />
-      )}
+      <AddPlaceModal
+        isOpen={showAddPlaceModal}
+        onClose={() => setShowAddPlaceModal(false)}
+        listId={listId}
+        onPlaceAdded={handlePlaceAdded}
+      />
     </div>
   )
 }
