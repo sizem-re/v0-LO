@@ -554,7 +554,7 @@ export function PlaceDetailView({
             } else {
               // No coordinates available, show default placeholder
               return (
-                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div className="w-full h-48 border border-black/10 bg-gray-100 flex items-center justify-center">
                   <MapPin size={32} className="text-gray-400" />
                 </div>
               )
@@ -563,7 +563,7 @@ export function PlaceDetailView({
             // Validate coordinates
             if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
               return (
-                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div className="w-full h-48 border border-black/10 bg-gray-100 flex items-center justify-center">
                   <MapPin size={32} className="text-gray-400" />
                 </div>
               )
@@ -577,7 +577,7 @@ export function PlaceDetailView({
                 width={400}
                 height={192}
                 zoom={15}
-                className="w-full h-48"
+                className="w-full h-48 rounded-none"
               />
             )
           })()

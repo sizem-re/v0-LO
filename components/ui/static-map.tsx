@@ -73,6 +73,7 @@ export function StaticMap({
         mapDiv.style.height = `${height}px`
         mapDiv.style.overflow = 'hidden'
         mapDiv.style.background = '#f3f4f6'
+        mapDiv.style.border = '1px solid rgba(0, 0, 0, 0.1)'
 
         // Calculate the offset to center the map
         const offsetX = (centerTileX - Math.floor(centerTileX)) * tileSize
@@ -103,6 +104,8 @@ export function StaticMap({
             img.style.height = `${tileSize}px`
             img.style.border = 'none'
             img.style.display = 'block'
+            // Apply grayscale filter to match main map
+            img.style.filter = 'grayscale(100%)'
 
             img.onload = () => {
               loadedTiles++
@@ -132,31 +135,34 @@ export function StaticMap({
           }
         }
 
-        // Add a marker at the center
+        // Add a marker at the center - styled to match main map markers
         const marker = document.createElement('div')
         marker.style.position = 'absolute'
-        marker.style.left = `${width / 2 - 10}px`
-        marker.style.top = `${height / 2 - 20}px`
-        marker.style.width = '20px'
-        marker.style.height = '20px'
-        marker.style.backgroundColor = '#ef4444'
+        marker.style.left = `${width / 2 - 15}px`
+        marker.style.top = `${height / 2 - 30}px`
+        marker.style.width = '30px'
+        marker.style.height = '30px'
+        marker.style.backgroundColor = '#000000'
         marker.style.borderRadius = '50% 50% 50% 0'
         marker.style.border = '2px solid white'
         marker.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
         marker.style.transform = 'rotate(-45deg)'
         marker.style.zIndex = '1000'
+        marker.style.display = 'flex'
+        marker.style.justifyContent = 'center'
+        marker.style.alignItems = 'center'
 
-        // Add a white dot in the center of the marker
-        const markerDot = document.createElement('div')
-        markerDot.style.position = 'absolute'
-        markerDot.style.top = '4px'
-        markerDot.style.left = '4px'
-        markerDot.style.width = '8px'
-        markerDot.style.height = '8px'
-        markerDot.style.backgroundColor = 'white'
-        markerDot.style.borderRadius = '50%'
-        markerDot.style.transform = 'rotate(45deg)'
-        marker.appendChild(markerDot)
+        // Add a white circle inside the marker
+        const markerInner = document.createElement('div')
+        markerInner.style.position = 'absolute'
+        markerInner.style.top = '4px'
+        markerInner.style.left = '4px'
+        markerInner.style.width = '18px'
+        markerInner.style.height = '18px'
+        markerInner.style.backgroundColor = 'white'
+        markerInner.style.borderRadius = '50%'
+        markerInner.style.transform = 'rotate(45deg)'
+        marker.appendChild(markerInner)
 
         mapDiv.appendChild(marker)
         container.appendChild(mapDiv)
@@ -179,7 +185,7 @@ export function StaticMap({
   if (hasError) {
     return (
       <div 
-        className={`bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center ${className}`}
+        className={`border border-black/10 bg-gray-100 flex items-center justify-center ${className}`}
         style={{ width, height }}
       >
         <div className="text-center">
@@ -191,10 +197,10 @@ export function StaticMap({
   }
 
   return (
-    <div className={`relative ${className}`} style={{ width, height }}>
+    <div className={`relative border border-black/10 bg-gray-100 ${className}`} style={{ width, height }}>
       <div ref={containerRef} className="w-full h-full" />
       {isLoading && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
             <p className="text-xs text-gray-500">Loading map...</p>
@@ -204,7 +210,7 @@ export function StaticMap({
       <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
         Map View
       </div>
-      <div className="absolute bottom-2 left-2 bg-white/80 text-gray-700 text-xs px-1 py-0.5 rounded">
+      <div className="absolute bottom-1 left-1 bg-white/90 text-gray-600 text-xs px-1.5 py-0.5 rounded text-[10px]">
         © OpenStreetMap
       </div>
     </div>
