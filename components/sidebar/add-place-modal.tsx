@@ -305,6 +305,25 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
       return false
     }
 
+    // Check for invalid coordinates (0,0 or invalid values)
+    if (coordinates.lat === 0 && coordinates.lng === 0) {
+      toast({
+        title: "Invalid location",
+        description: "The location appears to be invalid (0,0). Please try a different location source.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (Math.abs(coordinates.lat) > 90 || Math.abs(coordinates.lng) > 180) {
+      toast({
+        title: "Invalid coordinates",
+        description: "The coordinates are outside valid ranges. Please check the location.",
+        variant: "destructive",
+      })
+      return false
+    }
+
     if (websiteUrl && !isValidUrl(websiteUrl)) {
       toast({
         title: "Invalid website",
@@ -333,7 +352,19 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    console.log("=== FORM SUBMISSION DEBUG ===")
+    console.log("Form state:", {
+      placeName: placeName.trim(),
+      coordinates,
+      address,
+      locationSource,
+      websiteUrl,
+      notes,
+      photoFile: photoFile ? `${photoFile.name} (${photoFile.size} bytes)` : null
+    })
+
     if (!validateForm() || !dbUser) {
+      console.log("Form validation failed or no user")
       return
     }
 
@@ -352,6 +383,8 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
         name: placeName,
         address,
         coordinates,
+        lat: coordinates?.lat,
+        lng: coordinates?.lng,
         website_url: formattedWebsite,
         notes,
         locationSource

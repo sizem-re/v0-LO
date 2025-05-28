@@ -75,6 +75,15 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
       }
     }
     
+    // Check for 0,0 coordinates which are likely invalid
+    if (lat === 0 && lng === 0) {
+      console.error('GPS coordinates are 0,0 - likely invalid:', { lat, lng })
+      return {
+        location: null,
+        error: 'GPS coordinates appear to be invalid (0,0)'
+      }
+    }
+    
     console.log('Final GPS coordinates:', { lat, lng })
     
     return {
