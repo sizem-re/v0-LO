@@ -382,6 +382,8 @@ export function EditPlaceModal({
         address: finalAddress,
         website_url: formattedWebsite,
         notes,
+        // Preserve image_url from updatedPlaceData if it was updated
+        image_url: updatedPlaceData.image_url || place.image_url,
       }
 
       if (coordinates) {
