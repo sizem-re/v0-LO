@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreateListModal } from "@/components/create-list-modal"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface Place {
   id?: string
@@ -548,6 +548,9 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
         <DialogContent className="sm:max-w-[600px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <DialogHeader>
             <DialogTitle>Add New Place</DialogTitle>
+            <DialogDescription>
+              Add a new place to your collection. You can set the location using photos with GPS, current location, map picker, or manual coordinates.
+            </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
@@ -716,6 +719,9 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
           <DialogContent className="sm:max-w-[800px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
             <DialogHeader>
               <DialogTitle>Pick Location on Map</DialogTitle>
+              <DialogDescription>
+                Click anywhere on the map to select a location for your place.
+              </DialogDescription>
             </DialogHeader>
             <SimpleMapPicker
               initialLocation={coordinates}
@@ -732,6 +738,9 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
           <DialogContent className="sm:max-w-[600px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
             <DialogHeader>
               <DialogTitle>Search for Places</DialogTitle>
+              <DialogDescription>
+                Search for places using Google Places to quickly add them to your list.
+              </DialogDescription>
             </DialogHeader>
             <div className="py-4">
               <PlaceSearch

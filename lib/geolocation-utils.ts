@@ -24,6 +24,13 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     const arrayBuffer = await file.arrayBuffer()
     const tags = ExifReader.load(arrayBuffer)
     
+    console.log('EXIF GPS Debug - Raw GPS tags:', {
+      GPSLatitude: tags.GPSLatitude,
+      GPSLongitude: tags.GPSLongitude,
+      GPSLatitudeRef: tags.GPSLatitudeRef,
+      GPSLongitudeRef: tags.GPSLongitudeRef
+    })
+    
     // Check if GPS data exists
     const gpsLat = tags.GPSLatitude
     const gpsLng = tags.GPSLongitude
@@ -44,6 +51,7 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     try {
       lat = convertGPSToDD(gpsLat)
       lng = convertGPSToDD(gpsLng)
+      console.log('GPS conversion result:', { lat, lng })
     } catch (conversionError) {
       console.error('GPS conversion error:', conversionError)
       return {
@@ -56,13 +64,18 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     if (gpsLatRef && typeof gpsLatRef.value === 'string' && gpsLatRef.value.startsWith('S')) lat = -lat
     if (gpsLngRef && typeof gpsLngRef.value === 'string' && gpsLngRef.value.startsWith('W')) lng = -lng
     
+    console.log('GPS after direction adjustment:', { lat, lng, latRef: gpsLatRef, lngRef: gpsLngRef })
+    
     // Validate coordinates
     if (!isValidCoordinate(lat, lng)) {
+      console.error('Invalid coordinates after conversion:', { lat, lng })
       return {
         location: null,
         error: 'Invalid GPS coordinates in image'
       }
     }
+    
+    console.log('Final GPS coordinates:', { lat, lng })
     
     return {
       location: {
@@ -130,14 +143,18 @@ export function getCurrentLocation(): Promise<LocationData> {
  * Handles multiple formats: arrays, strings, and objects
  */
 function convertGPSToDD(gpsCoordinate: any): number {
+  console.log('Converting GPS coordinate:', JSON.stringify(gpsCoordinate, null, 2))
+  
   // If it's already a number, return it
   if (typeof gpsCoordinate === 'number') {
+    console.log('GPS coordinate is already a number:', gpsCoordinate)
     return gpsCoordinate
   }
   
   // Check if it has a value property (common in EXIF data)
   if (gpsCoordinate && gpsCoordinate.value !== undefined) {
     const value = gpsCoordinate.value
+    console.log('GPS coordinate has value property:', value)
     
     // If value is an array of numbers [degrees, minutes, seconds]
     if (Array.isArray(value) && value.length >= 1) {
@@ -145,16 +162,21 @@ function convertGPSToDD(gpsCoordinate: any): number {
       const minutes = Number(value[1]) || 0
       const seconds = Number(value[2]) || 0
       
-      return degrees + (minutes / 60) + (seconds / 3600)
+      console.log('GPS DMS from array:', { degrees, minutes, seconds })
+      const result = degrees + (minutes / 60) + (seconds / 3600)
+      console.log('GPS decimal result:', result)
+      return result
     }
     
     // If value is already a decimal number
     if (typeof value === 'number') {
+      console.log('GPS value is decimal number:', value)
       return value
     }
     
     // If value is a string, try to parse it
     if (typeof value === 'string') {
+      console.log('GPS value is string, parsing:', value)
       return parseGPSString(value)
     }
   }
@@ -162,6 +184,7 @@ function convertGPSToDD(gpsCoordinate: any): number {
   // Check if it has a description property
   if (gpsCoordinate && gpsCoordinate.description) {
     if (typeof gpsCoordinate.description === 'string') {
+      console.log('GPS has description, parsing:', gpsCoordinate.description)
       return parseGPSString(gpsCoordinate.description)
     }
   }
@@ -172,11 +195,15 @@ function convertGPSToDD(gpsCoordinate: any): number {
     const minutes = Number(gpsCoordinate[1]) || 0
     const seconds = Number(gpsCoordinate[2]) || 0
     
-    return degrees + (minutes / 60) + (seconds / 3600)
+    console.log('GPS DMS from direct array:', { degrees, minutes, seconds })
+    const result = degrees + (minutes / 60) + (seconds / 3600)
+    console.log('GPS decimal result:', result)
+    return result
   }
   
   // If it's a string directly
   if (typeof gpsCoordinate === 'string') {
+    console.log('GPS is direct string, parsing:', gpsCoordinate)
     return parseGPSString(gpsCoordinate)
   }
   

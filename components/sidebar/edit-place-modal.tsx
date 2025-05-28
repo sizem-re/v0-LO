@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Loader2, Camera, Check, Trash2, Link, Edit } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -546,6 +546,9 @@ export function EditPlaceModal({
         <DialogContent className="sm:max-w-[500px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <DialogHeader>
             <DialogTitle>Edit Place</DialogTitle>
+            <DialogDescription>
+              Update the place details, location, or add photos.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdatePlace} className="space-y-4 py-2">
             <div className="grid gap-4">
@@ -746,6 +749,9 @@ export function EditPlaceModal({
           <DialogContent className="sm:max-w-[800px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 md:p-6">
             <DialogHeader>
               <DialogTitle>Pick Location on Map</DialogTitle>
+              <DialogDescription>
+                Click anywhere on the map to update the location for this place.
+              </DialogDescription>
             </DialogHeader>
             <SimpleMapPicker
               initialLocation={coordinates}
