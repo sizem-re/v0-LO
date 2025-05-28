@@ -7,8 +7,8 @@ import { Marker, Popup } from "react-leaflet"
 import { MapBase } from "./map-base"
 import type { Place } from "@/types/place"
 import Link from "next/link"
-import { calculateOptimalMapView } from "@/lib/map-utils"
-import { useMapSize } from "@/hooks/use-map-size"
+import { calculateSimpleMapView } from "@/lib/map-utils"
+import { useMapStrategy } from "@/hooks/use-map-size"
 
 interface PlacesMapProps {
   places: Place[]
@@ -30,20 +30,16 @@ export function PlacesMap({
   interactive = true,
 }: PlacesMapProps) {
   const [activePlace, setActivePlace] = useState<Place | null>(null)
-  const mapSize = useMapSize()
+  const { isMobile } = useMapStrategy()
 
-  // Calculate the center and zoom based on the places using smart calculation
+  // Calculate the center and zoom using simple, reliable calculation
   const { center, zoom } = useMemo(() => {
     if (places.length === 0) {
       return { center: [40.7128, -74.006] as [number, number], zoom: 13 }
     }
 
-    // Use the smart calculation that considers aspect ratio
-    const containerWidth = mapSize.width || 800
-    const containerHeight = typeof height === 'string' ? 500 : height
-    
-    return calculateOptimalMapView(places, containerWidth, containerHeight)
-  }, [places, mapSize.width, height])
+    return calculateSimpleMapView(places, isMobile)
+  }, [places, isMobile])
 
   const handleMarkerClick = (place: Place) => {
     setActivePlace(place)

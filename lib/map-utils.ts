@@ -257,7 +257,7 @@ export function calculateOptimalMapView(
   places: Array<{ coordinates: { lat: number; lng: number } }>,
   containerWidth: number,
   containerHeight: number,
-  minZoom: number = 2,
+  minZoom: number = 3,
   maxZoom: number = 16
 ): { center: [number, number]; zoom: number } {
   if (places.length === 0) {
@@ -287,33 +287,24 @@ export function calculateOptimalMapView(
   const latSpan = maxLat - minLat
   const lngSpan = maxLng - minLng
   
-  // Add padding (20% on each side)
-  const paddedLatSpan = latSpan * 1.4
-  const paddedLngSpan = lngSpan * 1.4
+  // Use more conservative padding (10% on each side instead of 20%)
+  const paddedLatSpan = Math.max(latSpan * 1.2, 0.01) // Minimum span to prevent over-zooming
+  const paddedLngSpan = Math.max(lngSpan * 1.2, 0.01)
   
-  // Calculate container aspect ratio
-  const containerAspectRatio = containerWidth / containerHeight
+  // Calculate zoom based on the larger span, but be more conservative
+  const latZoom = Math.log2(180 / paddedLatSpan) // Use 180 instead of 360 for more conservative zoom
+  const lngZoom = Math.log2(360 / paddedLngSpan)
   
-  // Calculate the aspect ratio needed for the data
-  const dataAspectRatio = paddedLngSpan / paddedLatSpan
+  // Take the more conservative (lower) zoom and apply reasonable bounds
+  let zoom = Math.floor(Math.min(latZoom, lngZoom))
+  zoom = Math.max(minZoom, Math.min(maxZoom, zoom))
   
-  // Adjust spans to match container aspect ratio
-  let finalLatSpan = paddedLatSpan
-  let finalLngSpan = paddedLngSpan
-  
-  if (dataAspectRatio > containerAspectRatio) {
-    // Data is wider than container, expand lat span
-    finalLatSpan = paddedLngSpan / containerAspectRatio
-  } else {
-    // Data is taller than container, expand lng span
-    finalLngSpan = paddedLatSpan * containerAspectRatio
-  }
-  
-  // Calculate zoom level based on the larger span
-  // This is a rough approximation - you may need to adjust the constants
-  const latZoom = Math.log2(360 / finalLatSpan)
-  const lngZoom = Math.log2(360 / finalLngSpan)
-  const zoom = Math.max(minZoom, Math.min(maxZoom, Math.floor(Math.min(latZoom, lngZoom))))
+  // Apply additional constraints based on data spread
+  const maxDiff = Math.max(latSpan, lngSpan)
+  if (maxDiff > 10) zoom = Math.min(zoom, 5)  // Very spread out data
+  else if (maxDiff > 5) zoom = Math.min(zoom, 7)   // Moderately spread out
+  else if (maxDiff > 1) zoom = Math.min(zoom, 10)  // Regional spread
+  else if (maxDiff > 0.1) zoom = Math.min(zoom, 13) // City-level spread
   
   return {
     center: [centerLat, centerLng],
@@ -337,21 +328,35 @@ export function calculateSmartFitBoundsOptions(
   // Calculate container aspect ratio
   const containerAspectRatio = containerWidth / containerHeight
   
-  // Adjust padding based on aspect ratio mismatch
-  let paddingX = 50
-  let paddingY = 50
+  // Use more conservative padding adjustments
+  let paddingX = 40
+  let paddingY = 40
   
-  if (boundsAspectRatio > containerAspectRatio) {
-    // Bounds are wider than container, reduce vertical padding
-    paddingY = Math.max(20, 50 * (boundsAspectRatio / containerAspectRatio))
-  } else {
-    // Bounds are taller than container, reduce horizontal padding
-    paddingX = Math.max(20, 50 * (containerAspectRatio / boundsAspectRatio))
+  const aspectRatioDiff = Math.abs(boundsAspectRatio - containerAspectRatio)
+  
+  // Only adjust padding if there's a significant aspect ratio mismatch
+  if (aspectRatioDiff > 0.5) {
+    if (boundsAspectRatio > containerAspectRatio * 1.5) {
+      // Bounds are much wider than container, reduce vertical padding slightly
+      paddingY = Math.max(20, paddingY * 0.7)
+    } else if (containerAspectRatio > boundsAspectRatio * 1.5) {
+      // Container is much wider than bounds, reduce horizontal padding slightly
+      paddingX = Math.max(20, paddingX * 0.7)
+    }
   }
+  
+  // Calculate a reasonable max zoom based on bounds size
+  const boundsSize = Math.max(boundsWidth, boundsHeight)
+  let maxZoom = 16
+  
+  if (boundsSize > 10) maxZoom = 6      // Very large area
+  else if (boundsSize > 5) maxZoom = 8  // Large area
+  else if (boundsSize > 1) maxZoom = 12 // Medium area
+  else if (boundsSize > 0.1) maxZoom = 15 // Small area
   
   return {
     padding: [paddingY, paddingX],
-    maxZoom: 16
+    maxZoom
   }
 }
 
@@ -395,5 +400,79 @@ export function calculateBoundsWithMinZoom(
       padding: [30, 30],
       maxZoom: Math.min(maxZoom, minZoom + 6) // Prevent too much zoom out
     }
+  }
+}
+
+/**
+ * Simple and reliable map view calculation (fallback approach)
+ */
+export function calculateSimpleMapView(
+  places: Array<{ coordinates: { lat: number; lng: number } }>,
+  isMobile: boolean = false
+): { center: [number, number]; zoom: number } {
+  if (places.length === 0) {
+    return { center: [40.7128, -74.006], zoom: 13 }
+  }
+
+  if (places.length === 1) {
+    return {
+      center: [places[0].coordinates.lat, places[0].coordinates.lng],
+      zoom: 15
+    }
+  }
+
+  // Calculate bounds
+  const lats = places.map(place => place.coordinates.lat)
+  const lngs = places.map(place => place.coordinates.lng)
+  
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  
+  const centerLat = (minLat + maxLat) / 2
+  const centerLng = (minLng + maxLng) / 2
+  
+  // Calculate the span of coordinates
+  const latSpan = maxLat - minLat
+  const lngSpan = maxLng - minLng
+  const maxSpan = Math.max(latSpan, lngSpan)
+  
+  // Simple zoom calculation based on span
+  let zoom = 13
+  if (maxSpan > 20) zoom = 4      // Continental
+  else if (maxSpan > 10) zoom = 5  // Multi-country
+  else if (maxSpan > 5) zoom = 6   // Country
+  else if (maxSpan > 2) zoom = 8   // Large region
+  else if (maxSpan > 1) zoom = 9   // Region
+  else if (maxSpan > 0.5) zoom = 10 // Large city
+  else if (maxSpan > 0.2) zoom = 11 // City
+  else if (maxSpan > 0.1) zoom = 12 // City area
+  else if (maxSpan > 0.05) zoom = 13 // Neighborhood
+  else zoom = 14 // Local area
+  
+  // Adjust for mobile (slightly more zoomed out for better overview)
+  if (isMobile && zoom > 10) {
+    zoom = Math.max(8, zoom - 1)
+  }
+  
+  return {
+    center: [centerLat, centerLng],
+    zoom
+  }
+}
+
+/**
+ * Simple bounds fitting with conservative padding
+ */
+export function calculateSimpleFitBoundsOptions(
+  isMobile: boolean = false
+): { padding: [number, number]; maxZoom: number } {
+  const padding = isMobile ? 30 : 50
+  const maxZoom = isMobile ? 14 : 16
+  
+  return {
+    padding: [padding, padding],
+    maxZoom
   }
 } 

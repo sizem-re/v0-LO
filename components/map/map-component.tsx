@@ -5,7 +5,7 @@ import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { useMap } from "react-leaflet"
 import type { Place } from "@/types/place"
-import { calculateSmartFitBoundsOptions } from "@/lib/map-utils"
+import { calculateSimpleFitBoundsOptions } from "@/lib/map-utils"
 
 // Fix for Leaflet marker icons
 const fixLeafletIcons = () => {
@@ -42,15 +42,11 @@ function MapController({
         ]),
       )
 
-      // Get container dimensions
-      const container = map.getContainer()
-      const containerWidth = container.offsetWidth
-      const containerHeight = container.offsetHeight
+      // Check if mobile and calculate simple fit bounds options
+      const isMobile = window.innerWidth < 768
+      const fitOptions = calculateSimpleFitBoundsOptions(isMobile)
       
-      // Calculate smart fit bounds options to avoid grey bars
-      const fitOptions = calculateSmartFitBoundsOptions(bounds, containerWidth, containerHeight)
-      
-      // Fit map to bounds with smart padding
+      // Fit map to bounds with simple padding
       map.fitBounds(bounds, fitOptions)
     }
   }, [map, places])
@@ -159,13 +155,9 @@ export default function MapComponent({ places, height = "100%", onPlaceSelect }:
 
     // Fit bounds if we have valid coordinates
     if (hasValidCoordinates && bounds.isValid()) {
-      // Get container dimensions
-      const container = map.getContainer()
-      const containerWidth = container.offsetWidth
-      const containerHeight = container.offsetHeight
-      
-      // Calculate smart fit bounds options to avoid grey bars
-      const fitOptions = calculateSmartFitBoundsOptions(bounds, containerWidth, containerHeight)
+      // Check if mobile and calculate simple fit bounds options
+      const isMobile = window.innerWidth < 768
+      const fitOptions = calculateSimpleFitBoundsOptions(isMobile)
       
       map.fitBounds(bounds, fitOptions)
     }
