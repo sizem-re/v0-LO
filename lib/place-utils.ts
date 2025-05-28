@@ -61,13 +61,19 @@ export function transformDatabasePlaces(data: DatabasePlace[]): Place[] {
 /**
  * Fetch places from the API and transform them
  */
-export async function fetchPlaces(options: { limit?: number } = {}): Promise<Place[]> {
-  const { limit } = options
-  let url = "/api/places"
+export async function fetchPlaces(options: { limit?: number; userId?: string } = {}): Promise<Place[]> {
+  const { limit, userId } = options
+  const params = new URLSearchParams()
   
   if (limit) {
-    url += `?limit=${limit}`
+    params.append("limit", limit.toString())
   }
+  
+  if (userId) {
+    params.append("userId", userId)
+  }
+  
+  const url = `/api/places${params.toString() ? `?${params.toString()}` : ""}`
 
   const response = await fetch(url)
   if (!response.ok) {

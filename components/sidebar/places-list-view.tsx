@@ -5,6 +5,7 @@ import { Search, MapPin, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/lib/auth-context"
 
 interface Place {
   id: string
@@ -29,13 +30,14 @@ interface PlacesListViewProps {
 }
 
 export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace, refreshTrigger }: PlacesListViewProps) {
+  const { dbUser } = useAuth()
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPlaces()
-  }, [])
+  }, [dbUser?.id]) // Re-fetch when user authentication changes
 
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
@@ -48,7 +50,15 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
       setLoading(true)
       setError(null)
 
-      const response = await fetch("/api/places")
+      // Build URL with user ID if available
+      const params = new URLSearchParams()
+      if (dbUser?.id) {
+        params.append("userId", dbUser.id)
+      }
+      
+      const url = `/api/places${params.toString() ? `?${params.toString()}` : ""}`
+      const response = await fetch(url)
+      
       if (!response.ok) {
         throw new Error("Failed to fetch places")
       }

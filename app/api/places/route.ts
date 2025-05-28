@@ -9,6 +9,60 @@ export async function GET(request: NextRequest) {
     const name = searchParams.get("name")
     const search = searchParams.get("search")
     const limit = searchParams.get("limit") || "100"
+    const includePrivate = searchParams.get("includePrivate") === "true"
+    const userId = searchParams.get("userId") // User ID to include their private lists
+
+    // Get place IDs that should be visible based on list visibility and user context
+    let visiblePlaceIds: string[] = []
+    
+    if (!includePrivate) {
+      // Get places from public and community lists
+      const { data: publicListPlaces, error: publicListPlacesError } = await supabaseAdmin
+        .from("list_places")
+        .select(`
+          place_id,
+          lists!inner(visibility, owner_id)
+        `)
+        .in("lists.visibility", ["public", "community"])
+
+      if (publicListPlacesError) {
+        console.error("Error fetching public list places:", publicListPlacesError)
+        return NextResponse.json({ error: publicListPlacesError.message }, { status: 500 })
+      }
+
+      // Extract place IDs from public/community lists
+      const publicPlaceIds = publicListPlaces.map(item => item.place_id as string)
+
+      // If a user ID is provided, also include places from their private lists
+      if (userId) {
+        const { data: userPrivateListPlaces, error: userPrivateListPlacesError } = await supabaseAdmin
+          .from("list_places")
+          .select(`
+            place_id,
+            lists!inner(visibility, owner_id)
+          `)
+          .eq("lists.visibility", "private")
+          .eq("lists.owner_id", userId)
+
+        if (userPrivateListPlacesError) {
+          console.error("Error fetching user private list places:", userPrivateListPlacesError)
+          return NextResponse.json({ error: userPrivateListPlacesError.message }, { status: 500 })
+        }
+
+        const userPrivatePlaceIds = userPrivateListPlaces.map(item => item.place_id as string)
+        
+        // Combine public and user's private place IDs
+        visiblePlaceIds = [...new Set([...publicPlaceIds, ...userPrivatePlaceIds])]
+      } else {
+        // Only public/community places
+        visiblePlaceIds = [...new Set(publicPlaceIds)]
+      }
+      
+      // If no places are visible, return empty array
+      if (visiblePlaceIds.length === 0) {
+        return NextResponse.json([])
+      }
+    }
 
     let query = supabaseAdmin
       .from("places")
@@ -23,6 +77,11 @@ export async function GET(request: NextRequest) {
         )
       `)
       .order("created_at", { ascending: false })
+
+    // Filter by visible place IDs (only if not including all private places)
+    if (!includePrivate && visiblePlaceIds.length > 0) {
+      query = query.in("id", visiblePlaceIds)
+    }
 
     // Filter by coordinates if provided
     if (lat && lng) {

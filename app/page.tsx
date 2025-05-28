@@ -7,6 +7,7 @@ import { SidebarWrapper } from "@/components/sidebar/sidebar-wrapper"
 import { FarcasterReady } from "@/components/farcaster-ready"
 import type { Place } from "@/types/place"
 import { fetchPlaces } from "@/lib/place-utils"
+import { useAuth } from "@/lib/auth-context"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -20,6 +21,7 @@ const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
 
 function MapPageContent() {
   const searchParams = useSearchParams()
+  const { dbUser } = useAuth()
   const [places, setPlaces] = useState<Place[]>([])
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,7 +59,10 @@ function MapPageContent() {
         setIsLoading(true)
         setError(null)
 
-        const placesData = await fetchPlaces()
+        // Pass user ID to include their private list places if authenticated
+        const placesData = await fetchPlaces({ 
+          userId: dbUser?.id 
+        })
         console.log(`Loaded ${placesData.length} places from database`)
         setPlaces(placesData)
       } catch (err) {
@@ -70,7 +75,7 @@ function MapPageContent() {
     }
 
     loadPlaces()
-  }, [])
+  }, [dbUser?.id]) // Re-fetch when user authentication changes
 
   // Don't render until client-side to avoid hydration issues
   if (!isMounted) {
