@@ -1,6 +1,54 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-client"
 
+// GET /api/list-places - Find list-place relationship
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const listId = searchParams.get("listId")
+    const placeId = searchParams.get("placeId")
+    const id = searchParams.get("id")
+
+    // If we have an ID, get that specific list-place entry
+    if (id) {
+      const { data, error } = await supabaseAdmin
+        .from("list_places")
+        .select("*")
+        .eq("id", id)
+        .single()
+
+      if (error) {
+        console.error("Error fetching list-place by ID:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json(data)
+    }
+
+    // If we have listId and placeId, find the relationship
+    if (listId && placeId) {
+      const { data, error } = await supabaseAdmin
+        .from("list_places")
+        .select("*")
+        .eq("list_id", listId)
+        .eq("place_id", placeId)
+        .maybeSingle()
+
+      if (error) {
+        console.error("Error fetching list-place relationship:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json(data)
+    }
+
+    return NextResponse.json({ error: "Either 'id' or both 'listId' and 'placeId' are required" }, { status: 400 })
+  } catch (error) {
+    console.error("Error in GET /api/list-places:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 // POST /api/list-places - Add a place to a list
 export async function POST(request: NextRequest) {
   try {

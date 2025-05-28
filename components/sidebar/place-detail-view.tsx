@@ -161,7 +161,31 @@ export function PlaceDetailView({
           // Set list place ID for remove functionality
           if (debugData.listPlace?.id) {
             setListPlaceId(debugData.listPlace.id)
+            console.log("Set listPlaceId from debug data:", debugData.listPlace.id)
           }
+        }
+      }
+
+      // If we still don't have a listPlaceId but we have place data with list_place_id, use that
+      if (!listPlaceId && currentPlace.list_place_id) {
+        setListPlaceId(currentPlace.list_place_id)
+        console.log("Set listPlaceId from place data:", currentPlace.list_place_id)
+      }
+
+      // If we have a listId but no listPlaceId, try to find it via direct API call
+      if (listId && !listPlaceId && !debugData?.listPlace?.id) {
+        try {
+          console.log("Attempting direct lookup for list_place relationship...")
+          const listPlaceResponse = await fetch(`/api/list-places?listId=${listId}&placeId=${currentPlace.id}`)
+          if (listPlaceResponse.ok) {
+            const listPlaceData = await listPlaceResponse.json()
+            if (listPlaceData?.id) {
+              setListPlaceId(listPlaceData.id)
+              console.log("Set listPlaceId from direct lookup:", listPlaceData.id)
+            }
+          }
+        } catch (error) {
+          console.error("Error in direct list_place lookup:", error)
         }
       }
       
@@ -260,7 +284,7 @@ export function PlaceDetailView({
     } finally {
       setIsLoadingLists(false)
     }
-  }, [currentPlace?.id, listId])
+  }, [currentPlace?.id, listId, listPlaceId])
 
   useEffect(() => {
     fetchAllData()

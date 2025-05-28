@@ -490,11 +490,31 @@ export function EditPlaceModal({
 
       console.log(`Removing place with list_places ID: ${listPlaceId}`)
 
-      if (!listPlaceId) {
-        throw new Error("List place ID is missing")
+      // If we don't have listPlaceId, try to find it
+      let actualListPlaceId = listPlaceId
+      
+      if (!actualListPlaceId && listId && place?.id) {
+        console.log("listPlaceId is null, attempting to find it...")
+        
+        try {
+          const response = await fetch(`/api/list-places?listId=${listId}&placeId=${place.id}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data?.id) {
+              actualListPlaceId = data.id
+              console.log("Found listPlaceId via API lookup:", actualListPlaceId)
+            }
+          }
+        } catch (error) {
+          console.error("Error looking up listPlaceId:", error)
+        }
       }
 
-      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
+      if (!actualListPlaceId) {
+        throw new Error("Cannot remove place: Unable to find the relationship between this place and list. The place may have already been removed or there may be a data inconsistency.")
+      }
+
+      const response = await fetch(`/api/list-places?id=${actualListPlaceId}`, {
         method: "DELETE",
       })
 
