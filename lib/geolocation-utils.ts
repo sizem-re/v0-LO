@@ -24,6 +24,13 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     const arrayBuffer = await file.arrayBuffer()
     const tags = ExifReader.load(arrayBuffer)
     
+    console.log('EXIF GPS Debug - All GPS tags:', {
+      GPSLatitude: tags.GPSLatitude,
+      GPSLongitude: tags.GPSLongitude,
+      GPSLatitudeRef: tags.GPSLatitudeRef,
+      GPSLongitudeRef: tags.GPSLongitudeRef
+    })
+    
     // Check if GPS data exists
     const gpsLat = tags.GPSLatitude
     const gpsLng = tags.GPSLongitude
@@ -38,8 +45,19 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     }
     
     // Convert GPS coordinates to decimal degrees
-    let lat = convertDMSToDD(gpsLat.description)
-    let lng = convertDMSToDD(gpsLng.description)
+    let lat: number
+    let lng: number
+    
+    try {
+      lat = convertGPSToDD(gpsLat)
+      lng = convertGPSToDD(gpsLng)
+    } catch (conversionError) {
+      console.error('GPS conversion error:', conversionError)
+      return {
+        location: null,
+        error: 'Failed to parse GPS coordinates from image'
+      }
+    }
     
     // Apply direction references (N/S for latitude, E/W for longitude)
     if (gpsLatRef && typeof gpsLatRef.value === 'string' && gpsLatRef.value.startsWith('S')) lat = -lat
@@ -52,6 +70,8 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
         error: 'Invalid GPS coordinates in image'
       }
     }
+    
+    console.log('Successfully extracted GPS coordinates:', { lat, lng })
     
     return {
       location: {
@@ -115,11 +135,115 @@ export function getCurrentLocation(): Promise<LocationData> {
 }
 
 /**
+ * Convert GPS coordinate from EXIF data to decimal degrees
+ * Handles multiple formats: arrays, strings, and objects
+ */
+function convertGPSToDD(gpsCoordinate: any): number {
+  console.log('Converting GPS coordinate:', gpsCoordinate)
+  
+  // If it's already a number, return it
+  if (typeof gpsCoordinate === 'number') {
+    return gpsCoordinate
+  }
+  
+  // Check if it has a value property (common in EXIF data)
+  if (gpsCoordinate && gpsCoordinate.value !== undefined) {
+    const value = gpsCoordinate.value
+    
+    // If value is an array of numbers [degrees, minutes, seconds]
+    if (Array.isArray(value) && value.length >= 1) {
+      const degrees = Number(value[0]) || 0
+      const minutes = Number(value[1]) || 0
+      const seconds = Number(value[2]) || 0
+      
+      return degrees + (minutes / 60) + (seconds / 3600)
+    }
+    
+    // If value is already a decimal number
+    if (typeof value === 'number') {
+      return value
+    }
+    
+    // If value is a string, try to parse it
+    if (typeof value === 'string') {
+      return parseGPSString(value)
+    }
+  }
+  
+  // Check if it has a description property
+  if (gpsCoordinate && gpsCoordinate.description) {
+    if (typeof gpsCoordinate.description === 'string') {
+      return parseGPSString(gpsCoordinate.description)
+    }
+  }
+  
+  // If it's an array directly
+  if (Array.isArray(gpsCoordinate) && gpsCoordinate.length >= 1) {
+    const degrees = Number(gpsCoordinate[0]) || 0
+    const minutes = Number(gpsCoordinate[1]) || 0
+    const seconds = Number(gpsCoordinate[2]) || 0
+    
+    return degrees + (minutes / 60) + (seconds / 3600)
+  }
+  
+  // If it's a string directly
+  if (typeof gpsCoordinate === 'string') {
+    return parseGPSString(gpsCoordinate)
+  }
+  
+  throw new Error(`Unsupported GPS coordinate format: ${JSON.stringify(gpsCoordinate)}`)
+}
+
+/**
+ * Parse GPS coordinate string in various formats
+ */
+function parseGPSString(str: string): number {
+  if (!str || typeof str !== 'string') {
+    throw new Error('GPS string is empty or not a string')
+  }
+  
+  // Try to parse as decimal degrees first
+  const decimal = parseFloat(str)
+  if (!isNaN(decimal)) {
+    return decimal
+  }
+  
+  // Try to parse DMS format: "40° 42' 51.37" N" or "40 42 51.37"
+  const dmsRegex = /(\d+(?:\.\d+)?)[°\s]+(\d+(?:\.\d+)?)['\s]*(\d+(?:\.\d+)?)?/
+  const match = str.match(dmsRegex)
+  
+  if (match) {
+    const degrees = parseFloat(match[1]) || 0
+    const minutes = parseFloat(match[2]) || 0
+    const seconds = parseFloat(match[3]) || 0
+    
+    return degrees + (minutes / 60) + (seconds / 3600)
+  }
+  
+  // Try space-separated format: "40 42 51.37"
+  const parts = str.trim().split(/\s+/)
+  if (parts.length >= 1) {
+    const degrees = parseFloat(parts[0]) || 0
+    const minutes = parseFloat(parts[1]) || 0
+    const seconds = parseFloat(parts[2]) || 0
+    
+    return degrees + (minutes / 60) + (seconds / 3600)
+  }
+  
+  throw new Error(`Unable to parse GPS string: "${str}"`)
+}
+
+/**
  * Convert DMS (Degrees, Minutes, Seconds) to Decimal Degrees
+ * @deprecated Use convertGPSToDD instead for better format support
  */
 function convertDMSToDD(dms: string): number {
+  if (!dms || typeof dms !== 'string') {
+    throw new Error('DMS string is empty or not a string')
+  }
+  
   const parts = dms.split(' ')
-  const degrees = parseFloat(parts[0])
+  const degrees = parseFloat(parts[0]) || 0
   const minutes = parseFloat(parts[2]) || 0
   const seconds = parseFloat(parts[4]) || 0
   
