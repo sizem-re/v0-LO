@@ -76,7 +76,7 @@ export function EditPlaceModal({
 
   // Photo placeholder state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(place?.image || null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(place?.image_url || null)
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -91,7 +91,7 @@ export function EditPlaceModal({
       setAddress(place.address || "")
       setWebsiteUrl(place.website_url || "")
       setNotes(place.notes || "")
-      setPhotoPreview(place.image || null)
+      setPhotoPreview(place.image_url || null)
       setCoordinates(
         place.lat && place.lng ? { lat: Number.parseFloat(place.lat), lng: Number.parseFloat(place.lng) } : null,
       )
@@ -344,7 +344,7 @@ export function EditPlaceModal({
             console.log("Photo uploaded successfully:", uploadResult.imageUrl)
             
             // Update the place object with the new image URL
-            updatedPlaceData.image = uploadResult.imageUrl
+            updatedPlaceData.image_url = uploadResult.imageUrl
             
             toast({
               title: "Photo uploaded",
