@@ -42,16 +42,8 @@ export async function deletePlaceImage(imageUrl: string): Promise<boolean> {
     // Extract file path from URL
     const url = new URL(imageUrl)
     const pathParts = url.pathname.split('/')
-    const bucketIndex = pathParts.indexOf(STORAGE_BUCKET)
-    
-    if (bucketIndex === -1) {
-      console.error('Invalid image URL format')
-      return false
-    }
+    const filePath = pathParts.slice(pathParts.indexOf('places')).join('/')
 
-    const filePath = pathParts.slice(bucketIndex + 1).join('/')
-
-    // Delete file from storage
     const { error } = await supabaseAdmin.storage
       .from(STORAGE_BUCKET)
       .remove([filePath])
@@ -68,57 +60,27 @@ export async function deletePlaceImage(imageUrl: string): Promise<boolean> {
   }
 }
 
-// Helper function to validate image file
+// Validation function for image files
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  // Check file type
+  const maxSize = 5 * 1024 * 1024 // 5MB
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+
   if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'Please upload a valid image file (JPEG, PNG, or WebP)' }
+    return {
+      valid: false,
+      error: 'Please select a JPEG, PNG, or WebP image file.'
+    }
   }
 
-  // Check file size (5MB limit)
-  const maxSize = 5 * 1024 * 1024 // 5MB in bytes
   if (file.size > maxSize) {
-    return { valid: false, error: 'Image must be smaller than 5MB' }
+    return {
+      valid: false,
+      error: 'Image file size must be less than 5MB.'
+    }
   }
 
   return { valid: true }
 }
 
-// Helper function to compress image if needed (CLIENT-SIDE ONLY)
-// Note: This function uses browser APIs and should NOT be used in server-side API routes
-export function compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    const img = new Image()
-
-    img.onload = () => {
-      // Calculate new dimensions
-      const ratio = Math.min(maxWidth / img.width, maxWidth / img.height)
-      const newWidth = img.width * ratio
-      const newHeight = img.height * ratio
-
-      // Set canvas dimensions
-      canvas.width = newWidth
-      canvas.height = newHeight
-
-      // Draw and compress
-      ctx?.drawImage(img, 0, 0, newWidth, newHeight)
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const compressedFile = new File([blob], file.name, {
-            type: file.type,
-            lastModified: Date.now()
-          })
-          resolve(compressedFile)
-        } else {
-          resolve(file) // Return original if compression fails
-        }
-      }, file.type, quality)
-    }
-
-    img.src = URL.createObjectURL(file)
-  })
-} 
+// Note: For image compression, use the client-side utilities in @/lib/image-compression
+// Those functions use browser APIs and should only be called in the browser, not in API routes. 

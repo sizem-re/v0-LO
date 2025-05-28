@@ -533,10 +533,46 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
         // Handle photo upload if a file was selected
         if (photoFile && successfulAdds.length > 0) {
           try {
+            // Import and use the compression hook
+            const { compressImage, shouldCompress } = await import('@/lib/image-compression')
+            
+            console.log("Processing photo for place:", placeId)
+            
+            let fileToUpload = photoFile
+            
+            // Compress if needed
+            if (shouldCompress(photoFile, 500)) {
+              console.log("Compressing image...")
+              try {
+                const compressionResult = await compressImage(photoFile, {
+                  maxWidth: 1200,
+                  maxHeight: 1200,
+                  quality: 0.8,
+                  maxSizeKB: 500
+                })
+                
+                fileToUpload = compressionResult.file
+                
+                console.log('Image compression result:', {
+                  originalSize: `${Math.round(compressionResult.originalSize / 1024)}KB`,
+                  compressedSize: `${Math.round(compressionResult.compressedSize / 1024)}KB`,
+                  compressionRatio: `${compressionResult.compressionRatio}%`
+                })
+                
+                toast({
+                  title: "Image compressed",
+                  description: `Reduced size by ${compressionResult.compressionRatio}% before uploading`,
+                })
+              } catch (compressionError) {
+                console.warn('Compression failed, uploading original:', compressionError)
+                // Continue with original file
+              }
+            }
+            
             console.log("Uploading photo for place:", placeId)
             
             const formData = new FormData()
-            formData.append('image', photoFile)
+            formData.append('image', fileToUpload)
             
             // Try the original endpoint first, then fallback to the simpler one
             let uploadResponse = await fetch(`/api/places/${placeId}/upload-image`, {

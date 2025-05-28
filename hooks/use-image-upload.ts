@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react'
-import { validateImageFile, compressImage } from '@/lib/supabase-storage'
+import { validateImageFile } from '@/lib/supabase-storage'
+import { compressImage, shouldCompress, type CompressionOptions } from '@/lib/image-compression'
 
 interface UseImageUploadOptions {
   onSuccess?: (imageUrl: string) => void
   onError?: (error: string) => void
-  autoCompress?: boolean
-  maxWidth?: number
-  quality?: number
+  onCompressionProgress?: (progress: { stage: string; originalSize: number; compressedSize?: number }) => void
+  compression?: CompressionOptions
 }
 
 interface UseImageUploadReturn {
@@ -20,9 +20,13 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
   const {
     onSuccess,
     onError,
-    autoCompress = true,
-    maxWidth = 1200,
-    quality = 0.8
+    onCompressionProgress,
+    compression = {
+      maxWidth: 1200,
+      maxHeight: 1200,
+      quality: 0.8,
+      maxSizeKB: 500
+    }
   } = options
 
   const [isUploading, setIsUploading] = useState(false)
@@ -44,12 +48,42 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
         return null
       }
 
-      setUploadProgress(25)
+      setUploadProgress(10)
 
-      // Compress the image if needed and enabled
+      // Check if compression is needed
       let processedFile = file
-      if (autoCompress && file.size > 1024 * 1024) { // 1MB threshold
-        processedFile = await compressImage(file, maxWidth, quality)
+      if (shouldCompress(file, compression.maxSizeKB)) {
+        onCompressionProgress?.({ 
+          stage: 'Compressing image...', 
+          originalSize: file.size 
+        })
+        
+        setUploadProgress(25)
+
+        try {
+          const compressionResult = await compressImage(file, compression)
+          processedFile = compressionResult.file
+          
+          onCompressionProgress?.({ 
+            stage: `Compressed ${compressionResult.compressionRatio}%`, 
+            originalSize: compressionResult.originalSize,
+            compressedSize: compressionResult.compressedSize
+          })
+          
+          console.log('Image compression result:', {
+            originalSize: `${Math.round(compressionResult.originalSize / 1024)}KB`,
+            compressedSize: `${Math.round(compressionResult.compressedSize / 1024)}KB`,
+            compressionRatio: `${compressionResult.compressionRatio}%`
+          })
+        } catch (compressionError) {
+          console.warn('Compression failed, uploading original:', compressionError)
+          // Continue with original file if compression fails
+        }
+      } else {
+        onCompressionProgress?.({ 
+          stage: 'No compression needed', 
+          originalSize: file.size 
+        })
       }
 
       setUploadProgress(50)
@@ -60,18 +94,27 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
 
       setUploadProgress(75)
 
-      // Upload to API
-      const response = await fetch(`/api/places/${placeId}/upload-image`, {
+      // Upload to API with fallback endpoints
+      let uploadResponse = await fetch(`/api/places/${placeId}/upload-image`, {
         method: 'POST',
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
+      // If 404, try the alternative endpoint
+      if (uploadResponse.status === 404) {
+        console.log("Original endpoint not found, trying alternative...")
+        uploadResponse = await fetch(`/api/upload-place-image?placeId=${placeId}`, {
+          method: 'POST',
+          body: formData,
+        })
+      }
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
         throw new Error(errorData.error || 'Upload failed')
       }
 
-      const result = await response.json()
+      const result = await uploadResponse.json()
       setUploadProgress(100)
 
       onSuccess?.(result.imageUrl)
@@ -83,9 +126,9 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
       return null
     } finally {
       setIsUploading(false)
-      setUploadProgress(0)
+      setTimeout(() => setUploadProgress(0), 1000) // Reset progress after 1 second
     }
-  }, [validateFile, onSuccess, onError, autoCompress, maxWidth, quality])
+  }, [validateFile, onSuccess, onError, onCompressionProgress, compression])
 
   return {
     isUploading,
