@@ -61,10 +61,55 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     }
     
     // Apply direction references (N/S for latitude, E/W for longitude)
-    if (gpsLatRef && typeof gpsLatRef.value === 'string' && gpsLatRef.value.startsWith('S')) lat = -lat
-    if (gpsLngRef && typeof gpsLngRef.value === 'string' && gpsLngRef.value.startsWith('W')) lng = -lng
+    console.log('Direction references debug:', {
+      gpsLatRef,
+      gpsLngRef,
+      latRefValue: gpsLatRef?.value,
+      lngRefValue: gpsLngRef?.value,
+      latRefDescription: gpsLatRef?.description,
+      lngRefDescription: gpsLngRef?.description
+    })
     
-    console.log('GPS after direction adjustment:', { lat, lng, latRef: gpsLatRef, lngRef: gpsLngRef })
+    // Check latitude direction (N/S)
+    let latDirection = null
+    if (gpsLatRef) {
+      if (typeof gpsLatRef.value === 'string') {
+        latDirection = gpsLatRef.value
+      } else if (typeof gpsLatRef.description === 'string') {
+        latDirection = gpsLatRef.description
+      } else if (typeof gpsLatRef === 'string') {
+        latDirection = gpsLatRef
+      }
+    }
+    
+    // Check longitude direction (E/W)
+    let lngDirection = null
+    if (gpsLngRef) {
+      if (typeof gpsLngRef.value === 'string') {
+        lngDirection = gpsLngRef.value
+      } else if (typeof gpsLngRef.description === 'string') {
+        lngDirection = gpsLngRef.description
+      } else if (typeof gpsLngRef === 'string') {
+        lngDirection = gpsLngRef
+      }
+    }
+    
+    console.log('Extracted directions:', { latDirection, lngDirection })
+    
+    // Apply directions
+    if (latDirection && (latDirection.startsWith('S') || latDirection.includes('South'))) {
+      lat = -Math.abs(lat)
+    } else {
+      lat = Math.abs(lat)  // Ensure positive for North
+    }
+    
+    if (lngDirection && (lngDirection.startsWith('W') || lngDirection.includes('West'))) {
+      lng = -Math.abs(lng)
+    } else {
+      lng = Math.abs(lng)  // Ensure positive for East
+    }
+    
+    console.log('GPS after direction adjustment:', { lat, lng, latDirection, lngDirection })
     
     // Validate coordinates
     if (!isValidCoordinate(lat, lng)) {
