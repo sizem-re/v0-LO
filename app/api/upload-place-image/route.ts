@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-client'
 import { uploadPlaceImage, validateImageFile, compressImage } from '@/lib/supabase-storage'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest) {
   try {
-    const { id: placeId } = await params
+    // Get place ID from query params instead of dynamic route
+    const { searchParams } = new URL(request.url)
+    const placeId = searchParams.get('placeId')
     
     console.log('=== IMAGE UPLOAD API DEBUG ===')
     console.log('Place ID received:', placeId)
+    
+    if (!placeId) {
+      return NextResponse.json({ error: 'Place ID is required' }, { status: 400 })
+    }
     
     // Get the form data
     const formData = await request.formData()
@@ -105,11 +108,6 @@ export async function POST(
     console.log('Place updated successfully:', updatedPlace)
     console.log('=== IMAGE UPLOAD SUCCESS ===')
 
-    // TODO: Delete old image if it exists
-    // if (place.image_url) {
-    //   await deletePlaceImage(place.image_url)
-    // }
-
     return NextResponse.json({ 
       success: true, 
       imageUrl,
@@ -118,53 +116,9 @@ export async function POST(
 
   } catch (error) {
     console.error('Error in image upload:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: placeId } = await params
-
-    // Get the current place
-    const { data: place, error: placeError } = await supabaseAdmin
-      .from('places')
-      .select('id, image_url')
-      .eq('id', placeId)
-      .single()
-
-    if (placeError || !place) {
-      return NextResponse.json({ error: 'Place not found' }, { status: 404 })
-    }
-
-    if (!place.image_url) {
-      return NextResponse.json({ error: 'No image to delete' }, { status: 400 })
-    }
-
-    // Remove image URL from database
-    const { error: updateError } = await supabaseAdmin
-      .from('places')
-      .update({ 
-        image_url: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', placeId)
-
-    if (updateError) {
-      console.error('Error removing image URL from place:', updateError)
-      return NextResponse.json({ error: 'Failed to update place' }, { status: 500 })
-    }
-
-    // TODO: Delete the actual file from storage
-    // await deletePlaceImage(place.image_url)
-
-    return NextResponse.json({ success: true })
-
-  } catch (error) {
-    console.error('Error in image deletion:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 } 

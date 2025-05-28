@@ -324,10 +324,20 @@ export function EditPlaceModal({
           const formData = new FormData()
           formData.append('image', photoFile)
           
-          const uploadResponse = await fetch(`/api/places/${place.id}/upload-image`, {
+          // Try the original endpoint first, then fallback to the simpler one
+          let uploadResponse = await fetch(`/api/places/${place.id}/upload-image`, {
             method: 'POST',
             body: formData,
           })
+          
+          // If 404, try the alternative endpoint
+          if (uploadResponse.status === 404) {
+            console.log("Original endpoint not found, trying alternative...")
+            uploadResponse = await fetch(`/api/upload-place-image?placeId=${place.id}`, {
+              method: 'POST',
+              body: formData,
+            })
+          }
           
           if (uploadResponse.ok) {
             const uploadResult = await uploadResponse.json()
