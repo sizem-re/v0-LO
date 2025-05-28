@@ -242,16 +242,34 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
     // Here you would show an add place modal or navigate to add place page
   }
 
+  const handlePlaceAdded = (place: any) => {
+    console.log("Place added:", place)
+    setPlacesRefreshTrigger(prev => prev + 1) // Trigger places list refresh
+    setShowAddPlaceModal(false)
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeAdded', { detail: place })
+    window.dispatchEvent(event)
+  }
+
   const handlePlaceUpdated = (updatedPlace: any) => {
     console.log("Place updated:", updatedPlace)
     // Update the selected place with the new data
     setSelectedPlace(updatedPlace)
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeUpdated', { detail: updatedPlace })
+    window.dispatchEvent(event)
   }
 
   const handlePlaceDeleted = (placeId: string) => {
     console.log("Place deleted:", placeId)
     // Go back to the list view
     setSelectedPlace(null)
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeDeleted', { detail: { placeId } })
+    window.dispatchEvent(event)
   }
 
   const handleCenterMap = (coordinates: { lat: number; lng: number }) => {
@@ -275,12 +293,6 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
 
   const handleAddPlaceFromTab = () => {
     setShowAddPlaceModal(true)
-  }
-
-  const handlePlaceAdded = (place: any) => {
-    console.log("Place added:", place)
-    setPlacesRefreshTrigger(prev => prev + 1) // Trigger places list refresh
-    setShowAddPlaceModal(false)
   }
 
   // For very small screens, we can completely hide the sidebar

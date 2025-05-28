@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { PlaceSearch } from "@/components/place-search"
+import { CompressionStatus } from "@/components/ui/compression-status"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +102,12 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
   // Photo placeholder state
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [compressionStatus, setCompressionStatus] = useState<{
+    isCompressing: boolean
+    originalSize?: number
+    compressedSize?: number
+    compressionRatio?: number
+  }>({ isCompressing: false })
 
   // List selection state
   const [selectedLists, setSelectedLists] = useState<string[]>(listId ? [listId] : [])
@@ -293,6 +300,9 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       setPhotoFile(file)
+      
+      // Reset compression status
+      setCompressionStatus({ isCompressing: false })
 
       // Create a preview URL
       const reader = new FileReader()
@@ -540,6 +550,12 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             
             let fileToUpload = photoFile
             
+            // Set initial compression status
+            setCompressionStatus({
+              isCompressing: shouldCompress(photoFile, 500),
+              originalSize: photoFile.size
+            })
+            
             // Compress if needed
             if (shouldCompress(photoFile, 500)) {
               console.log("Compressing image...")
@@ -553,20 +569,39 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
                 
                 fileToUpload = compressionResult.file
                 
+                // Update compression status
+                setCompressionStatus({
+                  isCompressing: false,
+                  originalSize: compressionResult.originalSize,
+                  compressedSize: compressionResult.compressedSize,
+                  compressionRatio: compressionResult.compressionRatio
+                })
+                
                 console.log('Image compression result:', {
                   originalSize: `${Math.round(compressionResult.originalSize / 1024)}KB`,
                   compressedSize: `${Math.round(compressionResult.compressedSize / 1024)}KB`,
                   compressionRatio: `${compressionResult.compressionRatio}%`
                 })
                 
+                // Show compression success toast with longer duration
                 toast({
-                  title: "Image compressed",
-                  description: `Reduced size by ${compressionResult.compressionRatio}% before uploading`,
+                  title: "Image compressed successfully",
+                  description: `Reduced file size by ${compressionResult.compressionRatio}% (${Math.round(compressionResult.originalSize / 1024)}KB → ${Math.round(compressionResult.compressedSize / 1024)}KB)`,
+                  duration: 4000, // Show for 4 seconds
                 })
               } catch (compressionError) {
                 console.warn('Compression failed, uploading original:', compressionError)
+                setCompressionStatus({
+                  isCompressing: false,
+                  originalSize: photoFile.size
+                })
                 // Continue with original file
               }
+            } else {
+              setCompressionStatus({
+                isCompressing: false,
+                originalSize: photoFile.size
+              })
             }
             
             console.log("Uploading photo for place:", placeId)
@@ -1017,6 +1052,18 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
             </div>
           )}
         </div>
+        
+        {/* Show compression status */}
+        {photoFile && (
+          <div className="mt-2">
+            <CompressionStatus
+              originalSize={compressionStatus.originalSize || 0}
+              compressedSize={compressionStatus.compressedSize}
+              compressionRatio={compressionStatus.compressionRatio}
+              isCompressing={compressionStatus.isCompressing}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

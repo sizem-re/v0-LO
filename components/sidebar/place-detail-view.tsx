@@ -358,12 +358,21 @@ export function PlaceDetailView({
     if (onPlaceUpdated) {
       onPlaceUpdated(updatedPlace)
     }
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeUpdated', { detail: updatedPlace })
+    window.dispatchEvent(event)
   }
 
   const handlePlaceRemoved = (placeId: string) => {
     if (onPlaceDeleted) {
       onPlaceDeleted(placeId)
     }
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeDeleted', { detail: { placeId } })
+    window.dispatchEvent(event)
+    
     onBack()
   }
 

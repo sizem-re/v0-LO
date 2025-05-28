@@ -128,6 +128,10 @@ export function ListDetailView({
   const handlePlaceAdded = (place: any) => {
     console.log("Place added:", place)
     fetchListDetails() // Refresh the list to show the new place
+    
+    // Dispatch event to update the main map
+    const event = new CustomEvent('placeAdded', { detail: place })
+    window.dispatchEvent(event)
   }
 
   const handleCopyLink = async (e: React.MouseEvent) => {

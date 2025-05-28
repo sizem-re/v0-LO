@@ -28,6 +28,27 @@ function MapPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [initialListId, setInitialListId] = useState<string | null>(null)
 
+  // Function to load places
+  const loadPlaces = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // Pass user ID to include their private list places if authenticated
+      const placesData = await fetchPlaces({ 
+        userId: dbUser?.id 
+      })
+      console.log(`Loaded ${placesData.length} places from database`)
+      setPlaces(placesData)
+    } catch (err) {
+      console.error("Error fetching places:", err)
+      setError(err instanceof Error ? err.message : "Failed to load places")
+    } finally {
+      setIsLoading(false)
+      setIsMounted(true)
+    }
+  }
+
   useEffect(() => {
     // Check for list parameter in URL - use multiple methods for reliability
     const listId = searchParams?.get('list')
@@ -54,28 +75,36 @@ function MapPageContent() {
   }, [searchParams])
 
   useEffect(() => {
-    const loadPlaces = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Pass user ID to include their private list places if authenticated
-        const placesData = await fetchPlaces({ 
-          userId: dbUser?.id 
-        })
-        console.log(`Loaded ${placesData.length} places from database`)
-        setPlaces(placesData)
-      } catch (err) {
-        console.error("Error fetching places:", err)
-        setError(err instanceof Error ? err.message : "Failed to load places")
-      } finally {
-        setIsLoading(false)
-        setIsMounted(true)
-      }
-    }
-
     loadPlaces()
   }, [dbUser?.id]) // Re-fetch when user authentication changes
+
+  // Listen for place addition events from the sidebar
+  useEffect(() => {
+    const handlePlaceAdded = () => {
+      console.log('Received placeAdded event, refreshing map places...')
+      loadPlaces()
+    }
+
+    const handlePlaceUpdated = () => {
+      console.log('Received placeUpdated event, refreshing map places...')
+      loadPlaces()
+    }
+
+    const handlePlaceDeleted = () => {
+      console.log('Received placeDeleted event, refreshing map places...')
+      loadPlaces()
+    }
+
+    window.addEventListener('placeAdded', handlePlaceAdded)
+    window.addEventListener('placeUpdated', handlePlaceUpdated)
+    window.addEventListener('placeDeleted', handlePlaceDeleted)
+
+    return () => {
+      window.removeEventListener('placeAdded', handlePlaceAdded)
+      window.removeEventListener('placeUpdated', handlePlaceUpdated)
+      window.removeEventListener('placeDeleted', handlePlaceDeleted)
+    }
+  }, [dbUser?.id])
 
   // Don't render until client-side to avoid hydration issues
   if (!isMounted) {
