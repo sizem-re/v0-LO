@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { Place } from "@/types/place"
+import { calculateSmartFitBoundsOptions } from "@/lib/map-utils"
 
 interface VanillaMapProps {
   places: Place[]
@@ -286,7 +287,16 @@ export default function VanillaMap({
         } else {
           // Create bounds from all places
           const bounds = window.L.latLngBounds(places.map((place) => [place.coordinates.lat, place.coordinates.lng]))
-          mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] })
+          
+          // Get container dimensions
+          const container = mapInstanceRef.current.getContainer()
+          const containerWidth = container.offsetWidth
+          const containerHeight = container.offsetHeight
+          
+          // Calculate smart fit bounds options to avoid grey bars
+          const fitOptions = calculateSmartFitBoundsOptions(bounds, containerWidth, containerHeight)
+          
+          mapInstanceRef.current.fitBounds(bounds, fitOptions)
         }
       }
     }

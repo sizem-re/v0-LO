@@ -248,4 +248,152 @@ export function createClientSideStaticMap(
   
   mapDiv.appendChild(marker)
   container.appendChild(mapDiv)
+}
+
+/**
+ * Calculate optimal map view that avoids grey bars by considering container aspect ratio
+ */
+export function calculateOptimalMapView(
+  places: Array<{ coordinates: { lat: number; lng: number } }>,
+  containerWidth: number,
+  containerHeight: number,
+  minZoom: number = 2,
+  maxZoom: number = 16
+): { center: [number, number]; zoom: number } {
+  if (places.length === 0) {
+    return { center: [40.7128, -74.006], zoom: 13 }
+  }
+
+  if (places.length === 1) {
+    return {
+      center: [places[0].coordinates.lat, places[0].coordinates.lng],
+      zoom: 15
+    }
+  }
+
+  // Calculate bounds
+  const lats = places.map(place => place.coordinates.lat)
+  const lngs = places.map(place => place.coordinates.lng)
+  
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  
+  const centerLat = (minLat + maxLat) / 2
+  const centerLng = (minLng + maxLng) / 2
+  
+  // Calculate the span of coordinates
+  const latSpan = maxLat - minLat
+  const lngSpan = maxLng - minLng
+  
+  // Add padding (20% on each side)
+  const paddedLatSpan = latSpan * 1.4
+  const paddedLngSpan = lngSpan * 1.4
+  
+  // Calculate container aspect ratio
+  const containerAspectRatio = containerWidth / containerHeight
+  
+  // Calculate the aspect ratio needed for the data
+  const dataAspectRatio = paddedLngSpan / paddedLatSpan
+  
+  // Adjust spans to match container aspect ratio
+  let finalLatSpan = paddedLatSpan
+  let finalLngSpan = paddedLngSpan
+  
+  if (dataAspectRatio > containerAspectRatio) {
+    // Data is wider than container, expand lat span
+    finalLatSpan = paddedLngSpan / containerAspectRatio
+  } else {
+    // Data is taller than container, expand lng span
+    finalLngSpan = paddedLatSpan * containerAspectRatio
+  }
+  
+  // Calculate zoom level based on the larger span
+  // This is a rough approximation - you may need to adjust the constants
+  const latZoom = Math.log2(360 / finalLatSpan)
+  const lngZoom = Math.log2(360 / finalLngSpan)
+  const zoom = Math.max(minZoom, Math.min(maxZoom, Math.floor(Math.min(latZoom, lngZoom))))
+  
+  return {
+    center: [centerLat, centerLng],
+    zoom
+  }
+}
+
+/**
+ * Calculate smart bounds fitting options for Leaflet maps
+ */
+export function calculateSmartFitBoundsOptions(
+  bounds: any, // L.LatLngBounds
+  containerWidth: number,
+  containerHeight: number
+): { padding: [number, number]; maxZoom: number } {
+  // Calculate the aspect ratio of the bounds
+  const boundsWidth = bounds.getEast() - bounds.getWest()
+  const boundsHeight = bounds.getNorth() - bounds.getSouth()
+  const boundsAspectRatio = boundsWidth / boundsHeight
+  
+  // Calculate container aspect ratio
+  const containerAspectRatio = containerWidth / containerHeight
+  
+  // Adjust padding based on aspect ratio mismatch
+  let paddingX = 50
+  let paddingY = 50
+  
+  if (boundsAspectRatio > containerAspectRatio) {
+    // Bounds are wider than container, reduce vertical padding
+    paddingY = Math.max(20, 50 * (boundsAspectRatio / containerAspectRatio))
+  } else {
+    // Bounds are taller than container, reduce horizontal padding
+    paddingX = Math.max(20, 50 * (containerAspectRatio / boundsAspectRatio))
+  }
+  
+  return {
+    padding: [paddingY, paddingX],
+    maxZoom: 16
+  }
+}
+
+/**
+ * Alternative approach: Calculate bounds with minimum zoom constraint
+ */
+export function calculateBoundsWithMinZoom(
+  places: Array<{ coordinates: { lat: number; lng: number } }>,
+  minZoom: number = 8,
+  maxZoom: number = 16
+): { center: [number, number]; zoom: number } | { bounds: any; options: any } {
+  if (places.length === 0) {
+    return { center: [40.7128, -74.006], zoom: 13 }
+  }
+
+  if (places.length === 1) {
+    return {
+      center: [places[0].coordinates.lat, places[0].coordinates.lng],
+      zoom: 15
+    }
+  }
+
+  // For multiple places, return bounds with constraints
+  const lats = places.map(place => place.coordinates.lat)
+  const lngs = places.map(place => place.coordinates.lng)
+  
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  
+  // Create bounds object (this would be L.latLngBounds in actual usage)
+  const bounds = {
+    _southWest: { lat: minLat, lng: minLng },
+    _northEast: { lat: maxLat, lng: maxLng }
+  }
+  
+  return {
+    bounds,
+    options: {
+      padding: [30, 30],
+      maxZoom: Math.min(maxZoom, minZoom + 6) // Prevent too much zoom out
+    }
+  }
 } 

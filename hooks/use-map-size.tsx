@@ -27,3 +27,42 @@ export function useMapSize() {
 
   return mapSize
 }
+
+/**
+ * Hook to determine optimal map container strategy based on screen size
+ */
+export function useMapStrategy() {
+  const [strategy, setStrategy] = useState<'mobile' | 'desktop' | 'auto'>('auto')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const checkStrategy = () => {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      const aspectRatio = width / height
+      const mobile = width < 768
+
+      setIsMobile(mobile)
+      
+      // Determine strategy based on screen characteristics
+      if (mobile) {
+        setStrategy('mobile')
+      } else if (aspectRatio > 1.5) {
+        setStrategy('desktop')
+      } else {
+        setStrategy('auto')
+      }
+    }
+
+    checkStrategy()
+    window.addEventListener("resize", checkStrategy)
+
+    return () => {
+      window.removeEventListener("resize", checkStrategy)
+    }
+  }, [])
+
+  return { strategy, isMobile }
+}

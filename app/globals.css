@@ -167,3 +167,47 @@ body {
 .animate-pulse {
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Map container utilities to prevent grey bars */
+.map-container-responsive {
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+}
+
+.map-container-mobile {
+  /* On mobile, use a more square aspect ratio to reduce grey bars */
+  aspect-ratio: 4/3;
+  min-height: 300px;
+  max-height: 70vh;
+}
+
+.map-container-desktop {
+  /* On desktop, use a wider aspect ratio */
+  aspect-ratio: 16/10;
+  min-height: 500px;
+  max-height: 80vh;
+}
+
+/* Ensure map fills container properly */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Responsive map containers */
+@media (max-width: 768px) {
+  .map-container-auto {
+    aspect-ratio: 4/3;
+    min-height: 300px;
+    max-height: 60vh;
+  }
+}
+
+@media (min-width: 769px) {
+  .map-container-auto {
+    aspect-ratio: 16/9;
+    min-height: 500px;
+    max-height: 70vh;
+  }
+}

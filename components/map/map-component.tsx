@@ -5,6 +5,7 @@ import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { useMap } from "react-leaflet"
 import type { Place } from "@/types/place"
+import { calculateSmartFitBoundsOptions } from "@/lib/map-utils"
 
 // Fix for Leaflet marker icons
 const fixLeafletIcons = () => {
@@ -36,13 +37,21 @@ function MapController({
       // Create bounds from all places
       const bounds = L.latLngBounds(
         places.map((place) => [
-          place.coordinates?.lat || place.latitude || 0,
-          place.coordinates?.lng || place.longitude || 0,
+          place.coordinates?.lat || 0,
+          place.coordinates?.lng || 0,
         ]),
       )
 
-      // Fit map to bounds with padding
-      map.fitBounds(bounds, { padding: [50, 50] })
+      // Get container dimensions
+      const container = map.getContainer()
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
+      
+      // Calculate smart fit bounds options to avoid grey bars
+      const fitOptions = calculateSmartFitBoundsOptions(bounds, containerWidth, containerHeight)
+      
+      // Fit map to bounds with smart padding
+      map.fitBounds(bounds, fitOptions)
     }
   }, [map, places])
 
@@ -150,7 +159,15 @@ export default function MapComponent({ places, height = "100%", onPlaceSelect }:
 
     // Fit bounds if we have valid coordinates
     if (hasValidCoordinates && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50] })
+      // Get container dimensions
+      const container = map.getContainer()
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
+      
+      // Calculate smart fit bounds options to avoid grey bars
+      const fitOptions = calculateSmartFitBoundsOptions(bounds, containerWidth, containerHeight)
+      
+      map.fitBounds(bounds, fitOptions)
     }
   }, [places, onPlaceSelect, selectedMarker])
 
