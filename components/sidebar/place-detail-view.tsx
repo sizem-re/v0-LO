@@ -492,12 +492,12 @@ export function PlaceDetailView({
         <div
           className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
           style={{
-            backgroundImage: currentPlace.image ? `url(${currentPlace.image})` : undefined,
+            backgroundImage: currentPlace.image_url ? `url(${currentPlace.image_url})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          {!currentPlace.image && (
+          {!currentPlace.image_url && (
             <MapPin size={32} className="text-gray-400" />
           )}
         </div>

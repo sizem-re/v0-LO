@@ -1,6 +1,6 @@
 "use client"
 
-import type { Place } from "@/hooks/use-places"
+import type { Place } from "@/types/place"
 import { MapPin } from "lucide-react"
 
 interface PlaceCardProps {
@@ -17,12 +17,12 @@ export function PlaceCard({ place, onClick }: PlaceCardProps) {
       <div
         className="h-12 w-12 bg-gray-200 rounded mr-3 flex items-center justify-center"
         style={{
-          backgroundImage: place.photo_url ? `url(${place.photo_url})` : undefined,
+          backgroundImage: place.image_url ? `url(${place.image_url})` : undefined,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        {!place.photo_url && <MapPin size={20} className="text-black/40" />}
+        {!place.image_url && <MapPin size={20} className="text-black/40" />}
       </div>
       <div>
         <h3 className="font-medium">{place.name}</h3>

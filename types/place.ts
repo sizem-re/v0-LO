@@ -8,8 +8,10 @@ export interface Place {
     lng: number
   }
   description?: string
-  image?: string
+  image_url?: string
   website?: string
+  notes?: string
+  addedAt?: string
   addedBy?: string // User ID who added the place
   addedByUser?: {
     id: string

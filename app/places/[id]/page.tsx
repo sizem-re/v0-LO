@@ -25,7 +25,7 @@ const MOCK_PLACES: Place[] = [
     address: "1814 Martin Luther King Jr Way, Tacoma, WA 98405",
     coordinates: { lat: 47.2529, lng: -122.4443 },
     description: "No-frills spot for fried seafood & soul food sides in a tiny, counter-serve setting.",
-    image: "/placeholder.svg?height=200&width=300",
+    image_url: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "p2",
@@ -34,7 +34,7 @@ const MOCK_PLACES: Place[] = [
     address: "3801 Yakima Ave, Tacoma, WA 98418",
     coordinates: { lat: 47.2209, lng: -122.4634 },
     description: "Casual Vietnamese spot serving pho, rice plates & other traditional dishes in a simple setting.",
-    image: "/placeholder.svg?height=200&width=300",
+    image_url: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "p3",
@@ -43,7 +43,7 @@ const MOCK_PLACES: Place[] = [
     address: "1750 S Prospect St, Tacoma, WA 98405",
     coordinates: { lat: 47.241, lng: -122.4556 },
     description: "Korean-inspired burgers and sides with unique flavors.",
-    image: "/placeholder.svg?height=200&width=300",
+    image_url: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "p4",
@@ -52,7 +52,7 @@ const MOCK_PLACES: Place[] = [
     address: "Central Park, New York, NY",
     coordinates: { lat: 40.7829, lng: -73.9654 },
     description: "An urban park in Manhattan, New York City.",
-    image: "/placeholder.svg?height=200&width=300",
+    image_url: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "p5",
@@ -62,7 +62,7 @@ const MOCK_PLACES: Place[] = [
     coordinates: { lat: 37.8199, lng: -122.4783 },
     description:
       "A suspension bridge spanning the Golden Gate, the one-mile-wide strait connecting San Francisco Bay and the Pacific Ocean.",
-    image: "/placeholder.svg?height=200&width=300",
+    image_url: "/placeholder.svg?height=200&width=300",
   },
 ]
 
@@ -117,11 +117,11 @@ export default function PlaceDetailPage({ params }: { params: { id: string } }) 
         </div>
 
         <div>
-          {place.image && (
+          {place.image_url && (
             <div
               className="w-full h-64 bg-gray-100 mb-6"
               style={{
-                backgroundImage: `url(${place.image})`,
+                backgroundImage: `url(${place.image_url})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
               }}
