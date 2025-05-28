@@ -24,13 +24,6 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
     const arrayBuffer = await file.arrayBuffer()
     const tags = ExifReader.load(arrayBuffer)
     
-    console.log('EXIF GPS Debug - All GPS tags:', {
-      GPSLatitude: tags.GPSLatitude,
-      GPSLongitude: tags.GPSLongitude,
-      GPSLatitudeRef: tags.GPSLatitudeRef,
-      GPSLongitudeRef: tags.GPSLongitudeRef
-    })
-    
     // Check if GPS data exists
     const gpsLat = tags.GPSLatitude
     const gpsLng = tags.GPSLongitude
@@ -70,8 +63,6 @@ export async function extractLocationFromPhoto(file: File): Promise<PhotoLocatio
         error: 'Invalid GPS coordinates in image'
       }
     }
-    
-    console.log('Successfully extracted GPS coordinates:', { lat, lng })
     
     return {
       location: {
@@ -139,8 +130,6 @@ export function getCurrentLocation(): Promise<LocationData> {
  * Handles multiple formats: arrays, strings, and objects
  */
 function convertGPSToDD(gpsCoordinate: any): number {
-  console.log('Converting GPS coordinate:', gpsCoordinate)
-  
   // If it's already a number, return it
   if (typeof gpsCoordinate === 'number') {
     return gpsCoordinate
