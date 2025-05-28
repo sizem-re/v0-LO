@@ -8,6 +8,7 @@
 
 - **Farcaster Authentication**: Secure login using your Farcaster identity
 - **Interactive Maps**: Explore places on an interactive map powered by OpenStreetMap
+- **Map Placeholders**: Places without photos automatically show a static map view with a 0.25 mile radius
 - **List Management**: Create, edit, and share lists with different visibility settings
 - **Place Discovery**: Search and add places using integrated geocoding
 - **Mobile Ready**: Responsive design that works on desktop, mobile, and as a Farcaster miniapp

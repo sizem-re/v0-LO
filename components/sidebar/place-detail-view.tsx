@@ -33,6 +33,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { StaticMap } from "@/components/ui/static-map"
 
 interface PlaceDetailViewProps {
   place: any
@@ -522,18 +523,65 @@ export function PlaceDetailView({
 
       {/* Place Image */}
       <div className="relative">
-        <div
-          className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
-          style={{
-            backgroundImage: currentPlace.image_url ? `url(${currentPlace.image_url})` : undefined,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          {!currentPlace.image_url && (
-            <MapPin size={32} className="text-gray-400" />
-          )}
-        </div>
+        {currentPlace.image_url ? (
+          <div
+            className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+            style={{
+              backgroundImage: `url(${currentPlace.image_url})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        ) : (
+          (() => {
+            // Map Placeholder Logic:
+            // When no place image is available, we try to show a static map instead.
+            // This provides users with a visual representation of the place's location
+            // using OpenStreetMap tiles showing approximately a 0.25 mile radius.
+            
+            // Try to get coordinates from different possible fields
+            let lat: number, lng: number
+            
+            if (currentPlace.coordinates) {
+              lat = currentPlace.coordinates.lat
+              lng = currentPlace.coordinates.lng
+            } else if (currentPlace.lat && currentPlace.lng) {
+              lat = parseFloat(currentPlace.lat)
+              lng = parseFloat(currentPlace.lng)
+            } else if (currentPlace.latitude && currentPlace.longitude) {
+              lat = parseFloat(currentPlace.latitude)
+              lng = parseFloat(currentPlace.longitude)
+            } else {
+              // No coordinates available, show default placeholder
+              return (
+                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <MapPin size={32} className="text-gray-400" />
+                </div>
+              )
+            }
+            
+            // Validate coordinates
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+              return (
+                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <MapPin size={32} className="text-gray-400" />
+                </div>
+              )
+            }
+            
+            // Show static map with the place's location
+            return (
+              <StaticMap
+                lat={lat}
+                lng={lng}
+                width={400}
+                height={192}
+                zoom={15}
+                className="w-full h-48"
+              />
+            )
+          })()
+        )}
       </div>
 
       {/* Place Details */}
