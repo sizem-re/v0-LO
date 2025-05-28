@@ -202,8 +202,8 @@ export function ListDetailView({
       // Add simple place count
       shareText += `\n\n📍 ${placeCount} ${placeText}`
       
-      // Add frame URL
-      shareText += `\n\n${frameUrl}`
+      // Add frame URL on its own line
+      shareText += `\n${frameUrl}`
       
       // Try to open Warpcast app first, fallback to web
       const warpcastAppUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`
