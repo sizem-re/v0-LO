@@ -109,6 +109,17 @@ CREATE INDEX idx_list_places_place_id ON list_places(place_id);
 CREATE INDEX idx_list_places_creator_id ON list_places(creator_id);
 ```
 
+**Important Migration Note:**
+If you're setting up an existing database that doesn't have the `image_url` column in the `places` table, run this migration:
+
+```sql
+-- Add image_url column to places table if it doesn't exist
+ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- Add comment to document the column
+COMMENT ON COLUMN places.image_url IS 'URL to the place image stored in Supabase Storage';
+```
+
 ### 3. Row Level Security (RLS) Policies
 
 ```sql

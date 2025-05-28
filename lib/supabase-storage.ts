@@ -85,7 +85,8 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   return { valid: true }
 }
 
-// Helper function to compress image if needed
+// Helper function to compress image if needed (CLIENT-SIDE ONLY)
+// Note: This function uses browser APIs and should NOT be used in server-side API routes
 export function compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-client'
-import { uploadPlaceImage, validateImageFile, compressImage } from '@/lib/supabase-storage'
+import { uploadPlaceImage, validateImageFile } from '@/lib/supabase-storage'
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,13 +73,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Place found:', place)
 
-    // Compress the image if it's large
-    const processedFile = file.size > 1024 * 1024 ? await compressImage(file) : file
-    console.log('File processed, size:', processedFile.size)
-
     // Upload the image
     console.log('Uploading image to storage...')
-    const imageUrl = await uploadPlaceImage(processedFile, placeId)
+    const imageUrl = await uploadPlaceImage(file, placeId)
     
     if (!imageUrl) {
       console.log('Image upload failed')
