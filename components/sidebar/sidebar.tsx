@@ -593,6 +593,7 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
                         onPlaceClick={handlePlaceClick}
                         onAddPlace={handleAddPlaceFromTab}
                         refreshTrigger={placesRefreshTrigger}
+                        onCreateList={handleCreateList}
                       />
                     )}
                   </div>

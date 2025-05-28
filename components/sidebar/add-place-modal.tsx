@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { CreateListModal } from "@/components/create-list-modal"
 
 interface Place {
   id?: string
@@ -126,6 +127,9 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
 
   // Current step state
   const [currentStep, setCurrentStep] = useState<"search" | "details">("search")
+
+  // Create list modal state
+  const [showCreateListModal, setShowCreateListModal] = useState(false)
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -343,6 +347,28 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
     }
     setDuplicateError({ show: false, message: "", listId: "", placeName: "" })
     onClose()
+  }
+
+  // Handle new list creation
+  const handleListCreated = async (newList: { id: string; title: string; description?: string }) => {
+    // Add the new list to the selected lists
+    setSelectedLists(prev => [...prev, newList.id])
+    
+    // Refresh the lists data
+    try {
+      const response = await fetch(`/api/lists?userId=${dbUser?.id}`)
+      if (response.ok) {
+        const lists = await response.json()
+        setUserLists(lists)
+        setFilteredLists(lists)
+        
+        // Update recent lists
+        const recent = lists.filter((list: List) => listId && list.id !== listId).slice(0, 3)
+        setRecentLists(recent)
+      }
+    } catch (err) {
+      console.error("Error refreshing lists:", err)
+    }
   }
 
   // Add the place to selected lists
@@ -665,7 +691,7 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
           >
             <span>
               {selectedLists.length === 0
-                ? "Select lists"
+                ? "Select lists or create new"
                 : selectedLists.length === 1
                   ? getListTitle(selectedLists[0])
                   : `${selectedLists.length} lists selected`}
@@ -690,6 +716,11 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
                   <div className="p-4 text-center text-gray-500">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                     Loading lists...
+                  </div>
+                ) : filteredLists.length === 0 && listSearchQuery === "" && userLists.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <p className="mb-3">You don't have any lists yet.</p>
+                    <p className="text-sm">Create your first list to organize this place!</p>
                   </div>
                 ) : filteredLists.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">No lists found</div>
@@ -767,6 +798,21 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Create New List Option - Always visible at bottom */}
+              <div className="border-t border-gray-200 p-2 bg-gray-50">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded cursor-pointer font-medium"
+                  onClick={() => {
+                    setIsListDropdownOpen(false)
+                    setShowCreateListModal(true)
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Private List
+                </button>
               </div>
             </div>
           )}
@@ -1001,6 +1047,13 @@ export function AddPlaceModal({ listId, onClose, onPlaceAdded, onRefreshList }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create List Modal */}
+      <CreateListModal
+        isOpen={showCreateListModal}
+        onClose={() => setShowCreateListModal(false)}
+        onListCreated={handleListCreated}
+      />
     </>
   )
 }

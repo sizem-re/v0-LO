@@ -27,21 +27,26 @@ interface PlacesListViewProps {
   onPlaceClick: (place: Place) => void
   onAddPlace: () => void
   refreshTrigger?: number
+  onCreateList?: () => void
 }
 
-export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace, refreshTrigger }: PlacesListViewProps) {
+export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAddPlace, refreshTrigger, onCreateList }: PlacesListViewProps) {
   const { dbUser } = useAuth()
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userLists, setUserLists] = useState<any[]>([])
+  const [isLoadingLists, setIsLoadingLists] = useState(true)
 
   useEffect(() => {
     fetchPlaces()
+    fetchUserLists()
   }, [dbUser?.id]) // Re-fetch when user authentication changes
 
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0) {
       fetchPlaces()
+      fetchUserLists()
     }
   }, [refreshTrigger])
 
@@ -70,6 +75,25 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
       setError("Failed to load places")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUserLists = async () => {
+    if (!dbUser?.id) {
+      setIsLoadingLists(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lists?userId=${dbUser.id}`)
+      if (response.ok) {
+        const lists = await response.json()
+        setUserLists(lists || [])
+      }
+    } catch (err) {
+      console.error("Error fetching user lists:", err)
+    } finally {
+      setIsLoadingLists(false)
     }
   }
 
@@ -114,11 +138,39 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
 
   return (
     <div className="space-y-4">
-      {/* Add place button */}
-      <Button onClick={onAddPlace} className="w-full bg-black text-white hover:bg-black/80">
-        <Plus size={16} className="mr-2" />
-        Add Place
-      </Button>
+      {/* Add place button with helpful guidance */}
+      {!isLoadingLists && userLists.length === 0 ? (
+        <div className="space-y-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-sm text-amber-800 font-medium mb-1">Create a list first!</p>
+            <p className="text-xs text-amber-700">You need at least one list to organize your places.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              onClick={onCreateList} 
+              className="bg-black text-white hover:bg-black/80"
+              disabled={!onCreateList}
+            >
+              <Plus size={16} className="mr-2" />
+              Create List
+            </Button>
+            <Button 
+              onClick={onAddPlace} 
+              variant="outline" 
+              className="border-black/20"
+              disabled
+            >
+              <Plus size={16} className="mr-2" />
+              Add Place
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button onClick={onAddPlace} className="w-full bg-black text-white hover:bg-black/80">
+          <Plus size={16} className="mr-2" />
+          Add Place
+        </Button>
+      )}
 
       {/* Results summary */}
       <div className="text-sm text-black/60">

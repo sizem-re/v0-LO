@@ -137,12 +137,53 @@ export function UserListsDisplay({
   }
 
   if (lists.length === 0) {
+    if (compact) {
+      return (
+        <div className={`text-center py-4 ${className}`}>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+            <p className="text-sm text-blue-800 font-medium mb-2">Welcome to Lists!</p>
+            <p className="text-xs text-blue-600 mb-3">Create lists to organize places by theme, trip, or any way you like.</p>
+          </div>
+          <Button className="w-full bg-black text-white hover:bg-black/80" onClick={onCreateList}>
+            <Plus size={14} className="mr-1" />
+            Create Your First List
+          </Button>
+        </div>
+      )
+    }
+    
     return (
-      <div className={`text-center py-4 ${className}`}>
-        <p className="mb-2">You haven't created any lists yet</p>
-        <Button className="bg-black text-white hover:bg-black/80" onClick={onCreateList}>
-          Create Your First List
-        </Button>
+      <div className={`text-center py-8 ${className}`}>
+        <div className="max-w-sm mx-auto">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-blue-200 rounded-lg p-6 mb-4">
+            <div className="flex justify-center mb-3">
+              <ListIcon className="h-12 w-12 text-blue-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Your First List</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Lists help you organize places by theme, trip, or any way you like. 
+              Start by creating your first list, then add places to it.
+            </p>
+            <div className="flex items-center justify-center gap-4 text-xs text-gray-500 mb-4">
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                Create List
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                Add Places
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                Share
+              </span>
+            </div>
+          </div>
+          <Button className="bg-black text-white hover:bg-black/80" onClick={onCreateList}>
+            <Plus size={16} className="mr-1" />
+            Create Your First List
+          </Button>
+        </div>
       </div>
     )
   }
