@@ -165,11 +165,28 @@ function convertGPSToDD(gpsCoordinate: any): number {
     const value = gpsCoordinate.value
     console.log('GPS coordinate has value property:', value)
     
-    // If value is an array of numbers [degrees, minutes, seconds]
+    // If value is an array of coordinate parts [degrees, minutes, seconds]
     if (Array.isArray(value) && value.length >= 1) {
-      const degrees = Number(value[0]) || 0
-      const minutes = Number(value[1]) || 0
-      const seconds = Number(value[2]) || 0
+      let degrees = 0
+      let minutes = 0
+      let seconds = 0
+      
+      // Handle fractional format: [[47, 1], [15, 1], [4272, 100]]
+      if (value.length > 0 && Array.isArray(value[0]) && value[0].length === 2) {
+        // Fractional format - each value is [numerator, denominator]
+        degrees = value[0][0] / value[0][1]
+        if (value.length > 1) {
+          minutes = value[1][0] / value[1][1]
+        }
+        if (value.length > 2) {
+          seconds = value[2][0] / value[2][1]
+        }
+      } else {
+        // Simple number format
+        degrees = Number(value[0]) || 0
+        minutes = Number(value[1]) || 0
+        seconds = Number(value[2]) || 0
+      }
       
       console.log('GPS DMS from array:', { degrees, minutes, seconds })
       const result = degrees + (minutes / 60) + (seconds / 3600)
@@ -190,7 +207,13 @@ function convertGPSToDD(gpsCoordinate: any): number {
     }
   }
   
-  // Check if it has a description property
+  // Check if it has a description property and use that if it's a decimal
+  if (gpsCoordinate && gpsCoordinate.description && typeof gpsCoordinate.description === 'number') {
+    console.log('Using description as decimal:', gpsCoordinate.description)
+    return gpsCoordinate.description
+  }
+  
+  // Check if it has a description property as string
   if (gpsCoordinate && gpsCoordinate.description) {
     if (typeof gpsCoordinate.description === 'string') {
       console.log('GPS has description, parsing:', gpsCoordinate.description)
@@ -200,9 +223,25 @@ function convertGPSToDD(gpsCoordinate: any): number {
   
   // If it's an array directly
   if (Array.isArray(gpsCoordinate) && gpsCoordinate.length >= 1) {
-    const degrees = Number(gpsCoordinate[0]) || 0
-    const minutes = Number(gpsCoordinate[1]) || 0
-    const seconds = Number(gpsCoordinate[2]) || 0
+    let degrees = 0
+    let minutes = 0
+    let seconds = 0
+    
+    // Handle fractional format
+    if (Array.isArray(gpsCoordinate[0]) && gpsCoordinate[0].length === 2) {
+      degrees = gpsCoordinate[0][0] / gpsCoordinate[0][1]
+      if (gpsCoordinate.length > 1) {
+        minutes = gpsCoordinate[1][0] / gpsCoordinate[1][1]
+      }
+      if (gpsCoordinate.length > 2) {
+        seconds = gpsCoordinate[2][0] / gpsCoordinate[2][1]
+      }
+    } else {
+      // Simple number format
+      degrees = Number(gpsCoordinate[0]) || 0
+      minutes = Number(gpsCoordinate[1]) || 0
+      seconds = Number(gpsCoordinate[2]) || 0
+    }
     
     console.log('GPS DMS from direct array:', { degrees, minutes, seconds })
     const result = degrees + (minutes / 60) + (seconds / 3600)
