@@ -11,8 +11,8 @@ export async function uploadPlaceImage(file: File, placeId: string): Promise<str
     const fileName = `${placeId}-${Date.now()}.${fileExt}`
     const filePath = `places/${fileName}`
 
-    // Upload file to Supabase Storage
-    const { data, error } = await supabase.storage
+    // Upload file to Supabase Storage using admin client to bypass RLS
+    const { data, error } = await supabaseAdmin.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -24,7 +24,7 @@ export async function uploadPlaceImage(file: File, placeId: string): Promise<str
       return null
     }
 
-    // Get public URL
+    // Get public URL using regular client (public URLs don't need admin access)
     const { data: { publicUrl } } = supabase.storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(filePath)
