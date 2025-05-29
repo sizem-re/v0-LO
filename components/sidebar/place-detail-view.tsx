@@ -73,7 +73,9 @@ export function PlaceDetailView({
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
-  const [listPlaceId, setListPlaceId] = useState<string | null>(null)
+  const [listPlaceId, setListPlaceId] = useState<string | null>(
+    place?.listPlaceId || place?.list_place_id || null
+  )
 
   // Debug function
   const fetchDebugData = async () => {
@@ -98,12 +100,34 @@ export function PlaceDetailView({
       if (response.ok) {
         const placeData = await response.json()
         console.log("Fetched updated place data:", placeData)
+        
+        // If we're in a list context, also fetch the list-specific notes
+        if (listId && listId.trim() !== "") {
+          try {
+            const listPlaceResponse = await fetch(`/api/list-places?listId=${listId}&placeId=${place.id}`)
+            if (listPlaceResponse.ok) {
+              const listPlaceData = await listPlaceResponse.json()
+              if (listPlaceData && listPlaceData.note) {
+                // Preserve the list-specific notes by using them instead of place.notes
+                placeData.notes = listPlaceData.note
+                console.log("Using list-specific notes:", listPlaceData.note)
+              }
+              // Also preserve the listPlaceId for editing/removing
+              if (listPlaceData && listPlaceData.id) {
+                setListPlaceId(listPlaceData.id)
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching list-specific notes:", error)
+          }
+        }
+        
         setCurrentPlace(placeData)
       }
     } catch (error) {
       console.error("Error fetching place data:", error)
     }
-  }, [place?.id])
+  }, [place?.id, listId])
 
   // Fetch place data on mount and when place changes
   useEffect(() => {
@@ -125,7 +149,7 @@ export function PlaceDetailView({
   // Fetch current list details to get owner information
   useEffect(() => {
     const fetchCurrentList = async () => {
-      if (!listId) return
+      if (!listId || listId.trim() === "") return
 
       try {
         const response = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
@@ -152,7 +176,7 @@ export function PlaceDetailView({
 
       // Only fetch debug data if we have a specific list context
       let debugData = null
-      if (listId) {
+      if (listId && listId.trim() !== "") {
         const debugResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
         
         if (debugResponse.ok) {
@@ -174,7 +198,7 @@ export function PlaceDetailView({
       }
 
       // If we have a listId but no listPlaceId, try to find it via direct API call
-      if (listId && !listPlaceId && !debugData?.listPlace?.id) {
+      if (listId && listId.trim() !== "" && !listPlaceId && !debugData?.listPlace?.id) {
         try {
           console.log("Attempting direct lookup for list_place relationship...")
           const listPlaceResponse = await fetch(`/api/list-places?listId=${listId}&placeId=${currentPlace.id}`)
@@ -264,7 +288,7 @@ export function PlaceDetailView({
       const lists = await response.json()
 
       // If we have a specific list context, make sure it's included
-      if (listId && !lists.some((list: any) => list.id === listId)) {
+      if (listId && listId.trim() !== "" && !lists.some((list: any) => list.id === listId)) {
         try {
           const currentListResponse = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
           if (currentListResponse.ok) {
