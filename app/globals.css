@@ -189,10 +189,29 @@ body {
   max-height: 80vh;
 }
 
-/* Ensure map fills container properly */
+/* Force map to fill container completely - no grey bars */
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;
+  background-color: transparent !important;
+}
+
+/* Ensure tiles cover entire container */
+.leaflet-tile-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.leaflet-layer {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Force tiles to stretch to fill gaps */
+.leaflet-tile {
+  image-rendering: auto !important;
+  image-rendering: crisp-edges !important;
+  image-rendering: pixelated !important;
 }
 
 /* Responsive map containers */

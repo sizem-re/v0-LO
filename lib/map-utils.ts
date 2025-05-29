@@ -475,4 +475,90 @@ export function calculateSimpleFitBoundsOptions(
     padding: [padding, padding],
     maxZoom
   }
+}
+
+/**
+ * Calculate exact map view to fill container with no grey bars
+ */
+export function calculateFullScreenMapView(
+  places: Array<{ coordinates: { lat: number; lng: number } }>,
+  containerWidth: number,
+  containerHeight: number
+): { center: [number, number]; zoom: number } {
+  if (places.length === 0) {
+    return { center: [40.7128, -74.006], zoom: 13 }
+  }
+
+  if (places.length === 1) {
+    return {
+      center: [places[0].coordinates.lat, places[0].coordinates.lng],
+      zoom: 15
+    }
+  }
+
+  // Calculate bounds
+  const lats = places.map(place => place.coordinates.lat)
+  const lngs = places.map(place => place.coordinates.lng)
+  
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  
+  const centerLat = (minLat + maxLat) / 2
+  const centerLng = (minLng + maxLng) / 2
+  
+  // Calculate the span of coordinates
+  const latSpan = maxLat - minLat
+  const lngSpan = maxLng - minLng
+  
+  // Ensure minimum span to prevent over-zooming
+  const minSpan = 0.01
+  const adjustedLatSpan = Math.max(latSpan, minSpan)
+  const adjustedLngSpan = Math.max(lngSpan, minSpan)
+  
+  // Calculate container aspect ratio
+  const containerAspectRatio = containerWidth / containerHeight
+  
+  // Calculate data aspect ratio
+  const dataAspectRatio = adjustedLngSpan / adjustedLatSpan
+  
+  // Determine which dimension to use for zoom calculation
+  let zoomSpan
+  if (dataAspectRatio > containerAspectRatio) {
+    // Data is wider than container - use longitude span
+    zoomSpan = adjustedLngSpan
+  } else {
+    // Data is taller than container - use latitude span adjusted for aspect ratio
+    zoomSpan = adjustedLatSpan * containerAspectRatio
+  }
+  
+  // Calculate zoom to fill exactly (with small buffer to ensure no grey)
+  const zoom = Math.log2(360 / (zoomSpan * 1.1)) // 1.1 factor to ensure complete fill
+  
+  // Apply reasonable bounds
+  const finalZoom = Math.max(2, Math.min(18, Math.floor(zoom)))
+  
+  return {
+    center: [centerLat, centerLng],
+    zoom: finalZoom
+  }
+}
+
+/**
+ * Alternative: Use setView instead of fitBounds for exact control
+ */
+export function applyFullScreenView(
+  map: any, // Leaflet map instance
+  places: Array<{ coordinates: { lat: number; lng: number } }>,
+  containerWidth: number,
+  containerHeight: number
+): void {
+  const { center, zoom } = calculateFullScreenMapView(places, containerWidth, containerHeight)
+  map.setView(center, zoom)
+  
+  // Force a resize to ensure tiles fill completely
+  setTimeout(() => {
+    map.invalidateSize()
+  }, 100)
 } 

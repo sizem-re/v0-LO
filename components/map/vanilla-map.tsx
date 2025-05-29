@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { Place } from "@/types/place"
-import { calculateSimpleFitBoundsOptions } from "@/lib/map-utils"
+import { calculateFullScreenMapView, applyFullScreenView } from "@/lib/map-utils"
 
 interface VanillaMapProps {
   places: Place[]
@@ -285,21 +285,37 @@ export default function VanillaMap({
         if (places.length === 1) {
           mapInstanceRef.current.setView([places[0].coordinates.lat, places[0].coordinates.lng], 15)
         } else {
-          // Create bounds from all places
-          const bounds = window.L.latLngBounds(places.map((place) => [place.coordinates.lat, place.coordinates.lng]))
-          
-          // Get container dimensions and check if mobile
+          // Get container dimensions
           const container = mapInstanceRef.current.getContainer()
-          const isMobile = window.innerWidth < 768
+          const containerWidth = container.offsetWidth
+          const containerHeight = container.offsetHeight
           
-          // Calculate simple fit bounds options to avoid grey bars
-          const fitOptions = calculateSimpleFitBoundsOptions(isMobile)
-          
-          mapInstanceRef.current.fitBounds(bounds, fitOptions)
+          // Use full screen view to eliminate grey bars
+          applyFullScreenView(mapInstanceRef.current, places, containerWidth, containerHeight)
         }
       }
     }
   }, [places, onPlaceSelect, isMapInitialized])
+
+  // Listen for window resize to maintain full screen view
+  useEffect(() => {
+    if (!mapInstanceRef.current || places.length === 0) return
+
+    const handleResize = () => {
+      const container = mapInstanceRef.current.getContainer()
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
+      
+      // Reapply full screen view on resize
+      applyFullScreenView(mapInstanceRef.current, places, containerWidth, containerHeight)
+    }
+
+    window.addEventListener("resize", handleResize)
+
+    return () => {
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [places, isMapInitialized])
 
   // Listen for centerMap events
   useEffect(() => {

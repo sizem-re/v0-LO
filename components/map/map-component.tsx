@@ -5,7 +5,7 @@ import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { useMap } from "react-leaflet"
 import type { Place } from "@/types/place"
-import { calculateSimpleFitBoundsOptions } from "@/lib/map-utils"
+import { calculateSimpleFitBoundsOptions, applyFullScreenView } from "@/lib/map-utils"
 
 // Fix for Leaflet marker icons
 const fixLeafletIcons = () => {
@@ -34,20 +34,13 @@ function MapController({
 
   useEffect(() => {
     if (places.length > 0) {
-      // Create bounds from all places
-      const bounds = L.latLngBounds(
-        places.map((place) => [
-          place.coordinates?.lat || 0,
-          place.coordinates?.lng || 0,
-        ]),
-      )
-
-      // Check if mobile and calculate simple fit bounds options
-      const isMobile = window.innerWidth < 768
-      const fitOptions = calculateSimpleFitBoundsOptions(isMobile)
+      // Get container dimensions
+      const container = map.getContainer()
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
       
-      // Fit map to bounds with simple padding
-      map.fitBounds(bounds, fitOptions)
+      // Use full screen view to eliminate grey bars
+      applyFullScreenView(map, places, containerWidth, containerHeight)
     }
   }, [map, places])
 
@@ -155,11 +148,13 @@ export default function MapComponent({ places, height = "100%", onPlaceSelect }:
 
     // Fit bounds if we have valid coordinates
     if (hasValidCoordinates && bounds.isValid()) {
-      // Check if mobile and calculate simple fit bounds options
-      const isMobile = window.innerWidth < 768
-      const fitOptions = calculateSimpleFitBoundsOptions(isMobile)
+      // Get container dimensions
+      const container = map.getContainer()
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
       
-      map.fitBounds(bounds, fitOptions)
+      // Use full screen view to eliminate grey bars
+      applyFullScreenView(map, places, containerWidth, containerHeight)
     }
   }, [places, onPlaceSelect, selectedMarker])
 
