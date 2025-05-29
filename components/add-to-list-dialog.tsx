@@ -103,7 +103,7 @@ export function AddToListDialog({ open, onOpenChange, place, lists, onCreateList
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium">{list.title}</h4>
+                            <h4 className="font-medium line-clamp-2">{list.title}</h4>
                             <p className="text-xs text-black/70">{list.placeCount} places</p>
                           </div>
                           {selectedLists.includes(list.id) && <Check className="h-5 w-5" />}

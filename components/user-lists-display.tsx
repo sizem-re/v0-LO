@@ -202,7 +202,7 @@ export function UserListsDisplay({
               <ListIcon size={16} />
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-medium text-sm truncate">{list.title}</h4>
+              <h4 className="font-medium text-sm line-clamp-2">{list.title}</h4>
               <div className="flex items-center gap-3">
                 <div className="flex items-center text-xs text-black/60">
                   {list.visibility === "public" ? (
@@ -239,7 +239,7 @@ export function UserListsDisplay({
         <Card key={list.id} className="p-3 border border-black/10">
           <div className="flex justify-between items-start">
             <div className="min-w-0 flex-1">
-              <h3 className="font-serif text-lg truncate">{list.title}</h3>
+              <h3 className="font-serif text-lg line-clamp-2">{list.title}</h3>
               {list.description && <p className="text-sm text-black/70 line-clamp-2">{list.description}</p>}
               <div className="flex gap-4 mt-2 text-xs text-black/70">
                 <span className="flex items-center">

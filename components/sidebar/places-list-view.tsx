@@ -192,7 +192,7 @@ export function PlacesListView({ searchQuery, onSearchChange, onPlaceClick, onAd
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-serif font-medium text-sm mb-1 truncate">{place.name}</h3>
+                  <h3 className="font-serif font-medium text-sm mb-1 line-clamp-2">{place.name}</h3>
                   <p className="text-xs text-black/60 mb-1 truncate">{place.address}</p>
                   <div className="flex items-center text-xs text-black/50 mt-2">
                     <span>

@@ -372,7 +372,7 @@ export function ListDetailView({
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-serif text-xl truncate">{list.title}</h2>
+            <h2 className="font-serif text-xl line-clamp-2">{list.title}</h2>
           </div>
 
           <div className="flex items-center gap-2">
@@ -484,7 +484,7 @@ export function ListDetailView({
               >
                 <div className="flex items-start">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate">{place.name}</h4>
+                    <h4 className="font-medium line-clamp-2">{place.name}</h4>
                     {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
                   </div>
                   <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />

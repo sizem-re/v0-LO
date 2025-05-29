@@ -77,8 +77,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       const filteredPlaces = MOCK_PLACES.filter(
         (place) =>
           place.name.toLowerCase().includes(query.toLowerCase()) ||
-          place.address.toLowerCase().includes(query.toLowerCase()) ||
-          place.type.toLowerCase().includes(query.toLowerCase()),
+          (place.address && place.address.toLowerCase().includes(query.toLowerCase())) ||
+          (place.type && place.type.toLowerCase().includes(query.toLowerCase())),
       )
 
       const filteredLists = MOCK_LISTS.filter(
@@ -162,7 +162,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                         className="w-full text-left hover:bg-gray-50 p-2"
                         onClick={() => handleListClick(list.id)}
                       >
-                        <div className="font-medium">{list.title}</div>
+                        <div className="font-medium line-clamp-2">{list.title}</div>
                         <div className="text-sm text-black/70">by {list.author}</div>
                       </button>
                     ))}

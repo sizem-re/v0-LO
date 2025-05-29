@@ -13,7 +13,7 @@ export function ListCard({ list, onClick }: ListCardProps) {
       className="p-3 border border-black/10 rounded mb-3 hover:bg-gray-50 cursor-pointer"
       onClick={() => onClick?.(list)}
     >
-      <h3 className="font-medium">{list.title}</h3>
+      <h3 className="font-medium line-clamp-2">{list.title}</h3>
       {list.description && <p className="text-sm text-black/70 mt-1">{list.description}</p>}
       <div className="flex justify-between items-center mt-2">
         <span className="text-xs text-black/60">{list.places_count} places</span>

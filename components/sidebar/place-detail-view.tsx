@@ -520,7 +520,7 @@ export function PlaceDetailView({
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-serif text-xl truncate">{currentPlace.name}</h2>
+            <h2 className="font-serif text-xl line-clamp-2">{currentPlace.name}</h2>
           </div>
           {/* Debug button - only in development */}
           {process.env.NODE_ENV === "development" && (
@@ -738,7 +738,7 @@ export function PlaceDetailView({
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <ListIcon size={16} className="flex-shrink-0 text-black/60" />
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm truncate">{list.title}</p>
+                            <p className="font-medium text-sm line-clamp-2">{list.title}</p>
                             <p className="text-xs text-black/60">
                               {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
                             </p>
@@ -807,7 +807,7 @@ export function PlaceDetailView({
                     <CardContent className="p-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <ListIcon size={16} className="mr-2 text-black/60" />
-                        <p className="font-medium text-sm">{list.title}</p>
+                        <p className="font-medium text-sm line-clamp-2">{list.title}</p>
                       </div>
                       <Button
                         size="sm"
