@@ -126,9 +126,6 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
     placeName: "",
   })
 
-  // Current step state
-  const [currentStep, setCurrentStep] = useState<"location" | "details">("location")
-
   // Create list modal state
   const [showCreateListModal, setShowCreateListModal] = useState(false)
 
@@ -153,7 +150,6 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
       setCompressionStatus({ isCompressing: false })
       setShowMapPicker(false)
       setShowPlaceSearch(false)
-      setCurrentStep("location")
       setLocationInputMode(null)
     }
   }, [isOpen])
@@ -586,204 +582,130 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
       <Dialog open={isOpen && !showMapPicker && !showPlaceSearch} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-[700px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 md:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {currentStep === "location" && "Choose Location"}
-              {currentStep === "details" && "Add Place Details"}
-              <div className="ml-auto flex gap-1">
-                <div className={`w-2 h-2 rounded-full ${currentStep === "location" ? "bg-blue-500" : "bg-gray-300"}`} />
-                <div className={`w-2 h-2 rounded-full ${currentStep === "details" ? "bg-blue-500" : "bg-gray-300"}`} />
-              </div>
-            </DialogTitle>
+            <DialogTitle>Add New Place</DialogTitle>
             <DialogDescription>
-              {currentStep === "location" && "First, let's set the location for your place. You can use photos with GPS, current location, search, or enter an address manually."}
-              {currentStep === "details" && "Now add the details about your place. Fill in the information below."}
+              Add a new place to your collection. Set the location and fill in the details below.
             </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-6 py-2">
-            {currentStep === "location" && (
-              <div className="space-y-4">
-                {/* Location Selection */}
-                <div className="space-y-4">
-                  <LocationPicker
-                    value={coordinates}
-                    onLocationChange={handleLocationChange}
-                    photoFile={photoFile}
-                    disabled={isSubmitting}
-                  />
-                  
-                  {/* Embedded Map and Search Options */}
-                  {!coordinates && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setLocationInputMode("map")}
-                        className="h-auto p-4 flex flex-col items-center space-y-2"
-                        disabled={isSubmitting}
-                      >
-                        <Map className="h-6 w-6" />
-                        <div className="text-center">
-                          <div className="font-medium">Interactive Map</div>
-                          <div className="text-xs text-gray-500">Click on map to select</div>
-                        </div>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setLocationInputMode("search")}
-                        className="h-auto p-4 flex flex-col items-center space-y-2"
-                        disabled={isSubmitting}
-                      >
-                        <Search className="h-6 w-6" />
-                        <div className="text-center">
-                          <div className="font-medium">Search Places</div>
-                          <div className="text-xs text-gray-500">Find via Google Places</div>
-                        </div>
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Embedded Map Picker */}
-                  {locationInputMode === "map" && (
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium">Pick Location on Map</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLocationInputMode(null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+            {/* Location Selection */}
+            <div className="space-y-4">
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-medium mb-3">Location</h3>
+                <LocationPicker
+                  value={coordinates}
+                  onLocationChange={handleLocationChange}
+                  photoFile={photoFile}
+                  disabled={isSubmitting}
+                />
+                
+                {/* Embedded Map and Search Options */}
+                {!coordinates && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setLocationInputMode("map")}
+                      className="h-auto p-4 flex flex-col items-center space-y-2"
+                      disabled={isSubmitting}
+                    >
+                      <Map className="h-6 w-6" />
+                      <div className="text-center">
+                        <div className="font-medium">Interactive Map</div>
+                        <div className="text-xs text-gray-500">Click on map to select</div>
                       </div>
-                      <SimpleMapPicker
-                        initialLocation={coordinates}
-                        onLocationSelect={(location) => {
-                          handleMapLocationSelect(location)
-                          setLocationInputMode(null)
-                        }}
-                        onCancel={() => setLocationInputMode(null)}
-                      />
-                    </div>
-                  )}
-
-                  {/* Embedded Place Search */}
-                  {locationInputMode === "search" && (
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium">Search for Places</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLocationInputMode(null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setLocationInputMode("search")}
+                      className="h-auto p-4 flex flex-col items-center space-y-2"
+                      disabled={isSubmitting}
+                    >
+                      <Search className="h-6 w-6" />
+                      <div className="text-center">
+                        <div className="font-medium">Search Places</div>
+                        <div className="text-xs text-gray-500">Find via Google Places</div>
                       </div>
-                      <PlaceSearch
-                        onPlaceSelect={(place) => {
-                          handlePlaceSelect(place)
-                          setLocationInputMode(null)
-                        }}
-                        placeholder="Search for restaurants, shops, landmarks..."
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Photo Upload in Location Step */}
-                <div className="space-y-2">
-                  <Label>Photo (optional)</Label>
-                  <div
-                    className={cn(
-                      "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
-                      photoPreview ? "border-gray-300" : "border-gray-200",
-                    )}
-                    onClick={handlePhotoButtonClick}
-                  >
-                    <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
-
-                    {photoPreview ? (
-                      <div className="relative">
-                        <img
-                          src={photoPreview || "/placeholder.svg"}
-                          alt="Place preview"
-                          className="mx-auto max-h-40 rounded-md"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
-                          <Camera className="h-8 w-8 text-white" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-4">
-                        <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">
-                          Click to add a photo
-                          <span className="block text-xs mt-1">Photos with GPS will set location automatically</span>
-                        </p>
-                      </div>
-                    )}
+                    </Button>
                   </div>
-                  
-                  {/* Show compression status */}
-                  {photoFile && (
-                    <div className="mt-2">
-                      <CompressionStatus
-                        originalSize={compressionStatus.originalSize || 0}
-                        compressedSize={compressionStatus.compressedSize}
-                        compressionRatio={compressionStatus.compressionRatio}
-                        isCompressing={compressionStatus.isCompressing}
-                      />
+                )}
+
+                {/* Embedded Map Picker */}
+                {locationInputMode === "map" && (
+                  <div className="border rounded-lg p-4 bg-gray-50 mt-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="font-medium">Pick Location on Map</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocationInputMode(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-                </div>
+                    <SimpleMapPicker
+                      initialLocation={coordinates}
+                      onLocationSelect={(location) => {
+                        handleMapLocationSelect(location)
+                        setLocationInputMode(null)
+                      }}
+                      onCancel={() => setLocationInputMode(null)}
+                    />
+                  </div>
+                )}
 
-                {/* Next Button */}
-                <div className="flex justify-end pt-4">
-                  <Button
-                    type="button"
-                    onClick={() => setCurrentStep("details")}
-                    disabled={!coordinates}
-                    className="min-w-[120px]"
-                  >
-                    Next: Details
-                    <ChevronDown className="ml-2 h-4 w-4 rotate-[-90deg]" />
-                  </Button>
-                </div>
-              </div>
-            )}
+                {/* Embedded Place Search */}
+                {locationInputMode === "search" && (
+                  <div className="border rounded-lg p-4 bg-gray-50 mt-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="font-medium">Search for Places</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocationInputMode(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <PlaceSearch
+                      onPlaceSelect={(place) => {
+                        handlePlaceSelect(place)
+                        setLocationInputMode(null)
+                      }}
+                      placeholder="Search for restaurants, shops, landmarks..."
+                    />
+                  </div>
+                )}
 
-            {currentStep === "details" && (
-              <div className="space-y-4">
                 {/* Location Summary */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">Location Set</span>
+                {coordinates && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">Location Set</span>
+                    </div>
+                    {address && (
+                      <div className="text-sm text-green-700">{address}</div>
+                    )}
+                    <div className="text-xs text-green-600">
+                      {formatCoordinates(coordinates.lat, coordinates.lng)}
+                    </div>
                   </div>
-                  {address && (
-                    <div className="text-sm text-green-700">{address}</div>
-                  )}
-                  <div className="text-xs text-green-600">
-                    {coordinates && formatCoordinates(coordinates.lat, coordinates.lng)}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentStep("location")}
-                    className="mt-2 h-auto p-1 text-xs text-green-700 hover:text-green-800"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Change Location
-                  </Button>
-                </div>
+                )}
+              </div>
+            </div>
 
+            {/* Place Details */}
+            <div className="space-y-4">
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-medium mb-3">Place Details</h3>
+                
                 {/* Place Name */}
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   <Label htmlFor="placeName">Place Name *</Label>
                   <Input
                     id="placeName"
@@ -791,12 +713,11 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
                     onChange={(e) => setPlaceName(e.target.value)}
                     placeholder="Enter place name"
                     className="w-full min-w-0"
-                    autoFocus
                   />
                 </div>
 
                 {/* Website */}
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   <Label htmlFor="website">Website (optional)</Label>
                   <Input
                     id="website"
@@ -819,46 +740,81 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
                     className="w-full min-w-0 resize-none"
                   />
                 </div>
-
-                {/* Form Actions */}
-                <div className="flex flex-col sm:flex-row justify-between gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentStep("location")}
-                    disabled={isSubmitting}
-                    className="w-full sm:w-auto"
-                  >
-                    <ChevronDown className="mr-2 h-4 w-4 rotate-90" />
-                    Back to Location
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onClose}
-                      disabled={isSubmitting}
-                      className="w-full sm:w-auto"
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting || !placeName.trim() || !coordinates} className="w-full sm:w-auto">
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          Add Place
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
               </div>
-            )}
+            </div>
+
+            {/* Photo Upload */}
+            <div className="space-y-2">
+              <Label>Photo (optional)</Label>
+              <div
+                className={cn(
+                  "mt-1 border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors",
+                  photoPreview ? "border-gray-300" : "border-gray-200",
+                )}
+                onClick={handlePhotoButtonClick}
+              >
+                <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
+
+                {photoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={photoPreview || "/placeholder.svg"}
+                      alt="Place preview"
+                      className="mx-auto max-h-40 rounded-md"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity rounded-md">
+                      <Camera className="h-8 w-8 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">
+                      Click to add a photo
+                      <span className="block text-xs mt-1">Photos with GPS will set location automatically</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Show compression status */}
+              {photoFile && (
+                <div className="mt-2">
+                  <CompressionStatus
+                    originalSize={compressionStatus.originalSize || 0}
+                    compressedSize={compressionStatus.compressedSize}
+                    compressionRatio={compressionStatus.compressionRatio}
+                    isCompressing={compressionStatus.isCompressing}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !placeName.trim() || !coordinates} className="w-full sm:w-auto">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Add Place
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
