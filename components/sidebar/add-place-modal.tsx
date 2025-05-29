@@ -222,7 +222,7 @@ export function AddPlaceModal({ isOpen, onClose, listId, onPlaceAdded }: AddPlac
   const handlePlaceSelect = (place: any) => {
     setPlaceName(place.name || "")
     setAddress(place.address || "")
-    setCoordinates(place.coordinates || null)
+    setCoordinates(place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null)
     setLocationSource("search")
     setShowPlaceSearch(false)
   }
