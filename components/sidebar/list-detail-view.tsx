@@ -360,8 +360,8 @@ export function ListDetailView({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Share Button - visible for owners and public lists */}
-            {(isOwner || list.visibility === "public") && (
+            {/* Share Button - visible for owners, public lists, and community lists */}
+            {(isOwner || list.visibility === "public" || list.visibility === "community") && (
               <div className="relative share-container">
                 <Button 
                   variant="ghost" 
