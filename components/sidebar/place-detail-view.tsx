@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StaticMap } from "@/components/ui/static-map"
+import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
 
 interface PlaceDetailViewProps {
   place: any
@@ -685,7 +686,12 @@ export function PlaceDetailView({
                 <Skeleton className="h-4 w-24" />
               ) : (
                 <p className="text-sm text-black/70 leading-relaxed">
-                  Added by {createdByUser?.farcaster_display_name || "Unknown User"}
+                  Added by{" "}
+                  <FarcasterProfileLink 
+                    username={createdByUser?.farcaster_username}
+                    displayName={createdByUser?.farcaster_display_name || "Unknown User"}
+                    className="text-sm text-black/70"
+                  />
                 </p>
               )}
             </div>

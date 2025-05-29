@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/lib/auth-context"
 import type { List } from "@/types/database"
+import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
 
 interface DiscoverViewProps {
   searchQuery: string
@@ -267,9 +268,11 @@ export function DiscoverView({ searchQuery, onSearchChange, onSelectList, onLogi
                           className="w-4 h-4 rounded-full"
                         />
                       )}
-                      <span className="truncate max-w-20">
-                        {list.owner.farcaster_display_name || list.owner.farcaster_username || 'Anonymous'}
-                      </span>
+                      <FarcasterProfileLink 
+                        username={list.owner.farcaster_username}
+                        displayName={list.owner.farcaster_display_name || list.owner.farcaster_username || 'Anonymous'}
+                        className="truncate max-w-20 text-xs text-black/60"
+                      />
                     </div>
                   )}
                 </div>

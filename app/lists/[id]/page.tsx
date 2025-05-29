@@ -12,6 +12,7 @@ import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { redirect } from "next/navigation"
+import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
 
 // Dynamically import the map component with no SSR
 const VanillaMap = dynamic(() => import("@/components/map/vanilla-map"), {
@@ -195,7 +196,14 @@ export default function ListDetailPage({ params }: { params: { id: string } }) {
           <div className="flex justify-between items-start mt-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-serif mb-2">{list.title}</h1>
-              <p className="text-sm text-black/70 mb-4">by {ownerName}</p>
+              <p className="text-sm text-black/70 mb-4">
+                by{" "}
+                <FarcasterProfileLink 
+                  username={list.owner?.farcaster_username}
+                  displayName={ownerName}
+                  className="text-sm text-black/70"
+                />
+              </p>
               {list.description && <p className="text-lg max-w-2xl mb-4">{list.description}</p>}
               <p className="text-sm text-black/60">
                 {new Date(list.created_at).toLocaleDateString(undefined, {

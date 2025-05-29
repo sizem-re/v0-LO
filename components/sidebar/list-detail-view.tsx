@@ -1,12 +1,28 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, MapPin, Globe, Users, Lock, Plus, ExternalLink, Share2, Edit3, Trash2, Check, Copy, Link } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import {
+  ChevronLeft,
+  MapPin,
+  Edit3,
+  Trash2,
+  Plus,
+  Share2,
+  Link,
+  Check,
+  Globe,
+  Users,
+  Lock,
+  ExternalLink,
+} from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { EditListModal } from "./edit-list-modal"
-import { AddPlaceModal } from "./add-place-modal"
+import { PlaceItem } from "@/components/place-item"
+import { EditListModal } from "@/components/sidebar/edit-list-modal"
+import { AddPlaceModal } from "@/components/sidebar/add-place-modal"
+import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
 import { toast } from "@/components/ui/use-toast"
 
 // Farcaster icon component
@@ -424,7 +440,14 @@ export function ListDetailView({
         </div>
 
         {list.description && <p className="text-sm text-black/70 mb-2">{list.description}</p>}
-        <div className="text-xs text-black/60">Created by {ownerName}</div>
+        <div className="text-xs text-black/60">
+          Created by{" "}
+          <FarcasterProfileLink 
+            username={list.owner?.farcaster_username}
+            displayName={ownerName}
+            className="text-xs"
+          />
+        </div>
       </div>
 
       {/* Add Place Button */}
