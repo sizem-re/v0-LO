@@ -6,6 +6,37 @@
   --foreground: 0 0% 0%;
   --background: 0 0% 100%;
   --border: 0 0% 85%;
+  /* Updated design tokens for AI-powered modal interface */
+  --card: #f1f5f9;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #1f2937;
+  --primary-foreground: #ffffff;
+  --secondary: #6b7280;
+  --secondary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #6b7280;
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+  --destructive: #d97706;
+  --destructive-foreground: #ffffff;
+  --input: #ffffff;
+  --ring: rgba(139, 92, 246, 0.5);
+  --chart-1: #8b5cf6;
+  --chart-2: #6b7280;
+  --chart-3: #f1f5f9;
+  --chart-4: #d97706;
+  --chart-5: #1f2937;
+  --radius: 0.5rem;
+  --sidebar: #f1f5f9;
+  --sidebar-foreground: #1f2937;
+  --sidebar-primary: #1f2937;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #8b5cf6;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: rgba(139, 92, 246, 0.5);
 }
 
 body {
@@ -54,6 +85,31 @@ body {
 
   .lo-list-item {
     @apply border-t border-black/10 py-8 flex flex-col md:flex-row gap-6;
+  }
+
+  /* Added AI modal specific component styles */
+  .ai-modal {
+    @apply bg-card border border-border shadow-lg rounded-lg overflow-hidden;
+  }
+
+  .ai-input-area {
+    @apply bg-input border border-border rounded-lg p-4 transition-all duration-200;
+  }
+
+  .ai-input-area:focus-within {
+    @apply border-accent ring-2 ring-ring;
+  }
+
+  .ai-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-4 py-2 rounded-md;
+  }
+
+  .ai-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors px-4 py-2 rounded-md;
+  }
+
+  .ai-accent-text {
+    @apply text-accent hover:text-accent/80;
   }
 }
 
