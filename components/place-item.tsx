@@ -35,7 +35,7 @@ export function PlaceItem({ place, isSelected = false, onClick }: PlaceItemProps
           <div
             className="aspect-[4/3] bg-gray-100 rounded-md"
             style={{
-              backgroundImage: place.image_url ? `url(${place.image_url})` : undefined,
+              backgroundImage: place.image ? `url(${place.image})` : undefined,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}

@@ -33,8 +33,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { StaticMap } from "@/components/ui/static-map"
-import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
 
 interface PlaceDetailViewProps {
   place: any
@@ -70,13 +68,14 @@ export function PlaceDetailView({
   const [showAddToListDialog, setShowAddToListDialog] = useState(false)
   const [createdByUser, setCreatedByUser] = useState<any>(null)
   const [isLoadingCreatedBy, setIsLoadingCreatedBy] = useState(false)
+  const [userError, setUserError] = useState<string | null>(null)
   const [currentList, setCurrentList] = useState<any>(null)
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [currentPlace, setCurrentPlace] = useState<any>(place)
-  const [listPlaceId, setListPlaceId] = useState<string | null>(
-    place?.listPlaceId || place?.list_place_id || null
-  )
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const [listPlaceId, setListPlaceId] = useState<string | null>(null)
 
   // Debug function
   const fetchDebugData = async () => {
@@ -101,34 +100,12 @@ export function PlaceDetailView({
       if (response.ok) {
         const placeData = await response.json()
         console.log("Fetched updated place data:", placeData)
-        
-        // If we're in a list context, also fetch the list-specific notes
-        if (listId && listId.trim() !== "") {
-          try {
-            const listPlaceResponse = await fetch(`/api/list-places?listId=${listId}&placeId=${place.id}`)
-            if (listPlaceResponse.ok) {
-              const listPlaceData = await listPlaceResponse.json()
-              if (listPlaceData && listPlaceData.note) {
-                // Preserve the list-specific notes by using them instead of place.notes
-                placeData.notes = listPlaceData.note
-                console.log("Using list-specific notes:", listPlaceData.note)
-              }
-              // Also preserve the listPlaceId for editing/removing
-              if (listPlaceData && listPlaceData.id) {
-                setListPlaceId(listPlaceData.id)
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching list-specific notes:", error)
-          }
-        }
-        
         setCurrentPlace(placeData)
       }
     } catch (error) {
       console.error("Error fetching place data:", error)
     }
-  }, [place?.id, listId])
+  }, [place?.id])
 
   // Fetch place data on mount and when place changes
   useEffect(() => {
@@ -150,7 +127,7 @@ export function PlaceDetailView({
   // Fetch current list details to get owner information
   useEffect(() => {
     const fetchCurrentList = async () => {
-      if (!listId || listId.trim() === "") return
+      if (!listId) return
 
       try {
         const response = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
@@ -166,119 +143,94 @@ export function PlaceDetailView({
     fetchCurrentList()
   }, [listId])
 
-  // Consolidated data fetching to reduce API calls
-  const fetchAllData = useCallback(async () => {
+  // Improved user lookup with better error handling and multiple sources
+  const fetchCreatedByUser = useCallback(async () => {
+    try {
+      setIsLoadingCreatedBy(true)
+      setUserError(null)
+
+      // Try to get user ID from multiple sources
+      let userId = currentPlace?.created_by // Use created_by instead of added_by
+
+      // If no user ID in place, try to get it from the list_places relationship
+      if (!userId) {
+        try {
+          const listPlaceResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+          if (listPlaceResponse.ok) {
+            const debugData = await listPlaceResponse.json()
+            userId = debugData.listPlace?.added_by || debugData.place?.created_by
+            console.log("Found user ID from list_places:", userId)
+          }
+        } catch (error) {
+          console.error("Error fetching list_places data:", error)
+        }
+      }
+
+      if (!userId) {
+        console.log("No user ID found for place:", currentPlace)
+        setCreatedByUser({ farcaster_display_name: "Unknown User" })
+        return
+      }
+
+      console.log("Fetching user with ID:", userId)
+
+      // First, try to get user data from our API
+      const userResponse = await fetch(`/api/users/${userId}?t=${Date.now()}`)
+
+      if (!userResponse.ok) {
+        throw new Error(`Failed to fetch user: ${userResponse.status}`)
+      }
+
+      const userData = await userResponse.json()
+      console.log("Fetched user data:", userData)
+
+      // If we got a fallback user and the ID looks like an FID, try Neynar directly
+      if (userData.farcaster_display_name === "Unknown User" && /^\d+$/.test(userId)) {
+        console.log("Trying Neynar API directly for FID:", userId)
+
+        try {
+          const neynarResponse = await fetch(`/api/debug/neynar-user?fid=${userId}`)
+          if (neynarResponse.ok) {
+            const neynarData = await neynarResponse.json()
+            console.log("Neynar debug response:", neynarData)
+
+            if (neynarData.userData) {
+              setCreatedByUser({
+                farcaster_display_name:
+                  neynarData.userData.display_name || neynarData.userData.username || "Unknown User",
+                farcaster_username: neynarData.userData.username || "unknown",
+                farcaster_pfp_url: neynarData.userData.pfp_url || "",
+              })
+              return
+            }
+          }
+        } catch (neynarError) {
+          console.error("Error fetching from Neynar:", neynarError)
+        }
+      }
+
+      setCreatedByUser(userData)
+    } catch (error) {
+      console.error("Error fetching user who created the place:", error)
+      setCreatedByUser({ farcaster_display_name: "Unknown User" })
+      setUserError(error instanceof Error ? error.message : "Failed to load user data")
+    } finally {
+      setIsLoadingCreatedBy(false)
+    }
+  }, [currentPlace, listId])
+
+  useEffect(() => {
+    fetchCreatedByUser()
+  }, [fetchCreatedByUser])
+
+  // Fetch lists that contain this place
+  const fetchConnectedLists = useCallback(async () => {
     if (!currentPlace?.id) return
 
     try {
       setIsLoadingLists(true)
-      setIsLoadingCreatedBy(true)
       setListsError(null)
 
-      // Only fetch debug data if we have a specific list context
-      let debugData = null
-      if (listId && listId.trim() !== "") {
-        const debugResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
-        
-        if (debugResponse.ok) {
-          debugData = await debugResponse.json()
-          console.log("Debug data:", debugData)
-          
-          // Set list place ID for remove functionality
-          if (debugData.listPlace?.id) {
-            setListPlaceId(debugData.listPlace.id)
-            console.log("Set listPlaceId from debug data:", debugData.listPlace.id)
-          }
-        }
-      }
-
-      // If we still don't have a listPlaceId but we have place data with list_place_id, use that
-      if (!listPlaceId && currentPlace.list_place_id) {
-        setListPlaceId(currentPlace.list_place_id)
-        console.log("Set listPlaceId from place data:", currentPlace.list_place_id)
-      }
-
-      // If we have a listId but no listPlaceId, try to find it via direct API call
-      if (listId && listId.trim() !== "" && !listPlaceId && !debugData?.listPlace?.id) {
-        try {
-          console.log("Attempting direct lookup for list_place relationship...")
-          const listPlaceResponse = await fetch(`/api/list-places?listId=${listId}&placeId=${currentPlace.id}`)
-          if (listPlaceResponse.ok) {
-            const listPlaceData = await listPlaceResponse.json()
-            if (listPlaceData?.id) {
-              setListPlaceId(listPlaceData.id)
-              console.log("Set listPlaceId from direct lookup:", listPlaceData.id)
-            }
-          }
-        } catch (error) {
-          console.error("Error in direct list_place lookup:", error)
-        }
-      }
-      
-      // Handle user data - try multiple sources
-      let userHandled = false
-      
-      // First, check if user data is already available in the place object
-      if (currentPlace.created_by_user || currentPlace.addedByUser) {
-        const userData = currentPlace.created_by_user || currentPlace.addedByUser
-        if (userData && userData.farcaster_display_name) {
-          setCreatedByUser(userData)
-          userHandled = true
-          console.log("Using user data from place object:", userData)
-        }
-      }
-      
-      if (!userHandled && debugData && debugData.user && debugData.user.farcaster_display_name !== "Unknown User") {
-        const displayName = debugData.user.farcaster_display_name || debugData.user.farcaster_username || "Unknown User"
-        setCreatedByUser({
-          ...debugData.user,
-          farcaster_display_name: displayName
-        })
-        userHandled = true
-      }
-      
-      if (!userHandled) {
-        // Try to get user ID from various sources
-        const userId = 
-          debugData?.listPlace?.added_by || 
-          debugData?.listPlace?.creator_id || 
-          debugData?.userId ||
-          currentPlace.addedBy ||
-          currentPlace.created_by ||
-          debugData?.place?.created_by ||
-          debugData?.place?.addedBy
-          
-        console.log("Trying user ID:", userId)
-        
-        if (userId) {
-          try {
-            const userResponse = await fetch(`/api/users/${userId}`)
-            if (userResponse.ok) {
-              const userData = await userResponse.json()
-              console.log("Fetched user data:", userData)
-              
-              if (userData.farcaster_display_name && userData.farcaster_display_name !== "Unknown User") {
-                setCreatedByUser(userData)
-              } else {
-                setCreatedByUser({ farcaster_display_name: "Unknown User" })
-              }
-            } else {
-              console.log("User API call failed:", userResponse.status)
-              setCreatedByUser({ farcaster_display_name: "Unknown User" })
-            }
-          } catch (error) {
-            console.error("Error fetching user separately:", error)
-            setCreatedByUser({ farcaster_display_name: "Unknown User" })
-          }
-        } else {
-          console.log("No user ID found in any field")
-          setCreatedByUser({ farcaster_display_name: "Unknown User" })
-        }
-      }
-      
-      setIsLoadingCreatedBy(false)
-
-      // Fetch lists containing this place
       const response = await fetch(`/api/places/${currentPlace.id}/lists?t=${Date.now()}`)
 
       if (!response.ok) {
@@ -288,8 +240,8 @@ export function PlaceDetailView({
 
       const lists = await response.json()
 
-      // If we have a specific list context, make sure it's included
-      if (listId && listId.trim() !== "" && !lists.some((list: any) => list.id === listId)) {
+      // Make sure current list is included
+      if (listId && !lists.some((list: any) => list.id === listId)) {
         try {
           const currentListResponse = await fetch(`/api/lists/${listId}?t=${Date.now()}`)
           if (currentListResponse.ok) {
@@ -301,20 +253,39 @@ export function PlaceDetailView({
         }
       }
 
+      // Fetch list_places ID for the current list
+      if (listId) {
+        try {
+          const listPlacesResponse = await fetch(`/api/debug/place-user?placeId=${currentPlace.id}&listId=${listId}`)
+          if (listPlacesResponse.ok) {
+            const data = await listPlacesResponse.json()
+            if (data.listPlace?.id) {
+              setListPlaceId(data.listPlace.id)
+              console.log("Found list_places ID:", data.listPlace.id)
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching list_places ID:", error)
+        }
+      }
+
       setConnectedLists(lists)
     } catch (error) {
-      console.error("Error fetching data:", error)
-      setListsError(error instanceof Error ? error.message : "Failed to load data")
-      setCreatedByUser({ farcaster_display_name: "Unknown User" })
-      setIsLoadingCreatedBy(false)
+      console.error("Error fetching connected lists:", error)
+      setListsError(error instanceof Error ? error.message : "Failed to load lists data")
+      toast({
+        title: "Error",
+        description: "Failed to load lists containing this place",
+        variant: "destructive",
+      })
     } finally {
       setIsLoadingLists(false)
     }
-  }, [currentPlace?.id, listId, listPlaceId])
+  }, [currentPlace?.id, listId])
 
   useEffect(() => {
-    fetchAllData()
-  }, [fetchAllData])
+    fetchConnectedLists()
+  }, [fetchConnectedLists])
 
   // Fetch user's lists for adding the place to a new list
   useEffect(() => {
@@ -408,27 +379,23 @@ export function PlaceDetailView({
     if (onPlaceUpdated) {
       onPlaceUpdated(updatedPlace)
     }
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeUpdated', { detail: updatedPlace })
-    window.dispatchEvent(event)
   }
 
   const handlePlaceRemoved = (placeId: string) => {
     if (onPlaceDeleted) {
       onPlaceDeleted(placeId)
     }
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeDeleted', { detail: { placeId } })
-    window.dispatchEvent(event)
-    
     onBack()
   }
 
   const handleCenterMap = () => {
     if (currentPlace.coordinates && onCenterMap) {
       onCenterMap(currentPlace.coordinates)
+    } else if (currentPlace.lat && currentPlace.lng && onCenterMap) {
+      onCenterMap({
+        lat: Number.parseFloat(currentPlace.lat),
+        lng: Number.parseFloat(currentPlace.lng),
+      })
     }
   }
 
@@ -499,6 +466,64 @@ export function PlaceDetailView({
     }
   }
 
+  const handleRemoveFromList = async () => {
+    if (!listPlaceId) {
+      toast({
+        title: "Error",
+        description: "Could not find the list-place relationship ID",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsRemoving(true)
+      console.log(`Removing place from list with list_places ID: ${listPlaceId}`)
+
+      const response = await fetch(`/api/list-places?id=${listPlaceId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        throw new Error(errorData.error || `Failed to remove place from list: ${response.status}`)
+      }
+
+      toast({
+        title: "Removed from list",
+        description: `"${currentPlace.name}" has been removed from the list.`,
+      })
+
+      // If we're viewing the place from the list we just removed it from, go back
+      if (listId) {
+        onBack()
+      } else {
+        // Otherwise, just update the connected lists
+        fetchConnectedLists()
+      }
+    } catch (err) {
+      console.error("Error removing place from list:", err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to remove place from list",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRemoving(false)
+      setShowRemoveDialog(false)
+    }
+  }
+
+  const handleRetryLists = () => {
+    setListsError(null)
+    fetchConnectedLists()
+  }
+
+  const handleRetryUser = () => {
+    setUserError(null)
+    fetchCreatedByUser()
+  }
+
   const handleListClick = (listId: string) => {
     if (onNavigateToList) {
       onNavigateToList(listId)
@@ -510,17 +535,17 @@ export function PlaceDetailView({
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-black/10 bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center min-w-0 flex-1">
+      <div className="p-4 border-b border-black/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center">
             <button
-              className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2 flex-shrink-0"
+              className="flex items-center text-black hover:bg-black/5 p-2 rounded mr-2"
               onClick={onBack}
               aria-label="Back"
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-serif text-xl line-clamp-2">{currentPlace.name}</h2>
+            <h2 className="font-serif text-xl truncate">{currentPlace.name}</h2>
           </div>
           {/* Debug button - only in development */}
           {process.env.NODE_ENV === "development" && (
@@ -531,7 +556,7 @@ export function PlaceDetailView({
                 fetchDebugData()
                 setShowDebug(!showDebug)
               }}
-              className="text-xs flex-shrink-0"
+              className="text-xs"
             >
               <Bug size={12} />
             </Button>
@@ -548,219 +573,175 @@ export function PlaceDetailView({
 
       {/* Place Image */}
       <div className="relative">
-        {currentPlace.image_url ? (
-          <div
-            className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
-            style={{
-              backgroundImage: `url(${currentPlace.image_url})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          />
-        ) : (
-          (() => {
-            // Map Placeholder Logic:
-            // When no place image is available, we try to show a static map instead.
-            // This provides users with a visual representation of the place's location
-            // using OpenStreetMap tiles showing approximately a 0.25 mile radius.
-            
-            // Try to get coordinates from different possible fields
-            let lat: number, lng: number
-            
-            if (currentPlace.coordinates) {
-              lat = currentPlace.coordinates.lat
-              lng = currentPlace.coordinates.lng
-            } else if (currentPlace.lat && currentPlace.lng) {
-              lat = parseFloat(currentPlace.lat)
-              lng = parseFloat(currentPlace.lng)
-            } else if (currentPlace.latitude && currentPlace.longitude) {
-              lat = parseFloat(currentPlace.latitude)
-              lng = parseFloat(currentPlace.longitude)
-            } else {
-              // No coordinates available, show default placeholder
-              return (
-                <div className="w-full h-48 border border-black/10 bg-gray-100 flex items-center justify-center">
-                  <MapPin size={32} className="text-gray-400" />
-                </div>
-              )
-            }
-            
-            // Validate coordinates
-            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-              return (
-                <div className="w-full h-48 border border-black/10 bg-gray-100 flex items-center justify-center">
-                  <MapPin size={32} className="text-gray-400" />
-                </div>
-              )
-            }
-            
-            // Show static map with the place's location
-            return (
-              <StaticMap
-                lat={lat}
-                lng={lng}
-                width={400}
-                height={192}
-                zoom={15}
-                className="w-full h-48 rounded-none"
-              />
-            )
-          })()
-        )}
+        <div
+          className="w-full h-48 bg-gray-100"
+          style={{
+            backgroundImage: currentPlace.image ? `url(${currentPlace.image})` : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
       </div>
 
       {/* Place Details */}
-      <div className="flex-grow">
-        {/* Action Buttons */}
-        <div className="p-4 border-b border-black/5">
-          <div className="grid grid-cols-2 gap-2">
+      <div className="p-4 flex-grow">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
+            onClick={handleCenterMap}
+            title="Center on map"
+          >
+            <MapPin size={14} /> Map
+          </Button>
+
+          {canEdit && (
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center justify-center gap-2 h-9"
-              onClick={handleCenterMap}
-              title="Center on map"
+              className="flex items-center gap-1"
+              onClick={handleEditPlace}
+              title="Edit place details"
             >
-              <MapPin size={14} />
-              <span className="text-xs">View on Map</span>
+              <Edit size={14} /> Edit Details
             </Button>
-
-            {dbUser && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center justify-center gap-2 h-9"
-                onClick={() => setShowAddToListDialog(true)}
-                title="Add to another list"
-              >
-                <Plus size={14} />
-                <span className="text-xs">Add to List</span>
-              </Button>
-            )}
-
-            {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center justify-center gap-2 h-9 col-span-2"
-                onClick={handleEditPlace}
-                title="Edit place details"
-              >
-                <Edit size={14} />
-                <span className="text-xs">Edit Details</span>
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Place Information */}
-        <div className="p-4 space-y-4">
-          {/* Basic Info Section */}
-          <div className="space-y-3">
-            {currentPlace.address && (
-              <div className="flex items-start gap-3">
-                <MapPin size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
-                <p className="text-sm text-black/80 leading-relaxed">{currentPlace.address}</p>
-              </div>
-            )}
-
-            {currentPlace.website_url && (
-              <div className="flex items-start gap-3">
-                <Globe size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
-                <a
-                  href={currentPlace.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1 leading-relaxed"
-                >
-                  {currentPlace.website_url.replace(/^https?:\/\//, "")}
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            )}
-
-            {/* Added By field */}
-            <div className="flex items-start gap-3">
-              <User size={16} className="mt-0.5 flex-shrink-0 text-black/60" />
-              {isLoadingCreatedBy ? (
-                <Skeleton className="h-4 w-24" />
-              ) : (
-                <p className="text-sm text-black/70 leading-relaxed">
-                  Added by{" "}
-                  <FarcasterProfileLink 
-                    username={createdByUser?.farcaster_username}
-                    displayName={createdByUser?.farcaster_display_name || "Unknown User"}
-                    className="text-sm text-black/70"
-                  />
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Notes Section */}
-          {currentPlace.notes && (
-            <div className="pt-4 border-t border-black/5">
-              <h3 className="font-medium text-sm mb-3 text-black/90">Notes</h3>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-black/80 whitespace-pre-wrap leading-relaxed">{currentPlace.notes}</p>
-              </div>
-            </div>
           )}
 
-          {/* Lists Section */}
-          <div className="pt-4 border-t border-black/5">
-            <h3 className="font-medium text-sm mb-3 text-black/90">In Lists</h3>
+          {dbUser && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => setShowAddToListDialog(true)}
+              title="Add to another list"
+            >
+              <Plus size={14} /> Add to list
+            </Button>
+          )}
 
-            {isLoadingLists ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-black/50" />
-              </div>
-            ) : listsError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex flex-col gap-2">
-                  <span className="text-sm">Error loading lists: {listsError}</span>
-                  <Button variant="outline" size="sm" className="self-start" onClick={fetchAllData}>
-                    Retry
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : connectedLists.length > 0 ? (
-              <div className="space-y-2">
-                {connectedLists.map((list) => (
-                  <Card
-                    key={list.id}
-                    className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors border-black/10"
-                    onClick={() => handleListClick(list.id)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <ListIcon size={16} className="flex-shrink-0 text-black/60" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm line-clamp-2">{list.title}</p>
-                            <p className="text-xs text-black/60">
-                              {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
-                            </p>
-                          </div>
-                        </div>
-                        {list.id === listId && (
-                          <div className="text-xs bg-black/10 px-2 py-1 rounded-full font-medium flex-shrink-0">
-                            Current
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <ListIcon size={24} className="mx-auto text-black/30 mb-2" />
-                <p className="text-sm text-black/60">This place is not in any lists yet.</p>
-              </div>
-            )}
+          {/* Remove from list button - only show if we're viewing from a list */}
+          {listId && listPlaceId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 text-red-600 hover:bg-red-50"
+              onClick={() => setShowRemoveDialog(true)}
+              title="Remove from this list"
+            >
+              <Trash2 size={14} /> Remove
+            </Button>
+          )}
+        </div>
+
+        {currentPlace.address && (
+          <div className="flex items-start mb-3">
+            <MapPin size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
+            <p className="text-sm text-black/80">{currentPlace.address}</p>
           </div>
+        )}
+
+        {currentPlace.website_url && (
+          <div className="flex items-start mb-3">
+            <Globe size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
+            <a
+              href={currentPlace.website_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:underline flex items-center"
+            >
+              {currentPlace.website_url.replace(/^https?:\/\//, "")}
+              <ExternalLink size={12} className="ml-1" />
+            </a>
+          </div>
+        )}
+
+        {/* Added By field */}
+        <div className="flex items-start mb-3">
+          <User size={16} className="mr-2 mt-0.5 flex-shrink-0 text-black/60" />
+          {isLoadingCreatedBy ? (
+            <Skeleton className="h-4 w-24" />
+          ) : createdByUser ? (
+            <div className="flex items-center">
+              <p className="text-sm text-black/70">Added by {createdByUser.farcaster_display_name || "Unknown user"}</p>
+              {createdByUser.farcaster_display_name === "Unknown User" && (
+                <Button variant="ghost" size="sm" onClick={handleRetryUser} className="h-6 px-2 ml-2 text-xs">
+                  Retry
+                </Button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-black/70">Added by a user</p>
+          )}
+        </div>
+
+        {userError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-col">
+              <span>Error loading user data: {userError}</span>
+              <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryUser}>
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {currentPlace.notes && (
+          <>
+            <Separator className="my-4" />
+            <div className="mb-4">
+              <h3 className="font-medium mb-2">Notes</h3>
+              <p className="text-sm text-black/80 whitespace-pre-wrap">{currentPlace.notes}</p>
+            </div>
+          </>
+        )}
+
+        {/* Lists containing this place */}
+        <Separator className="my-4" />
+        <div className="mb-4">
+          <h3 className="font-medium mb-2">In Lists</h3>
+
+          {isLoadingLists ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-5 w-5 animate-spin text-black/50" />
+            </div>
+          ) : listsError ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col">
+                <span>Error loading lists: {listsError}</span>
+                <Button variant="outline" size="sm" className="mt-2 self-start" onClick={handleRetryLists}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : connectedLists.length > 0 ? (
+            <div className="space-y-2">
+              {connectedLists.map((list) => (
+                <Card
+                  key={list.id}
+                  className="overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleListClick(list.id)}
+                >
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ListIcon size={16} className="mr-2 text-black/60" />
+                      <div>
+                        <p className="font-medium text-sm">{list.title}</p>
+                        <p className="text-xs text-black/60">
+                          {list.place_count || 0} {(list.place_count || 0) === 1 ? "place" : "places"}
+                        </p>
+                      </div>
+                    </div>
+                    {list.id === listId && <div className="text-xs bg-black/10 px-2 py-1 rounded">Current</div>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-black/60 text-center py-2">This place is not in any lists yet.</p>
+          )}
         </div>
       </div>
 
@@ -771,7 +752,6 @@ export function PlaceDetailView({
           onClose={() => setShowEditModal(false)}
           place={currentPlace}
           listId={listId}
-          listPlaceId={listPlaceId}
           onPlaceUpdated={handlePlaceUpdated}
           onPlaceRemoved={handlePlaceRemoved}
         />
@@ -807,7 +787,7 @@ export function PlaceDetailView({
                     <CardContent className="p-3 flex items-center justify-between">
                       <div className="flex items-center">
                         <ListIcon size={16} className="mr-2 text-black/60" />
-                        <p className="font-medium text-sm line-clamp-2">{list.title}</p>
+                        <p className="font-medium text-sm">{list.title}</p>
                       </div>
                       <Button
                         size="sm"
@@ -834,6 +814,30 @@ export function PlaceDetailView({
               Cancel
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove from List Dialog */}
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove from List</DialogTitle>
+            <DialogDescription>Are you sure you want to remove "{currentPlace.name}" from this list?</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveFromList}
+              disabled={isRemoving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Remove
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

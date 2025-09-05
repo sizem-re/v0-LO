@@ -5,17 +5,12 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { User, LogOut } from "lucide-react"
 import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
-import { FarcasterAuth } from "@/components/farcaster-auth"
 
 export function UserMenu() {
-  const { isAuthenticated: authContextAuthenticated, user: authContextUser, logout } = useAuth()
-  const { user: neynarUser, isAuthenticated: neynarAuthenticated } = useNeynarContext()
+  const { signOut } = useAuth()
+  const { user, isAuthenticated, signOut: neynarSignOut } = useNeynarContext()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-
-  // Determine the final authentication state and user data
-  const isAuthenticated = authContextAuthenticated || neynarAuthenticated
-  const user = authContextUser || neynarUser
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -30,24 +25,14 @@ export function UserMenu() {
     }
   }, [])
 
-  // If not authenticated or no user data, show the auth button
-  if (!isAuthenticated || !user) {
-    return (
-      <FarcasterAuth className="nav-link bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-md transition-colors">
-        Sign in with Farcaster
-      </FarcasterAuth>
-    )
+  // If no user data, show the auth button
+  if (!user) {
+    return <NeynarAuthButton className="nav-link" />
   }
 
   // Safely extract username and display name
-  const username = user?.username || user?.farcaster_username || "USER"
-  const displayName = user?.display_name || user?.farcaster_display_name || username
-  const pfpUrl = user?.pfp_url || user?.farcaster_pfp_url || null
-
-  const handleSignOut = async () => {
-    setIsOpen(false)
-    await logout()
-  }
+  const username = typeof user.username === "string" ? user.username : "USER"
+  const displayName = typeof user.display_name === "string" ? user.display_name : username
 
   return (
     <div className="relative" ref={menuRef}>
@@ -57,12 +42,8 @@ export function UserMenu() {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {pfpUrl ? (
-          <img 
-            src={pfpUrl} 
-            alt={displayName} 
-            className="w-6 h-6 rounded-full border border-black/10" 
-          />
+        {user?.pfp_url ? (
+          <img src={user.pfp_url || "/placeholder.svg"} alt={displayName} className="w-6 h-6 border border-black/10" />
         ) : (
           <User className="w-5 h-5" />
         )}
@@ -70,32 +51,19 @@ export function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 border border-black/20 bg-white shadow-lg rounded-md z-10">
+        <div className="absolute right-0 mt-2 w-48 border border-black/20 bg-white z-10">
           <div className="py-2">
-            <Link 
-              href="/profile" 
-              className="block px-4 py-2 hover:bg-black/5 transition-colors" 
-              onClick={() => setIsOpen(false)}
-            >
+            <Link href="/profile" className="block px-4 py-2 hover:bg-black/5" onClick={() => setIsOpen(false)}>
               Profile
             </Link>
-            <Link 
-              href="/lists" 
-              className="block px-4 py-2 hover:bg-black/5 transition-colors" 
-              onClick={() => setIsOpen(false)}
-            >
+            <Link href="/lists" className="block px-4 py-2 hover:bg-black/5" onClick={() => setIsOpen(false)}>
               My Lists
             </Link>
-            <div className="px-4 py-2">
-              <NeynarAuthButton />
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-red-600 transition-colors"
-            >
+            {/* Use the Neynar button directly for sign out */}
+            <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 text-black/80">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
-            </button>
+            </NeynarAuthButton>
           </div>
         </div>
       )}

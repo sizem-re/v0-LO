@@ -4,7 +4,6 @@ import { LogOut, List, ChevronLeft, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useNeynarContext, NeynarAuthButton } from "@neynar/react"
-import { useAuth } from "@/lib/auth-context"
 import { UserListsDisplay } from "@/components/user-lists-display"
 
 interface UserProfileViewProps {
@@ -16,49 +15,21 @@ interface UserProfileViewProps {
 
 export function UserProfileView({ onClose, expanded = false, onCreateList, onSelectList }: UserProfileViewProps) {
   const router = useRouter()
-  const { user: neynarUser } = useNeynarContext()
-  const { user: authUser, dbUser, isAuthenticated, logout } = useAuth()
-
-  // Use authenticated user data (prioritize miniapp auth, fallback to Neynar)
-  const user = authUser || neynarUser
-
-  console.log("UserProfileView - authUser:", authUser)
-  console.log("UserProfileView - dbUser:", dbUser)
-  console.log("UserProfileView - neynarUser:", neynarUser)
-  console.log("UserProfileView - final user:", user)
-
-  // Enhanced logout function that handles both Neynar and custom auth
-  const handleLogout = async () => {
-    try {
-      console.log("Starting logout process...")
-      
-      // Call our custom logout first (clears local state)
-      await logout()
-      
-      // Force a page reload to ensure clean state
-      window.location.href = "/"
-    } catch (error) {
-      console.error("Error during logout:", error)
-      // Force reload even if there's an error
-      window.location.href = "/"
-    }
-  }
+  const { user } = useNeynarContext()
 
   // Format user data
   const displayUser = user
     ? {
         displayName:
-          user.farcaster_display_name || 
-          user.display_name ||
-          user.farcaster_username ||
-          user.username ||
-          "User",
-        username: user.farcaster_username || user.username || "user",
-        pfp: user.farcaster_pfp_url || user.pfp_url || "/placeholder.svg",
-        fid: user.farcaster_id || user.fid?.toString() || "0",
-        bio: typeof user.profile?.bio === 'string' 
-          ? user.profile.bio 
-          : user.profile?.bio?.text || user.bio || "",
+          typeof user.display_name === "string"
+            ? user.display_name
+            : typeof user.username === "string"
+              ? user.username
+              : "User",
+        username: typeof user.username === "string" ? user.username : "user",
+        pfp: user.pfp_url || "/placeholder.svg",
+        fid: user.fid?.toString() || "0",
+        bio: typeof user.profile?.bio === "string" ? user.profile.bio : "",
       }
     : {
         displayName: "Demo User",
@@ -104,13 +75,11 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
             <span>Create List</span>
           </button>
 
-          {/* Use NeynarAuthButton for proper logout */}
-          <div className="px-4 py-2">
-            <NeynarAuthButton 
-              label="Sign Out"
-              className="flex items-center gap-2 w-full text-left hover:bg-black/5 rounded-md text-red-600 border-0 bg-transparent p-0 font-normal"
-            />
-          </div>
+          {/* Use NeynarAuthButton directly for sign out */}
+          <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </NeynarAuthButton>
         </div>
       </div>
     )
@@ -150,12 +119,10 @@ export function UserProfileView({ onClose, expanded = false, onCreateList, onSel
 
       {/* Sign Out */}
       <div className="mt-6 pt-4 border-t border-black/10">
-        <div className="px-4 py-2">
-          <NeynarAuthButton 
-            label="Sign Out"
-            className="flex items-center gap-2 w-full text-left hover:bg-black/5 rounded-md text-red-600 border-0 bg-transparent p-0 font-normal"
-          />
-        </div>
+        <NeynarAuthButton className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-black/5 rounded-md text-red-600">
+          <LogOut size={16} />
+          <span>Sign Out</span>
+        </NeynarAuthButton>
       </div>
     </div>
   )

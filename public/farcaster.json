@@ -1,0 +1,19 @@
+{
+  "name": "LO",
+  "description": "Discover and share curated lists of locations",
+  "icons": [
+    {
+      "src": "https://llllllo.com/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "id": "lo-app",
+  "notification_url": "https://llllllo.com/api/notifications",
+  "permissions": ["cast:write", "user:read", "channel:read", "channel:write", "notification:read", "notification:write"]
+}

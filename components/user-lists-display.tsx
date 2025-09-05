@@ -40,13 +40,7 @@ export function UserListsDisplay({
 
   useEffect(() => {
     const fetchLists = async () => {
-      console.log("UserListsDisplay: Starting fetchLists")
-      console.log("UserListsDisplay: dbUser:", dbUser)
-      console.log("UserListsDisplay: neynar user:", user)
-      console.log("UserListsDisplay: neynarAuthenticated:", neynarAuthenticated)
-      
       if (!dbUser?.id && !user?.fid) {
-        console.log("UserListsDisplay: No user ID or FID available")
         setIsLoading(false)
         return
       }
@@ -56,14 +50,11 @@ export function UserListsDisplay({
         const queryParam = user?.fid ? `fid=${user.fid}` : dbUser?.id ? `userId=${dbUser.id}` : ""
 
         if (!queryParam) {
-          console.log("UserListsDisplay: No valid query parameter")
           setIsLoading(false)
           return
         }
 
-        console.log(`UserListsDisplay: Fetching lists with query: ${queryParam}`)
-        console.log("UserListsDisplay: Full URL will be: /api/lists?" + queryParam)
-        
+        console.log(`Fetching lists with query: ${queryParam}`)
         const response = await fetch(`/api/lists?${queryParam}`)
 
         if (!response.ok) {
@@ -71,18 +62,10 @@ export function UserListsDisplay({
         }
 
         const data = await response.json()
-        console.log("UserListsDisplay: Lists data received:", data)
-        console.log("UserListsDisplay: Number of lists:", data?.length || 0)
-        
-        // Log owner information for debugging
-        if (data && data.length > 0) {
-          console.log("UserListsDisplay: First list owner_id:", data[0].owner_id)
-          console.log("UserListsDisplay: Expected owner_id should be:", dbUser?.id || "from FID lookup")
-        }
-        
+        console.log("Lists data:", data)
         setLists(data || [])
       } catch (err) {
-        console.error("UserListsDisplay: Error fetching lists:", err)
+        console.error("Error fetching lists:", err)
         setError(err instanceof Error ? err.message : "An unknown error occurred")
       } finally {
         setIsLoading(false)
@@ -90,7 +73,7 @@ export function UserListsDisplay({
     }
 
     fetchLists()
-  }, [dbUser?.id, user?.fid, neynarAuthenticated])
+  }, [dbUser?.id, user?.fid])
 
   const handleSelectList = (listId: string) => {
     if (onSelectList) {
@@ -137,53 +120,12 @@ export function UserListsDisplay({
   }
 
   if (lists.length === 0) {
-    if (compact) {
-      return (
-        <div className={`text-center py-4 ${className}`}>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-            <p className="text-sm text-blue-800 font-medium mb-2">Welcome to Lists!</p>
-            <p className="text-xs text-blue-600 mb-3">Create lists to organize places by theme, trip, or any way you like.</p>
-          </div>
-          <Button className="w-full bg-black text-white hover:bg-black/80" onClick={onCreateList}>
-            <Plus size={14} className="mr-1" />
-            Create Your First List
-          </Button>
-        </div>
-      )
-    }
-    
     return (
-      <div className={`text-center py-8 ${className}`}>
-        <div className="max-w-sm mx-auto">
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-blue-200 rounded-lg p-6 mb-4">
-            <div className="flex justify-center mb-3">
-              <ListIcon className="h-12 w-12 text-blue-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Your First List</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Lists help you organize places by theme, trip, or any way you like. 
-              Start by creating your first list, then add places to it.
-            </p>
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-500 mb-4">
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                Create List
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Add Places
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                Share
-              </span>
-            </div>
-          </div>
-          <Button className="bg-black text-white hover:bg-black/80" onClick={onCreateList}>
-            <Plus size={16} className="mr-1" />
-            Create Your First List
-          </Button>
-        </div>
+      <div className={`text-center py-4 ${className}`}>
+        <p className="mb-2">You haven't created any lists yet</p>
+        <Button className="bg-black text-white hover:bg-black/80" onClick={onCreateList}>
+          Create Your First List
+        </Button>
       </div>
     )
   }
@@ -202,7 +144,7 @@ export function UserListsDisplay({
               <ListIcon size={16} />
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-medium text-sm line-clamp-2">{list.title}</h4>
+              <h4 className="font-medium text-sm truncate">{list.title}</h4>
               <div className="flex items-center gap-3">
                 <div className="flex items-center text-xs text-black/60">
                   {list.visibility === "public" ? (
@@ -239,7 +181,7 @@ export function UserListsDisplay({
         <Card key={list.id} className="p-3 border border-black/10">
           <div className="flex justify-between items-start">
             <div className="min-w-0 flex-1">
-              <h3 className="font-serif text-lg line-clamp-2">{list.title}</h3>
+              <h3 className="font-serif text-lg truncate">{list.title}</h3>
               {list.description && <p className="text-sm text-black/70 line-clamp-2">{list.description}</p>}
               <div className="flex gap-4 mt-2 text-xs text-black/70">
                 <span className="flex items-center">

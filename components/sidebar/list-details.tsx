@@ -10,7 +10,7 @@ interface Place {
   name: string
   type: string
   address: string
-  image_url?: string
+  image?: string
   coordinates: {
     lat: number
     lng: number
@@ -155,7 +155,7 @@ export function ListDetails({ listId, onBack, onPlaceClick }: ListDetailsProps) 
                 <div
                   className="h-12 w-12 bg-gray-200 rounded mr-3"
                   style={{
-                    backgroundImage: place.image_url ? `url(${place.image_url})` : undefined,
+                    backgroundImage: place.image ? `url(${place.image})` : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}

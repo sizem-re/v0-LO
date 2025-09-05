@@ -1,38 +1,30 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import {
-  ChevronLeft,
-  MapPin,
-  Edit3,
-  Trash2,
-  Plus,
-  Share2,
-  Link,
-  Check,
-  Globe,
-  Users,
-  Lock,
-  ExternalLink,
-} from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { ChevronLeft, MapPin, Globe, Users, Lock, MoreVertical, Plus, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PlaceItem } from "@/components/place-item"
-import { EditListModal } from "@/components/sidebar/edit-list-modal"
-import { AddPlaceModal } from "@/components/sidebar/add-place-modal"
-import { FarcasterProfileLink } from "@/components/ui/farcaster-profile-link"
+import { EditListModal } from "./edit-list-modal"
+import { AddPlaceModal } from "./add-place-modal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
-
-// Farcaster icon component
-const FarcasterIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 1000 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z" fill="currentColor"/>
-    <path d="M128.889 253.333L157.778 253.333C157.778 253.333 157.778 253.333 157.778 253.333L157.778 746.667C157.778 746.667 157.778 746.667 157.778 746.667L128.889 746.667V253.333Z" fill="currentColor"/>
-    <path d="M842.222 253.333L871.111 253.333V746.667L842.222 746.667C842.222 746.667 842.222 746.667 842.222 746.667L842.222 253.333C842.222 253.333 842.222 253.333 842.222 253.333Z" fill="currentColor"/>
-  </svg>
-)
 
 interface ListDetailViewProps {
   listId: string
@@ -55,13 +47,15 @@ export function ListDetailView({
   const [list, setList] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const [showShareOptions, setShowShareOptions] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const fetchListDetails = useCallback(async () => {
     try {
+      setIsRefreshing(true)
       setError(null)
 
       console.log(`Fetching list details for ID: ${listId}`)
@@ -79,6 +73,7 @@ export function ListDetailView({
       setError(err instanceof Error ? err.message : "Failed to load list details")
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }, [listId])
 
@@ -88,37 +83,6 @@ export function ListDetailView({
       fetchListDetails()
     }
   }, [listId, fetchListDetails])
-
-  // Reset linkCopied state after 2 seconds
-  useEffect(() => {
-    if (linkCopied) {
-      const timer = setTimeout(() => {
-        setLinkCopied(false)
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [linkCopied])
-
-  // Close share options when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showShareOptions) {
-        const target = event.target as HTMLElement
-        const shareContainer = target.closest('.share-container')
-        if (!shareContainer) {
-          setShowShareOptions(false)
-        }
-      }
-    }
-
-    if (showShareOptions) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showShareOptions])
 
   const handleEditList = () => {
     setShowEditModal(true)
@@ -137,121 +101,60 @@ export function ListDetailView({
     }
   }
 
+  const handleDeleteList = async () => {
+    if (!list) return
+
+    try {
+      setIsDeleting(true)
+      console.log(`Deleting list with ID: ${list.id}`)
+
+      const response = await fetch(`/api/lists/${list.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete list")
+      }
+
+      console.log("List deleted successfully")
+      toast({
+        title: "List deleted",
+        description: `"${list.title}" has been deleted successfully.`,
+      })
+
+      // Call the parent callback if provided
+      if (onDeleteList) {
+        onDeleteList(list)
+      }
+
+      setShowDeleteConfirm(false)
+    } catch (err) {
+      console.error("Error deleting list:", err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to delete list",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleAddPlace = () => {
     setShowAddPlaceModal(true)
   }
 
   const handlePlaceAdded = (place: any) => {
-    console.log("Place added:", place)
-    fetchListDetails() // Refresh the list to show the new place
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeAdded', { detail: place })
-    window.dispatchEvent(event)
+    // Refresh the list to show the new place
+    fetchListDetails()
   }
 
-  const handleCopyLink = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    try {
-      const baseUrl = window.location.origin
-      const listUrl = `${baseUrl}/?list=${listId}`
-      
-      // Always copy to clipboard for simplicity
-      await navigator.clipboard.writeText(listUrl)
-      toast({
-        title: "Link copied!",
-        description: "The shareable link has been copied to your clipboard.",
-      })
-      setLinkCopied(true)
-      setShowShareOptions(false) // Close share options after copying
-    } catch (error) {
-      console.error("Error copying link:", error)
-      // Fallback for older browsers or if clipboard API fails
-      try {
-        const textArea = document.createElement('textarea')
-        textArea.value = `${window.location.origin}/?list=${listId}`
-        document.body.appendChild(textArea)
-        textArea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textArea)
-        toast({
-          title: "Link copied!",
-          description: "The shareable link has been copied to your clipboard.",
-        })
-        setLinkCopied(true)
-        setShowShareOptions(false) // Close share options after copying
-      } catch (fallbackError) {
-        toast({
-          title: "Copy failed",
-          description: "Unable to copy link. Please copy the URL manually.",
-          variant: "destructive",
-        })
-      }
-    }
-  }
-
-  const handleShareToFarcaster = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    try {
-      const baseUrl = window.location.origin
-      // Add trailing slash for Farcaster frame URL
-      const frameUrl = `${baseUrl}/lists/${listId}/frame/`
-      const listTitle = list?.title || "Check out this list"
-      const listDescription = list?.description || "A curated list of amazing places"
-      const placeCount = list?.places?.length || 0
-      const ownerName = list?.owner?.farcaster_display_name || list?.owner?.farcaster_username || "someone"
-      
-      // Create more engaging Farcaster share text
-      const placeText = placeCount === 1 ? "place" : "places"
-      const emoji = placeCount > 10 ? "🗺️" : placeCount > 5 ? "📍" : "✨"
-      
-      let shareText = `${emoji} ${listTitle}`
-      
-      // Add description if available and not too long
-      if (listDescription && listDescription !== "A curated list of amazing places") {
-        const truncatedDescription = listDescription.length > 60 
-          ? `${listDescription.substring(0, 60)}...` 
-          : listDescription
-        shareText += `\n\n${truncatedDescription}`
-      }
-      
-      // Add simple place count
-      shareText += `\n\n📍 ${placeCount} ${placeText}`
-      
-      // Add frame URL on its own line
-      shareText += `\n${frameUrl}`
-      
-      // Try to open Warpcast app first, fallback to web
-      const warpcastAppUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}`
-      
-      // Check if we're in a mobile environment
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      
-      if (isMobile) {
-        // Try to open the Warpcast app
-        window.open(warpcastAppUrl, '_blank')
-      } else {
-        // On desktop, open Warpcast web
-        window.open(warpcastAppUrl, '_blank')
-      }
-      
-      toast({
-        title: "Opening Farcaster",
-        description: "Redirecting to Warpcast to share your list...",
-      })
-      setShowShareOptions(false) // Close share options after sharing
-    } catch (error) {
-      console.error("Error sharing to Farcaster:", error)
-      toast({
-        title: "Share failed",
-        description: "Unable to open Farcaster. Please try again.",
-        variant: "destructive",
-      })
-    }
+  const handleRefreshList = () => {
+    fetchListDetails()
   }
 
   const isOwner = dbUser?.id === list?.owner_id
@@ -372,60 +275,31 @@ export function ListDetailView({
             >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="font-serif text-xl line-clamp-2">{list.title}</h2>
+            <h2 className="font-serif text-xl truncate">{list.title}</h2>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Share Button - visible for owners, public lists, and community lists */}
-            {(isOwner || list.visibility === "public" || list.visibility === "community") && (
-              <div className="relative share-container">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 transition-colors ${linkCopied ? 'bg-green-100 text-green-600 hover:bg-green-200' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowShareOptions(!showShareOptions)
-                  }}
-                  title="Share options"
-                >
-                  {linkCopied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
+          {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical size={16} />
                 </Button>
-                
-                {/* Share options - inline expansion */}
-                {showShareOptions && (
-                  <div className="absolute right-0 top-10 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50 min-w-[140px]">
-                    <button 
-                      onClick={handleCopyLink} 
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
-                    >
-                      <Link size={14} />
-                      Copy Link
-                    </button>
-                    <button 
-                      onClick={handleShareToFarcaster} 
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
-                    >
-                      <FarcasterIcon size={14} />
-                      Share to Farcaster
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Edit Button - visible for owners */}
-            {isOwner && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8"
-                onClick={handleEditList}
-              >
-                <Edit3 size={16} />
-              </Button>
-            )}
-          </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEditList}>Edit List</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRefreshList} disabled={isRefreshing}>
+                  {isRefreshing ? "Refreshing..." : "Refresh List"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete List
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="flex items-center text-sm text-black/70 mb-2">
@@ -440,14 +314,7 @@ export function ListDetailView({
         </div>
 
         {list.description && <p className="text-sm text-black/70 mb-2">{list.description}</p>}
-        <div className="text-xs text-black/60">
-          Created by{" "}
-          <FarcasterProfileLink 
-            username={list.owner?.farcaster_username}
-            displayName={ownerName}
-            className="text-xs"
-          />
-        </div>
+        <div className="text-xs text-black/60">Created by {ownerName}</div>
       </div>
 
       {/* Add Place Button */}
@@ -477,14 +344,11 @@ export function ListDetailView({
               <div
                 key={place.id}
                 className="border border-black/10 rounded-md p-3 hover:bg-black/5 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation() // Stop event from bubbling up
-                  onPlaceClick(place)
-                }}
+                onClick={() => onPlaceClick(place)}
               >
                 <div className="flex items-start">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium line-clamp-2">{place.name}</h4>
+                    <h4 className="font-medium truncate">{place.name}</h4>
                     {place.address && <p className="text-xs text-black/70 truncate">{place.address}</p>}
                   </div>
                   <ExternalLink size={14} className="text-black/40 ml-2 mt-1" />
@@ -502,21 +366,36 @@ export function ListDetailView({
           onClose={() => setShowEditModal(false)}
           list={list}
           onListUpdated={handleListUpdated}
-          onListDeleted={() => {
-            if (onDeleteList) {
-              onDeleteList(list)
-            }
-          }}
         />
       )}
 
       {/* Add Place Modal */}
-      <AddPlaceModal
-        isOpen={showAddPlaceModal}
-        onClose={() => setShowAddPlaceModal(false)}
-        listId={listId}
-        onPlaceAdded={handlePlaceAdded}
-      />
+      {showAddPlaceModal && (
+        <AddPlaceModal
+          listId={listId}
+          onClose={() => setShowAddPlaceModal(false)}
+          onPlaceAdded={handlePlaceAdded}
+          onRefreshList={handleRefreshList}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the list "{list.title}" and remove it from your profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeleteList} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

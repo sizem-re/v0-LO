@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react"
 import { Search, MapPin, ListIcon, ChevronLeft, ChevronRight, User, Home, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNeynarContext } from "@neynar/react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoginView } from "./login-view"
@@ -15,17 +14,10 @@ import { UserListsDisplay } from "@/components/user-lists-display"
 import { ListDetailView } from "./list-detail-view"
 import { PlaceDetailView } from "./place-detail-view"
 import { PlacesListView } from "./places-list-view"
-import { AddPlaceModal } from "./add-place-modal"
-import { DiscoverView } from "./discover-view"
 
-interface SidebarProps {
-  initialListId?: string | null
-}
-
-export function Sidebar({ initialListId }: SidebarProps = {}) {
+export function Sidebar() {
   // Get miniapp context
   const { isMiniApp } = useMiniApp()
-  const router = useRouter()
 
   // Detect mobile devices
   const [isMobile, setIsMobile] = useState(false)
@@ -39,9 +31,7 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   const [searchQuery, setSearchQuery] = useState("")
   const [showLogin, setShowLogin] = useState(false)
   const [showCreateListModal, setShowCreateListModal] = useState(false)
-  const [showAddPlaceModal, setShowAddPlaceModal] = useState(false)
   const [listsKey, setListsKey] = useState(0) // Used to force refresh lists
-  const [placesRefreshTrigger, setPlacesRefreshTrigger] = useState(0)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
 
@@ -68,92 +58,22 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
 
     // Check on mount and window resize
     checkMobile()
-    
-    // Add debounce to resize handler to prevent rapid state changes
-    let resizeTimer: NodeJS.Timeout
-    const handleResize = () => {
-      clearTimeout(resizeTimer)
-      resizeTimer = setTimeout(checkMobile, 100)
-    }
-    
-    window.addEventListener("resize", handleResize)
-    return () => {
-      window.removeEventListener("resize", handleResize)
-      clearTimeout(resizeTimer)
-    }
+    window.addEventListener("resize", checkMobile)
+
+    return () => window.removeEventListener("resize", checkMobile)
   }, [isMiniApp])
 
   // Handle clicks outside the sidebar to auto-collapse on mobile
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only handle click-outside if:
-      // 1. We're on mobile
-      // 2. The sidebar is expanded
-      // 3. The click is not within the sidebar
-      // 4. The click is not on a modal or dialog (they usually have role="dialog")
-      // 5. We're not in the middle of an interaction (like adding a place)
-      if (
-        isMobile && 
-        !isCollapsed && 
-        sidebarRef.current && 
-        !sidebarRef.current.contains(event.target as Node)
-      ) {
-        const clickedElement = event.target as HTMLElement
-        const isModalClick = clickedElement.closest('[role="dialog"]') !== null
-        const isInInteraction = showCreateListModal || showAddPlaceModal || showLogin
-        
-        if (!isModalClick && !isInInteraction) {
-          setIsCollapsed(true)
-        }
+      if (isMobile && !isCollapsed && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsCollapsed(true)
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [isMobile, isCollapsed, showCreateListModal, showAddPlaceModal, showLogin])
-
-  // Prevent sidebar collapse during certain interactions
-  useEffect(() => {
-    if (showCreateListModal || showAddPlaceModal || showLogin) {
-      setIsCollapsed(false)
-    }
-  }, [showCreateListModal, showAddPlaceModal, showLogin])
-
-  // Listen for place selection from map
-  useEffect(() => {
-    const handlePlaceSelectFromMap = (event: Event) => {
-      const customEvent = event as CustomEvent<{ place: any; navigateToPlaces: boolean }>
-      const { place, navigateToPlaces } = customEvent.detail
-
-      if (navigateToPlaces) {
-        // Switch to places tab and show place details
-        setActiveTab("places")
-        setSelectedPlace(place)
-        setSelectedListId(null)
-        setIsCollapsed(false) // Ensure sidebar is expanded
-      }
-    }
-
-    window.addEventListener("selectPlaceFromMap", handlePlaceSelectFromMap as EventListener)
-
-    return () => {
-      window.removeEventListener("selectPlaceFromMap", handlePlaceSelectFromMap as EventListener)
-    }
-  }, [])
-
-  // Handle initial list ID from URL
-  useEffect(() => {
-    console.log('Sidebar initialListId effect:', { initialListId, selectedListId, userIsAuthenticated })
-    
-    if (initialListId && !selectedListId) {
-      console.log("Setting initial list ID from URL:", initialListId)
-      setSelectedListId(initialListId)
-      setActiveTab("mylists")
-      setIsCollapsed(false) // Ensure sidebar is expanded to show the list
-    }
-    // Note: We removed the auto-clearing logic here because it was interfering with manual list selection
-    // The URL parameter clearing is handled by navigation functions (handleBackFromList, handleTabClick, etc.)
-  }, [initialListId, selectedListId])
+  }, [isMobile, isCollapsed])
 
   const handleProfileClick = () => {
     if (!userIsAuthenticated) {
@@ -165,22 +85,15 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       setSelectedListId(null) // Clear any selected list
       setSelectedPlace(null) // Clear any selected place
       setIsCollapsed(false)
-      // Clear the list parameter from URL if present
-      if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
-        router.replace('/', { scroll: false })
-      }
     }
   }
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab)
-    setSearchQuery("") // Reset search when switching tabs
-    setSelectedListId(null)
-    setSelectedPlace(null)
-    // Clear the list parameter from URL if present
-    if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
-      router.replace('/', { scroll: false })
-    }
+    setShowLogin(false)
+    setSelectedListId(null) // Clear any selected list
+    setSelectedPlace(null) // Clear any selected place
+    setIsCollapsed(false) // Always expand sidebar when changing tabs
   }
 
   const handleCreateList = () => {
@@ -198,25 +111,17 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
   const handleSelectList = (listId: string) => {
     setSelectedListId(listId)
     setSelectedPlace(null) // Clear any selected place
-    // If we're currently in the profile view, switch away from it to show the list
-    if (activeTab === "profile") {
-      setActiveTab("mylists")
-    }
   }
 
   const handleBackFromList = () => {
     setSelectedListId(null)
     setSelectedPlace(null) // Clear any selected place
-    // Clear the list parameter from URL when going back from a list
-    if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
-      router.replace('/', { scroll: false })
-    }
   }
 
   const handlePlaceClick = (place: any) => {
     console.log("Place clicked:", place)
     setSelectedPlace(place)
-    setIsCollapsed(false) // Ensure sidebar stays expanded when viewing place details
+    // Don't collapse sidebar here to show the place details
   }
 
   const handleBackFromPlace = () => {
@@ -242,47 +147,25 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
     // Here you would show an add place modal or navigate to add place page
   }
 
-  const handlePlaceAdded = (place: any) => {
-    console.log("Place added:", place)
-    setPlacesRefreshTrigger(prev => prev + 1) // Trigger places list refresh
-    setShowAddPlaceModal(false)
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeAdded', { detail: place })
-    window.dispatchEvent(event)
-  }
-
   const handlePlaceUpdated = (updatedPlace: any) => {
     console.log("Place updated:", updatedPlace)
     // Update the selected place with the new data
     setSelectedPlace(updatedPlace)
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeUpdated', { detail: updatedPlace })
-    window.dispatchEvent(event)
   }
 
   const handlePlaceDeleted = (placeId: string) => {
     console.log("Place deleted:", placeId)
     // Go back to the list view
     setSelectedPlace(null)
-    
-    // Dispatch event to update the main map
-    const event = new CustomEvent('placeDeleted', { detail: { placeId } })
-    window.dispatchEvent(event)
   }
 
   const handleCenterMap = (coordinates: { lat: number; lng: number }) => {
     // This function will be passed to the map component to center on a place
     console.log("Center map on:", coordinates)
-    // Dispatch event to center the map
+    // You would typically call a function on the map component to center the map
+    // For now, we'll just dispatch a custom event that the map can listen for
     const event = new CustomEvent("centerMap", { detail: coordinates })
     window.dispatchEvent(event)
-    // Only collapse the sidebar if no place is currently selected
-    // This allows the place details to remain visible when auto-centering
-    if (!selectedPlace) {
-      setIsCollapsed(true)
-    }
   }
 
   const handleNavigateToList = (listId: string) => {
@@ -291,19 +174,12 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
     setSelectedPlace(null) // Clear any selected place when navigating to a list
   }
 
-  const handleAddPlaceFromTab = () => {
-    setShowAddPlaceModal(true)
-  }
-
   // For very small screens, we can completely hide the sidebar
   if (isHidden) {
     return (
       <button
-        className="absolute top-2 left-2 z-50 bg-white p-2 rounded-full shadow-md hover:bg-gray-100"
-        onClick={() => {
-          setIsHidden(false)
-          setIsCollapsed(false) // Ensure sidebar expands when showing it again
-        }}
+        className="absolute top-2 left-2 z-50 bg-white p-2 rounded-full shadow-md"
+        onClick={() => setIsHidden(false)}
         aria-label="Show sidebar"
       >
         <Menu size={20} />
@@ -320,30 +196,10 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       >
         {/* LO Logotype */}
         <div className="mb-2 flex flex-col items-center">
-          <button 
-            onClick={() => {
-              setActiveTab("discover")
-              setSelectedListId(null)
-              setSelectedPlace(null)
-              setIsCollapsed(false)
-              // Clear the list parameter from URL when clicking logo
-              if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
-                router.replace('/', { scroll: false })
-              }
-            }}
-            className="font-serif text-xl font-bold hover:opacity-70 transition-opacity"
-          >
-            LO
-          </button>
+          <h1 className="font-serif text-xl font-bold">LO</h1>
           <button
             className="mt-2 p-1 hover:bg-gray-100 rounded-full"
-            onClick={() => {
-              setIsCollapsed(false)
-              if (selectedPlace) {
-                // If there's a selected place, make sure it stays visible
-                setSelectedPlace(selectedPlace)
-              }
-            }}
+            onClick={() => setIsCollapsed(false)}
             aria-label="Expand sidebar"
           >
             <ChevronRight size={16} />
@@ -354,30 +210,21 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
 
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "discover" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setIsCollapsed(false)
-            handleTabClick("discover")
-          }}
+          onClick={() => handleTabClick("discover")}
           aria-label="Discover"
         >
           <Home size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "mylists" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setIsCollapsed(false)
-            handleTabClick("mylists")
-          }}
+          onClick={() => handleTabClick("mylists")}
           aria-label="My Lists"
         >
           <ListIcon size={20} />
         </button>
         <button
           className={`p-2 rounded-full mb-2 ${activeTab === "places" ? "bg-black text-white" : "text-black hover:bg-gray-100"}`}
-          onClick={() => {
-            setIsCollapsed(false)
-            handleTabClick("places")
-          }}
+          onClick={() => handleTabClick("places")}
           aria-label="Places"
         >
           <MapPin size={20} />
@@ -441,20 +288,7 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
       >
         {/* Header with collapse button and profile button */}
         <div className="flex justify-between items-center border-b border-black/10 px-4 py-3">
-          <button 
-            onClick={() => {
-              setActiveTab("discover")
-              setSelectedListId(null)
-              setSelectedPlace(null)
-              // Clear the list parameter from URL when clicking logo
-              if (typeof window !== 'undefined' && window.location.search.includes('list=')) {
-                router.replace('/', { scroll: false })
-              }
-            }}
-            className="font-serif text-xl hover:opacity-70 transition-opacity"
-          >
-            LO
-          </button>
+          <h1 className="font-serif text-xl">LO</h1>
           <div className="flex items-center gap-2">
             {/* Profile button in header */}
             {userIsAuthenticated ? (
@@ -562,8 +396,8 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
                     </button>
                   </div>
 
-                  {/* Search bar - show for discover, mylists, and places tabs */}
-                  {(activeTab === "discover" || activeTab === "mylists" || activeTab === "places") && (
+                  {/* Search bar - only show for discover and mylists tabs */}
+                  {(activeTab === "discover" || activeTab === "mylists") && (
                     <div className="px-4 pt-3 pb-2">
                       <div className="relative">
                         <Input
@@ -581,12 +415,17 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
                   {/* Content based on active tab */}
                   <div className="flex-1 overflow-y-auto p-4">
                     {activeTab === "discover" && (
-                      <DiscoverView
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        onSelectList={handleSelectList}
-                        onLogin={() => setShowLogin(true)}
-                      />
+                      <div className="text-center py-8">
+                        <p>Discover places and lists from the community.</p>
+                        {!userIsAuthenticated && (
+                          <Button
+                            className="mt-4 bg-black text-white hover:bg-black/80"
+                            onClick={() => setShowLogin(true)}
+                          >
+                            Connect to get started
+                          </Button>
+                        )}
+                      </div>
                     )}
 
                     {activeTab === "mylists" && (
@@ -603,9 +442,9 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
                         onPlaceClick={handlePlaceClick}
-                        onAddPlace={handleAddPlaceFromTab}
-                        refreshTrigger={placesRefreshTrigger}
-                        onCreateList={handleCreateList}
+                        onAddPlace={() => {
+                          console.log("Add place clicked")
+                        }}
                       />
                     )}
                   </div>
@@ -621,13 +460,6 @@ export function Sidebar({ initialListId }: SidebarProps = {}) {
         isOpen={showCreateListModal}
         onClose={() => setShowCreateListModal(false)}
         onListCreated={handleListCreated}
-      />
-
-      {/* Add Place Modal */}
-      <AddPlaceModal
-        isOpen={showAddPlaceModal}
-        onClose={() => setShowAddPlaceModal(false)}
-        onPlaceAdded={handlePlaceAdded}
       />
     </>
   )

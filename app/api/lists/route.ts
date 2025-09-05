@@ -30,10 +30,11 @@ async function createUserFromFid(fid: string) {
 
     console.log(`Found Neynar user data:`, userData)
 
-    // Create user in Supabase with correct schema
+    // Create user in Supabase
     const newUser = {
       id: uuidv4(),
-      farcaster_id: fid.toString(), // Store FID as string in farcaster_id
+      fid: Number.parseInt(fid), // Store as integer
+      farcaster_id: fid, // Keep as string for compatibility
       farcaster_username: userData.username || "",
       farcaster_display_name: userData.display_name || userData.username || "",
       farcaster_pfp_url: userData.pfp_url || "",
@@ -60,12 +61,14 @@ async function createUserFromFid(fid: string) {
 async function findUserByFid(fid: string) {
   console.log(`Searching for user with FID: ${fid}`)
 
-  // Try multiple search strategies using admin client to bypass RLS
+  // Try multiple search strategies
   const searchStrategies = [
     // Search by farcaster_id as string
-    () => supabaseAdmin.from("users").select("*").eq("farcaster_id", fid.toString()).maybeSingle(),
-    // Search by farcaster_id as number string
-    () => supabaseAdmin.from("users").select("*").eq("farcaster_id", Number.parseInt(fid).toString()).maybeSingle(),
+    () => supabase.from("users").select("*").eq("farcaster_id", fid).maybeSingle(),
+    // Search by fid as integer
+    () => supabase.from("users").select("*").eq("fid", Number.parseInt(fid)).maybeSingle(),
+    // Search by farcaster_id as integer (in case it was stored as int)
+    () => supabase.from("users").select("*").eq("farcaster_id", Number.parseInt(fid)).maybeSingle(),
   ]
 
   for (const [index, strategy] of searchStrategies.entries()) {
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
       const userData = await findUserByFid(fid)
 
       if (userData) {
-        dbUserId = userData.id as string
+        dbUserId = userData.id
         console.log(`Found user ID ${dbUserId} for fid ${fid}`)
       } else {
         console.log(`No user found for fid ${fid}, attempting to create...`)
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
         // Try to create the user from Neynar data
         const newUser = await createUserFromFid(fid)
         if (newUser) {
-          dbUserId = newUser.id as string
+          dbUserId = newUser.id
           console.log(`Created new user with ID ${dbUserId} for fid ${fid}`)
         } else {
           console.log(`Failed to create user for fid ${fid}`)
@@ -133,31 +136,11 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (dbUserId) {
-      // Use admin client when filtering by owner_id to bypass RLS for private lists
-      query = supabaseAdmin.from("lists").select(`
-        *,
-        owner:users(id, farcaster_username, farcaster_display_name, farcaster_pfp_url),
-        places:list_places(
-          id,
-          place:places(*)
-        )
-      `).eq("owner_id", dbUserId)
+      query = query.eq("owner_id", dbUserId)
       console.log(`Filtering lists by owner_id: ${dbUserId}`)
-    } else {
-      // For public queries without owner filter, use regular client
-      if (visibility) {
-        if (visibility === "public-community") {
-          query = query.in("visibility", ["public", "community"])
-          console.log(`Filtering lists by visibility: public or community`)
-        } else {
-          query = query.eq("visibility", visibility)
-          console.log(`Filtering lists by visibility: ${visibility}`)
-        }
-      }
     }
 
-    // If we have both dbUserId and visibility, apply visibility filter to admin query
-    if (dbUserId && visibility) {
+    if (visibility) {
       if (visibility === "public-community") {
         query = query.in("visibility", ["public", "community"])
         console.log(`Filtering lists by visibility: public or community`)

@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-client"
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
+    const { id } = params
 
     if (!id) {
       console.log("List ID is missing")
@@ -11,12 +11,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     console.log(`Fetching list with ID: ${id}`)
-
-    console.log("Supabase Environment Check:", {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "NOT SET",
-      anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "NOT SET",
-      serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "NOT SET",
-    })
 
     // Fetch the list with its owner
     const { data: list, error: listError } = await supabaseAdmin
@@ -30,11 +24,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (listError) {
       console.error("Error fetching list:", listError)
-      return NextResponse.json({ error: "List not found" }, { status: 404 })
+      return NextResponse.json({ error: listError.message }, { status: 500 })
     }
 
     if (!list) {
-      console.log("List not found in database")
+      console.log(`List with ID ${id} not found`)
       return NextResponse.json({ error: "List not found" }, { status: 404 })
     }
 
@@ -69,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Get all place IDs
-    const placeIds = listPlaces.map((item) => item.place_id as string)
+    const placeIds = listPlaces.map((item) => item.place_id)
 
     // Fetch all places in one query
     const { data: places, error: placesDataError } = await supabaseAdmin.from("places").select("*").in("id", placeIds)
@@ -80,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Create a map of places for easy lookup
-    const placesMap: Record<string, any> = places.reduce((acc: Record<string, any>, place: any) => {
+    const placesMap = places.reduce((acc, place) => {
       acc[place.id] = place
       return acc
     }, {})
@@ -88,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Format the places data
     const formattedPlaces = listPlaces
       .map((item) => {
-        const place = placesMap[item.place_id as string]
+        const place = placesMap[item.place_id]
 
         if (!place) {
           console.warn(`Place with ID ${item.place_id} not found`)
@@ -121,14 +115,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       places: formattedPlaces,
     })
   } catch (error) {
-    console.error("Error in list API route:", error)
+    console.error("Error in GET /api/lists/[id]:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
+    const { id } = params
 
     if (!id) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 })
@@ -178,9 +172,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // Ensure the DELETE method is properly implemented
 
 // Check if there are any console.log statements in the DELETE function to help with debugging
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
+    const { id } = params
 
     if (!id) {
       console.log("List ID is missing in DELETE request")

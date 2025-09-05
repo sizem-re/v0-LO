@@ -7,8 +7,6 @@ import { Marker, Popup } from "react-leaflet"
 import { MapBase } from "./map-base"
 import type { Place } from "@/types/place"
 import Link from "next/link"
-import { calculateFullScreenMapView } from "@/lib/map-utils"
-import { useMapSize } from "@/hooks/use-map-size"
 
 interface PlacesMapProps {
   places: Place[]
@@ -30,19 +28,44 @@ export function PlacesMap({
   interactive = true,
 }: PlacesMapProps) {
   const [activePlace, setActivePlace] = useState<Place | null>(null)
-  const mapSize = useMapSize()
 
-  // Calculate the center and zoom using full screen calculation
+  // Calculate the center and zoom based on the places
   const { center, zoom } = useMemo(() => {
     if (places.length === 0) {
       return { center: [40.7128, -74.006] as [number, number], zoom: 13 }
     }
 
-    const containerWidth = mapSize.width || 800
-    const containerHeight = typeof height === 'string' ? 500 : height
+    if (places.length === 1) {
+      return {
+        center: [places[0].coordinates.lat, places[0].coordinates.lng] as [number, number],
+        zoom: 15,
+      }
+    }
 
-    return calculateFullScreenMapView(places, containerWidth, containerHeight)
-  }, [places, mapSize.width, height])
+    // Calculate bounds
+    const lats = places.map((place) => place.coordinates.lat)
+    const lngs = places.map((place) => place.coordinates.lng)
+
+    const minLat = Math.min(...lats)
+    const maxLat = Math.max(...lats)
+    const minLng = Math.min(...lngs)
+    const maxLng = Math.max(...lngs)
+
+    const centerLat = (minLat + maxLat) / 2
+    const centerLng = (minLng + maxLng) / 2
+
+    // Calculate appropriate zoom level
+    const latDiff = maxLat - minLat
+    const lngDiff = maxLng - minLng
+    const maxDiff = Math.max(latDiff, lngDiff)
+
+    let zoom = 13
+    if (maxDiff > 0.2) zoom = 10
+    if (maxDiff > 1) zoom = 8
+    if (maxDiff > 5) zoom = 6
+
+    return { center: [centerLat, centerLng] as [number, number], zoom }
+  }, [places])
 
   const handleMarkerClick = (place: Place) => {
     setActivePlace(place)
