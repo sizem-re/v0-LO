@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase-client"
+import { generateRecommendations } from "@/lib/ai/natural-language"
 
 interface RecommendationRequest {
   userId?: string
@@ -32,16 +33,37 @@ export async function POST(request: NextRequest) {
     // Get places near location if provided
     const nearbyPlaces = location ? await getNearbyPlaces(location, limit * 2) : []
 
-    // Generate recommendations based on context
-    const recommendations = await generateRecommendations({
-      userContext,
-      nearbyPlaces,
-      preferences,
-      location,
-      limit,
-    })
+    const contextString = buildContextString(userContext, preferences, nearbyPlaces)
+    const aiRecommendations = await generateRecommendations(contextString, "place")
 
-    console.log(`[AI] Generated ${recommendations.length} recommendations`)
+    if (!aiRecommendations.success) {
+      // Fallback to original algorithm if AI fails
+      const recommendations = await generateFallbackRecommendations({
+        userContext,
+        nearbyPlaces,
+        preferences,
+        location,
+        limit,
+      })
+
+      return NextResponse.json({
+        success: true,
+        recommendations,
+        context: {
+          userPlacesCount: userContext?.places.length || 0,
+          userListsCount: userContext?.lists.length || 0,
+          nearbyPlacesCount: nearbyPlaces.length,
+          preferences,
+          method: "fallback",
+        },
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    // Convert AI suggestions to place recommendations
+    const recommendations = await convertAIToRecommendations(aiRecommendations.data, nearbyPlaces, limit)
+
+    console.log(`[AI] Generated ${recommendations.length} AI-powered recommendations`)
 
     return NextResponse.json({
       success: true,
@@ -51,6 +73,7 @@ export async function POST(request: NextRequest) {
         userListsCount: userContext?.lists.length || 0,
         nearbyPlacesCount: nearbyPlaces.length,
         preferences,
+        method: "ai",
       },
       timestamp: new Date().toISOString(),
     })
@@ -64,6 +87,73 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
+}
+
+function buildContextString(userContext: any, preferences: string[], nearbyPlaces: any[]): string {
+  let context = "User context: "
+
+  if (userContext?.places.length > 0) {
+    const categories = userContext.places.map((p: any) => p.type || "place").slice(0, 5)
+    context += `Previously saved places include: ${categories.join(", ")}. `
+  }
+
+  if (preferences.length > 0) {
+    context += `User preferences: ${preferences.join(", ")}. `
+  }
+
+  if (nearbyPlaces.length > 0) {
+    const nearbyTypes = nearbyPlaces.map((p) => p.type || "place").slice(0, 5)
+    context += `Nearby places include: ${nearbyTypes.join(", ")}. `
+  }
+
+  return context + "Suggest similar places that would interest this user."
+}
+
+async function convertAIToRecommendations(
+  aiSuggestions: string[],
+  nearbyPlaces: any[],
+  limit: number,
+): Promise<PlaceRecommendation[]> {
+  const recommendations: PlaceRecommendation[] = []
+
+  // Match AI suggestions with actual nearby places
+  for (const suggestion of aiSuggestions.slice(0, limit)) {
+    // Try to find matching places in nearby results
+    const matchingPlace = nearbyPlaces.find(
+      (place) =>
+        place.name.toLowerCase().includes(suggestion.toLowerCase()) ||
+        suggestion.toLowerCase().includes(place.name.toLowerCase()) ||
+        (place.type && suggestion.toLowerCase().includes(place.type.toLowerCase())),
+    )
+
+    if (matchingPlace) {
+      recommendations.push({
+        id: matchingPlace.id,
+        name: matchingPlace.name,
+        address: matchingPlace.address,
+        coordinates: {
+          lat: Number.parseFloat(matchingPlace.lat),
+          lng: Number.parseFloat(matchingPlace.lng),
+        },
+        category: matchingPlace.type || "place",
+        confidence: 0.85, // High confidence for AI matches
+        reason: `AI suggested: ${suggestion}`,
+      })
+    } else {
+      // Create a conceptual recommendation
+      recommendations.push({
+        id: `ai-${Date.now()}-${Math.random()}`,
+        name: suggestion,
+        address: "Location to be determined",
+        coordinates: { lat: 0, lng: 0 },
+        category: "suggestion",
+        confidence: 0.7,
+        reason: "AI-generated suggestion based on your preferences",
+      })
+    }
+  }
+
+  return recommendations
 }
 
 async function getUserContext(userId: string) {
@@ -112,7 +202,7 @@ async function getNearbyPlaces(location: { lat: number; lng: number }, limit: nu
   }
 }
 
-async function generateRecommendations({
+async function generateFallbackRecommendations({
   userContext,
   nearbyPlaces,
   preferences,
