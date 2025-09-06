@@ -87,29 +87,29 @@ body {
     @apply border-t border-black/10 py-8 flex flex-col md:flex-row gap-6;
   }
 
-  /* Added AI modal specific component styles */
+  /* Fixed AI modal styles to use valid Tailwind classes */
   .ai-modal {
-    @apply bg-card border border-border shadow-lg rounded-lg overflow-hidden;
+    @apply bg-slate-100 border border-gray-300 shadow-lg rounded-lg overflow-hidden;
   }
 
   .ai-input-area {
-    @apply bg-input border border-border rounded-lg p-4 transition-all duration-200;
+    @apply bg-white border border-gray-300 rounded-lg p-4 transition-all duration-200;
   }
 
   .ai-input-area:focus-within {
-    @apply border-accent ring-2 ring-ring;
+    @apply border-purple-500 ring-2 ring-purple-500/20;
   }
 
   .ai-button-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-4 py-2 rounded-md;
+    @apply bg-gray-800 text-white hover:bg-gray-700 transition-colors px-4 py-2 rounded-md;
   }
 
   .ai-button-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors px-4 py-2 rounded-md;
+    @apply bg-gray-500 text-white hover:bg-gray-400 transition-colors px-4 py-2 rounded-md;
   }
 
   .ai-accent-text {
-    @apply text-accent hover:text-accent/80;
+    @apply text-purple-600 hover:text-purple-500;
   }
 }
 
