@@ -33,6 +33,8 @@ const farcasterFrameEmbed = {
   },
 }
 
+const farcasterFrameEmbedString = JSON.stringify(farcasterFrameEmbed)
+
 export const metadata: Metadata = {
   title: "LO - Discover Places",
   description: "Discover and share curated lists of locations",
@@ -49,7 +51,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/.well-known/farcaster.json" />
-        <meta name="fc:frame" content={JSON.stringify(farcasterFrameEmbed)} />
+        <meta name="fc:frame" content={farcasterFrameEmbedString} />
       </head>
       <body className={`${inter.variable} ${bizUDMincho.variable} min-h-screen bg-white text-black font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
